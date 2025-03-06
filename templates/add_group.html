@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Добавить группу - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 600px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: #444;
+    }
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #444;
+      font-size: 18px;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    input[type="text"],
+    input[type="file"] {
+      padding: 8px;
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #1e7e34;
+    }
+    .add-student-btn {
+      background-color: #007BFF;
+      margin-top: 10px;
+    }
+    .add-student-btn:hover {
+      background-color: #0056b3;
+    }
+    #student-list {
+      margin-top: 10px;
+    }
+    .student-entry {
+      margin-bottom: 5px;
+    }
+    .back-link {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 16px;
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 480px) {
+      h1, h2, .back-link, button {
+        font-size: 14px;
+      }
+      .user-info {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Добавить новую группу</h1>
+  <form method="POST" enctype="multipart/form-data">
+    <label>
+      Название группы:
+      <input type="text" name="group_name" required>
+    </label>
+    <h2>Добавить из файла</h2>
+    <label>
+      Файл (.txt):
+      <input type="file" name="student_list" accept=".txt">
+    </label>
+    <h2>Добавить вручную</h2>
+    <div id="student-list">
+      <div class="student-entry">
+        <input type="text" name="student_fio" placeholder="ФИО студента">
+      </div>
+    </div>
+    <button type="button" class="add-student-btn" onclick="addStudentField()">Добавить ещё студента</button>
+    <button type="submit">Добавить и сохранить</button>
+  </form>
+  <a class="back-link" href="/groups">Назад</a>
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+<script>
+  function addStudentField() {
+    const studentList = document.getElementById('student-list');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'student-entry';
+    newEntry.innerHTML = '<input type="text" name="student_fio" placeholder="ФИО студента">';
+    studentList.appendChild(newEntry);
+  }
+</script>
+</body>
+</html>

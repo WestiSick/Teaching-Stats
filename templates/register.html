@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Регистрация - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: #444;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-size: 16px;
+      margin-bottom: 15px;
+      text-align: left;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      padding: 12px;
+      background-color: #28a745;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #1e7e34;
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 24px;
+      }
+      input, button {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Регистрация</h1>
+  <form method="POST">
+    <label>ФИО:
+      <input name="fio" required>
+    </label>
+    <label>Логин:
+      <input name="login" required>
+    </label>
+    <label>Пароль:
+      <input name="password" type="password" required>
+    </label>
+    <button type="submit">Зарегистрироваться</button>
+  </form>
+</div>
+</body>
+</html>

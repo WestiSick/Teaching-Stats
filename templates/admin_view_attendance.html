@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Просмотр посещаемости - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        h2 {
+            margin-top: 20px;
+            margin-bottom: 15px;
+            color: #444;
+        }
+        .lesson-info {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .lesson-info p {
+            margin-bottom: 8px;
+        }
+        .attendance-summary {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .attendance-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            min-width: 120px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .present {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .absent {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .percent {
+            background-color: #e2e3e5;
+            border: 1px solid #d6d8db;
+            color: #383d41;
+        }
+        .high-percentage {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .medium-percentage {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+        .low-percentage {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .student-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            text-align: center;
+            display: inline-block;
+            min-width: 100px;
+        }
+        .status-present {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-absent {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .btn-group {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+        .btn-admin {
+            background-color: #007BFF;
+            color: #fff;
+        }
+        .btn-admin:hover {
+            background-color: #0056b3;
+        }
+        .btn-attendance {
+            background-color: #6f42c1;
+            color: #fff;
+        }
+        .btn-attendance:hover {
+            background-color: #5a32a3;
+        }
+        .btn-edit {
+            background-color: #28a745;
+            color: #fff;
+        }
+        .btn-edit:hover {
+            background-color: #218838;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 { font-size: 24px; }
+            h2, .btn { font-size: 14px; }
+            .attendance-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .stat-item {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Просмотр посещаемости</h1>
+
+    <div class="lesson-info">
+        <h2>Информация о занятии</h2>
+        <p><strong>Преподаватель:</strong> {{.TeacherFIO}}</p>
+        <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
+        <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
+        <p><strong>Группа:</strong> {{.Lesson.Group}}</p>
+        <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
+        <p><strong>Тип занятия:</strong> {{.Lesson.Type}}</p>
+    </div>
+
+    <div class="attendance-summary">
+        <h2>Статистика посещаемости</h2>
+        <div class="attendance-stats">
+            <div class="stat-item present">
+                <div class="stat-value">{{.PresentStudents}}</div>
+                <div class="stat-label">Присутствовало</div>
+            </div>
+            <div class="stat-item absent">
+                <div class="stat-value">{{sub .TotalStudents .PresentStudents}}</div>
+                <div class="stat-label">Отсутствовало</div>
+            </div>
+            <div class="stat-item percent {{if ge .AttendancePercent 80}}high-percentage{{else if ge .AttendancePercent 50}}medium-percentage{{else}}low-percentage{{end}}">
+                <div class="stat-value">{{printf "%.1f%%" .AttendancePercent}}</div>
+                <div class="stat-label">Посещаемость</div>
+            </div>
+        </div>
+    </div>
+
+    <h2>Список студентов</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>№</th>
+            <th>ФИО студента</th>
+            <th>Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range $index, $student := .Students}}
+        <tr>
+            <td>{{inc $index}}</td>
+            <td>{{$student.FIO}}</td>
+            <td>
+                {{if $student.Attended}}
+                <span class="student-status status-present">Присутствовал</span>
+                {{else}}
+                <span class="student-status status-absent">Отсутствовал</span>
+                {{end}}
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+
+    <div class="btn-group">
+        <a href="/admin/attendance/edit/{{.Lesson.ID}}" class="btn btn-edit">Редактировать</a>
+        <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-attendance">Назад к посещаемости</a>
+        <a href="/admin" class="btn btn-admin">В админ-панель</a>
+    </div>
+</div>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+
+<script>
+    // Helper function to subtract numbers
+    function sub(a, b) {
+        return a - b;
+    }
+
+    // Helper function to increment index
+    function inc(i) {
+        return i + 1;
+    }
+</script>
+</body>
+</html>

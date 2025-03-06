@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Добавить посещаемость - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #444;
+      font-size: 18px;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    select, button {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+      max-width: 300px;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #1e7e34;
+    }
+    #students {
+      margin-top: 20px;
+      display: none;
+    }
+    a {
+      color: #007BFF;
+      text-decoration: none;
+      font-size: 16px;
+      margin-top: 20px;
+      display: inline-block;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 480px) {
+      h1, h2, label, select, button, a {
+        font-size: 14px;
+      }
+      .user-info {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Добавить посещаемость</h1>
+  <form method="POST" id="attendanceForm">
+    <label>
+      Предмет:
+      <select name="subject" id="subject" onchange="loadLessons()">
+        <option value="">Выберите предмет</option>
+        {{range .Subjects}}
+        <option value="{{.}}">{{.}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label>
+      Пара:
+      <select name="lesson_id" id="lesson_id" onchange="loadStudents()">
+        <option value="">Выберите пару</option>
+      </select>
+    </label>
+    <div id="students"></div>
+    <button type="submit" id="saveBtn" style="display:none;">Сохранить</button>
+  </form>
+  <a href="/attendance">Назад</a>
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+<script>
+  async function loadLessons() {
+    const subject = document.getElementById('subject').value;
+    if (!subject) {
+      document.getElementById('lesson_id').innerHTML = '<option value="">Выберите пару</option>';
+      document.getElementById('students').style.display = 'none';
+      document.getElementById('saveBtn').style.display = 'none';
+      return;
+    }
+    const response = await fetch(`/api/lessons?subject=${encodeURIComponent(subject)}`, {
+      headers: { 'X-Teacher-ID': '{{.User.ID}}' }
+    });
+    const lessons = await response.json();
+    const lessonSelect = document.getElementById('lesson_id');
+    lessonSelect.innerHTML = '<option value="">Выберите пару</option>';
+    lessons.forEach(lesson => {
+      const option = document.createElement('option');
+      option.value = lesson.id;
+      option.text = `${lesson.date} - ${lesson.group_name}`;
+      lessonSelect.appendChild(option);
+    });
+    document.getElementById('students').style.display = 'none';
+    document.getElementById('saveBtn').style.display = 'none';
+  }
+
+  async function loadStudents() {
+    const lessonId = document.getElementById('lesson_id').value;
+    if (!lessonId) {
+      document.getElementById('students').style.display = 'none';
+      document.getElementById('saveBtn').style.display = 'none';
+      return;
+    }
+    const response = await fetch(`/api/students?lesson_id=${lessonId}`, {
+      headers: { 'X-Teacher-ID': '{{.User.ID}}' }
+    });
+    const students = await response.json();
+    const studentDiv = document.getElementById('students');
+    studentDiv.innerHTML = '<h2>Студенты:</h2>';
+    students.forEach(student => {
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" name="attended" value="${student.id}"> ${student.fio}`;
+      studentDiv.appendChild(label);
+      studentDiv.appendChild(document.createElement('br'));
+    });
+    studentDiv.style.display = 'block';
+    document.getElementById('saveBtn').style.display = 'block';
+  }
+</script>
+</body>
+</html>

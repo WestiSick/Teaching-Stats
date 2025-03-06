@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Редактирование посещаемости - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: #444;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .lesson-info {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+    }
+    .lesson-info p {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+    .lesson-info strong {
+      color: #444;
+    }
+    .student-list {
+      margin-top: 20px;
+    }
+    .student-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+    }
+    .student-item:last-child {
+      border-bottom: none;
+    }
+    .student-item label {
+      margin-left: 10px;
+      cursor: pointer;
+      flex-grow: 1;
+    }
+    .student-item input[type="checkbox"] {
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    .submit-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin-top: 20px;
+      width: 100%;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    .submit-btn:hover {
+      background-color: #388E3C;
+    }
+    .cancel-btn {
+      display: block;
+      text-align: center;
+      margin-top: 10px;
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .cancel-btn:hover {
+      text-decoration: underline;
+    }
+    .legend {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+    @media (max-width: 480px) {
+      h1, .lesson-info p, .submit-btn, .student-item label {
+        font-size: 14px;
+      }
+      .user-info, .legend {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Редактирование посещаемости</h1>
+
+  <div class="lesson-info">
+    <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
+    <p><strong>Группа:</strong> {{.Lesson.Group}}</p>
+    <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
+    <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
+    <p><strong>Тип:</strong> {{.Lesson.Type}}</p>
+  </div>
+
+  <form method="POST">
+    <h3>Список студентов</h3>
+    <div class="student-list">
+      {{range .Students}}
+      <div class="student-item">
+        <input type="checkbox" id="student-{{.ID}}" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}}>
+        <label for="student-{{.ID}}">{{.FIO}}</label>
+      </div>
+      {{end}}
+    </div>
+
+    <button type="submit" class="submit-btn">Сохранить изменения</button>
+    <a href="/attendance" class="cancel-btn">Отмена</a>
+  </form>
+
+  <div class="legend">
+    <p>* Отметьте студентов, присутствовавших на паре</p>
+  </div>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>

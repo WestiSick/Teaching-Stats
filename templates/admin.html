@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Админ-панель - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 1000px;
+      width: 100%;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    form {
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    form label {
+      font-size: 16px;
+      margin-right: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    form select,
+    form input[type="date"] {
+      margin-top: 5px;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    form button {
+      padding: 10px 20px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    form button:hover {
+      background-color: #0056b3;
+    }
+    form a.export-link {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: #fff;
+      border-radius: 5px;
+      text-decoration: none;
+      transition: background-color 0.3s;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    form a.export-link:hover {
+      background-color: #1e7e34;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    table th {
+      background-color: #f2f2f2;
+    }
+    table ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    table ul li {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .link-group {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin: 0 10px;
+    }
+    .btn-admin {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-admin:hover {
+      background-color: #0056b3;
+    }
+    .btn-logout {
+      background-color: #dc3545;
+      color: #fff;
+    }
+    .btn-logout:hover {
+      background-color: #c82333;
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 24px; }
+      form label, form select, form input[type="date"], form button, form a.export-link, .link-group a, .btn {
+        font-size: 14px;
+      }
+      table th, table td { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Статистика всех преподавателей</h1>
+
+  <!-- Форма фильтрации -->
+  <form method="GET">
+    <label>
+      Преподаватель:
+      <select name="teacher_id">
+        <option value="">Все</option>
+        {{range .TeacherList}}
+        <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.Filter.TeacherID}}selected{{end}}>{{.FIO}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label>
+      Предмет:
+      <select name="subject">
+        <option value="">Все</option>
+        {{range .SubjectList}}
+        <option value="{{.}}" {{if eq . $.Filter.Subject}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label>
+      С даты:
+      <input type="date" name="start_date" value="{{.Filter.StartDate}}">
+    </label>
+    <label>
+      По дату:
+      <input type="date" name="end_date" value="{{.Filter.EndDate}}">
+    </label>
+    <label>
+      Сортировать:
+      <select name="sort_by">
+        <option value="fio" {{if eq .Filter.SortBy "fio"}}selected{{end}}>По ФИО</option>
+        <option value="lessons" {{if eq .Filter.SortBy "lessons"}}selected{{end}}>По количеству пар</option>
+        <option value="hours" {{if eq .Filter.SortBy "hours"}}selected{{end}}>По часам</option>
+      </select>
+    </label>
+    <button type="submit">Применить</button>
+    <a class="export-link" href="/admin?export=true&teacher_id={{.Filter.TeacherID}}&subject={{.Filter.Subject}}&start_date={{.Filter.StartDate}}&end_date={{.Filter.EndDate}}&sort_by={{.Filter.SortBy}}">Выгрузить в Excel</a>
+  </form>
+
+  <!-- Таблица статистики -->
+  <table>
+    <tr>
+      <th>ФИО</th>
+      <th>Общее количество пар</th>
+      <th>Общее количество часов</th>
+      <th>Пары по предметам</th>
+      <th>Действия</th>
+    </tr>
+    {{range .Teachers}}
+    <tr>
+      <td>{{.FIO}}</td>
+      <td>{{.Lessons}}</td>
+      <td>{{.Hours}}</td>
+      <td>
+        <ul>
+          {{range $subject, $count := .Subjects}}
+          <li>{{$subject}}: {{$count}}</li>
+          {{end}}
+        </ul>
+      </td>
+      <td>
+        <a href="/lessons/subject?subject={{range $subject, $_ := .Subjects}}{{$subject}}{{break}}{{end}}&teacher_id={{.ID}}">Посмотреть пары</a>
+        <a href="/admin/groups?teacher_id={{.ID}}">Управление группами</a>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  <div class="link-group">
+    <a class="btn btn-admin" href="/admin/groups">Управление группами</a>
+    <a class="btn btn-admin" href="/admin/attendance">Управление посещаемостью</a>
+    <a class="btn btn-admin" href="/admin/users">Управление пользователями</a>
+    <a class="btn btn-admin" href="/admin/logs">Логи действий</a>
+    <a class="btn btn-logout" href="/logout">Выйти</a>
+  </div>
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>

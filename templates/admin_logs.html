@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Логи действий - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 1000px;
+      width: 100%;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    table th {
+      background-color: #f2f2f2;
+    }
+    .link-group {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin: 0 10px;
+    }
+    .btn-back {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-back:hover {
+      background-color: #0056b3;
+    }
+    .btn-users {
+      background-color: #28a745;
+      color: #fff;
+    }
+    .btn-users:hover {
+      background-color: #1e7e34;
+    }
+    .btn-logout {
+      background-color: #dc3545;
+      color: #fff;
+    }
+    .btn-logout:hover {
+      background-color: #c82333;
+    }
+
+    /* Pagination styles */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    .pagination .btn {
+      padding: 8px 15px;
+      margin: 0 5px;
+    }
+    .btn-page {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-page:hover {
+      background-color: #0056b3;
+    }
+    .btn-page.disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .page-info {
+      margin: 0 10px;
+      font-size: 16px;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 24px; }
+      table th, table td { font-size: 14px; }
+      .btn { font-size: 14px; padding: 10px 16px; margin: 5px; }
+      .user-info { font-size: 12px; padding: 8px 12px; }
+      .page-info { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Логи действий преподавателей</h1>
+  <table>
+    <tr>
+      <th>Пользователь</th>
+      <th>Действие</th>
+      <th>Подробности</th>
+      <th>Время</th>
+    </tr>
+    {{range .Logs}}
+    <tr>
+      <td>{{.UserFIO}}</td>
+      <td>{{.Action}}</td>
+      <td>{{.Details}}</td>
+      <td>{{.Timestamp}}</td>
+    </tr>
+    {{end}}
+  </table>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    {{if .Pagination.HasPrev}}
+    <a href="/admin/logs?page={{.Pagination.PrevPage}}" class="btn btn-page">&laquo; Предыдущая</a>
+    {{else}}
+    <span class="btn btn-page disabled">&laquo; Предыдущая</span>
+    {{end}}
+
+    <span class="page-info">Страница {{.Pagination.CurrentPage}} из {{.Pagination.TotalPages}}</span>
+
+    {{if .Pagination.HasNext}}
+    <a href="/admin/logs?page={{.Pagination.NextPage}}" class="btn btn-page">Следующая &raquo;</a>
+    {{else}}
+    <span class="btn btn-page disabled">Следующая &raquo;</span>
+    {{end}}
+  </div>
+
+  <div class="link-group">
+    <a class="btn btn-back" href="/admin">Назад к статистике</a>
+    <a class="btn btn-users" href="/admin/users">Управление пользователями</a>
+    <a class="btn btn-logout" href="/logout">Выйти</a>
+  </div>
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Редактирование посещаемости - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    h2 {
+      margin-top: 20px;
+      margin-bottom: 15px;
+      color: #444;
+    }
+    .lesson-info {
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .lesson-info p {
+      margin-bottom: 8px;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    .student-list {
+      list-style-type: none;
+      margin-bottom: 20px;
+    }
+    .student-item {
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      background-color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .student-name {
+      font-weight: 500;
+    }
+    input[type="checkbox"] {
+      transform: scale(1.5);
+      margin-right: 10px;
+      cursor: pointer;
+    }
+    label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      user-select: none;
+    }
+    .attendance-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .control-btn {
+      padding: 8px 15px;
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .control-btn:hover {
+      background-color: #e2e6ea;
+    }
+    button[type="submit"] {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+    .btn-group {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin: 0 10px;
+    }
+    .btn-admin {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-admin:hover {
+      background-color: #0056b3;
+    }
+    .btn-attendance {
+      background-color: #6f42c1;
+      color: #fff;
+    }
+    .btn-attendance:hover {
+      background-color: #5a32a3;
+    }
+    .attendance-summary {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 20px;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .attendance-count {
+      font-weight: bold;
+      color: #007BFF;
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      h1 { font-size: 24px; }
+      h2, button, .btn, label { font-size: 14px; }
+      .student-item {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Редактирование посещаемости</h1>
+
+  <div class="lesson-info">
+    <h2>Информация о занятии</h2>
+    <p><strong>Преподаватель:</strong> {{.TeacherFIO}}</p>
+    <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
+    <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
+    <p><strong>Группа:</strong> {{.Lesson.Group}}</p>
+    <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
+    <p><strong>Тип занятия:</strong> {{.Lesson.Type}}</p>
+  </div>
+
+  <form method="POST">
+    <div class="attendance-summary">
+      Присутствует: <span id="attendanceCount" class="attendance-count">0</span> из {{len .Students}} студентов
+    </div>
+
+    <div class="attendance-controls">
+      <button type="button" class="control-btn" onclick="selectAll()">Выбрать всех</button>
+      <button type="button" class="control-btn" onclick="deselectAll()">Снять выделение</button>
+      <button type="button" class="control-btn" onclick="invertSelection()">Инвертировать выбор</button>
+    </div>
+
+    <ul class="student-list">
+      {{range .Students}}
+      <li class="student-item">
+        <label>
+          <input type="checkbox" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} onchange="updateAttendanceCount()">
+          <span class="student-name">{{.FIO}}</span>
+        </label>
+      </li>
+      {{end}}
+    </ul>
+
+    <button type="submit">Сохранить изменения</button>
+  </form>
+
+  <div class="btn-group">
+    <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-attendance">Назад к посещаемости</a>
+    <a href="/admin" class="btn btn-admin">В админ-панель</a>
+  </div>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+
+<script>
+  function updateAttendanceCount() {
+    const checkboxes = document.querySelectorAll('input[name="attended"]:checked');
+    const totalCount = document.querySelectorAll('input[name="attended"]').length;
+    const countElement = document.getElementById('attendanceCount');
+    countElement.textContent = checkboxes.length;
+  }
+
+  function selectAll() {
+    const checkboxes = document.querySelectorAll('input[name="attended"]');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+    updateAttendanceCount();
+  }
+
+  function deselectAll() {
+    const checkboxes = document.querySelectorAll('input[name="attended"]');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    updateAttendanceCount();
+  }
+
+  function invertSelection() {
+    const checkboxes = document.querySelectorAll('input[name="attended"]');
+    checkboxes.forEach(checkbox => checkbox.checked = !checkbox.checked);
+    updateAttendanceCount();
+  }
+
+  // Initialize attendance count on page load
+  document.addEventListener('DOMContentLoaded', updateAttendanceCount);
+</script>
+</body>
+</html>

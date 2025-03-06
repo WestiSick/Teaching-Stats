@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Список групп - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 600px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: #444;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    table th {
+      background-color: #f2f2f2;
+    }
+    a {
+      color: #007BFF;
+      text-decoration: none;
+      font-size: 16px;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .add-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    .add-btn:hover {
+      background-color: #1e7e34;
+    }
+    .delete-btn {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+    .delete-btn:hover {
+      background-color: #cc0000;
+    }
+    .back-link {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 16px;
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 480px) {
+      h1, .back-link, a, .add-btn, .delete-btn {
+        font-size: 14px;
+      }
+      table th, table td {
+        font-size: 12px;
+      }
+      .user-info {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Список групп</h1>
+  <table>
+    <tr>
+      <th>Название группы</th>
+      <th>Количество студентов</th>
+      <th>Действия</th>
+    </tr>
+    {{range .Groups}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{.StudentCount}}</td>
+      <td>
+        <a href="/groups/edit/{{.Name}}">Редактировать</a>
+        <form method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите удалить группу {{.Name}} со всеми парами и студентами?');">
+          <input type="hidden" name="group_name" value="{{.Name}}">
+          <button type="submit" class="delete-btn">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  <a href="/groups/add" class="add-btn">Добавить группу</a>
+  <a href="/dashboard" class="back-link">Назад</a>
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>

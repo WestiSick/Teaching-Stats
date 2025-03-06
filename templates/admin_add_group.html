@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Добавление группы преподавателю - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    h2 {
+      margin-top: 20px;
+      margin-bottom: 15px;
+      color: #444;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .btn-group {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin: 0 10px;
+    }
+    .btn-admin {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-admin:hover {
+      background-color: #0056b3;
+    }
+    .student-list {
+      margin-top: 20px;
+    }
+    .add-student {
+      background-color: #28a745;
+    }
+    .add-student:hover {
+      background-color: #218838;
+    }
+    .add-more {
+      display: inline-block;
+      margin-top: 10px;
+      color: #007BFF;
+      cursor: pointer;
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 24px; }
+      h2, input, button, .btn, label { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Добавление группы преподавателю</h1>
+  <h2>Преподаватель: {{.TeacherFIO}}</h2>
+
+  <form method="POST" enctype="multipart/form-data">
+    <label>
+      Название группы:
+      <input type="text" name="group_name" required>
+    </label>
+
+    <h2>Студенты группы</h2>
+
+    <label>
+      Загрузить список студентов (каждый студент с новой строки):
+      <input type="file" name="student_list">
+    </label>
+
+    <div class="student-list" id="studentFields">
+      <label>
+        ФИО студента:
+        <input type="text" name="student_fio">
+      </label>
+    </div>
+
+    <a class="add-more" onclick="addStudentField()">+ Добавить ещё одного студента</a>
+
+    <button type="submit" class="add-student">Создать группу</button>
+  </form>
+
+  <div class="btn-group">
+    <a href="/admin/groups?teacher_id={{.TeacherID}}" class="btn btn-admin">Назад к группам</a>
+  </div>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+
+<script>
+  function addStudentField() {
+    const container = document.getElementById('studentFields');
+    const newField = document.createElement('label');
+    newField.innerHTML = 'ФИО студента:<input type="text" name="student_fio">';
+    container.appendChild(newField);
+  }
+</script>
+</body>
+</html>

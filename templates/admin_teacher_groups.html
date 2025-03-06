@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление группами преподавателей - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        h2 {
+            margin-top: 20px;
+            margin-bottom: 15px;
+            color: #444;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .btn-group {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+        .btn-admin {
+            background-color: #007BFF;
+            color: #fff;
+        }
+        .btn-admin:hover {
+            background-color: #0056b3;
+        }
+        .btn-add {
+            background-color: #28a745;
+            color: #fff;
+        }
+        .btn-add:hover {
+            background-color: #218838;
+        }
+        .group-list {
+            margin-top: 30px;
+        }
+        .group-item {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .group-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .student-count {
+            color: #6c757d;
+        }
+        .students-container {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            display: none;
+        }
+        .student-list {
+            list-style-type: none;
+        }
+        .student-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .toggle-students {
+            color: #007BFF;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        @media (max-width: 480px) {
+            h1 { font-size: 24px; }
+            h2, button, .btn, select, label { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="main-container">
+    <h1>Управление группами преподавателей</h1>
+
+    <form method="GET">
+        <label>
+            Выберите преподавателя:
+            <select name="teacher_id" onchange="this.form.submit()">
+                <option value="">-- Выберите преподавателя --</option>
+                {{range .TeacherList}}
+                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedTeacherID}}selected{{end}}>{{.FIO}}</option>
+                {{end}}
+            </select>
+        </label>
+    </form>
+
+    {{if .SelectedTeacherID}}
+    <h2>Группы преподавателя: {{.SelectedTeacher.FIO}}</h2>
+
+    <div class="btn-group">
+        <a href="/admin/groups/add/{{.SelectedTeacher.ID}}" class="btn btn-add">Добавить новую группу</a>
+    </div>
+
+    <div class="group-list">
+        {{if .Groups}}
+        {{range .Groups}}
+        <div class="group-item">
+            <div class="group-header">
+                <div>
+                    <span class="group-name">{{.Name}}</span>
+                    <span class="student-count">({{.StudentCount}} студентов)</span>
+                    <span class="toggle-students" onclick="toggleStudents('students-{{.Name}}')">Показать/скрыть студентов</span>
+                </div>
+                <div>
+                    <a href="/admin/groups/edit/{{$.SelectedTeacher.ID}}/{{.Name}}" class="btn btn-admin">Редактировать</a>
+                </div>
+            </div>
+            <div id="students-{{.Name}}" class="students-container">
+                <ul class="student-list">
+                    {{if .Students}}
+                    {{range .Students}}
+                    <li>{{.FIO}}</li>
+                    {{end}}
+                    {{else}}
+                    <li>Нет студентов в этой группе</li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+        {{end}}
+        {{else}}
+        <p>У этого преподавателя пока нет групп.</p>
+        {{end}}
+    </div>
+    {{end}}
+
+    <div class="btn-group">
+        <a href="/admin" class="btn btn-admin">Назад в админ-панель</a>
+    </div>
+</div>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+
+<script>
+    function toggleStudents(id) {
+        const element = document.getElementById(id);
+        if (element.style.display === 'block') {
+            element.style.display = 'none';
+        } else {
+            element.style.display = 'block';
+        }
+    }
+</script>
+</body>
+</html>

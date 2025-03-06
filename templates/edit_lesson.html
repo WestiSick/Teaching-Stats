@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактировать пару - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-align: left;
+        }
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        a.back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007BFF;
+            font-size: 16px;
+        }
+        a.back-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 24px;
+            }
+            label, input, select, button, a.back-link {
+                font-size: 14px;
+            }
+            .user-info {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Редактировать пару</h1>
+    <form method="POST">
+        <label>Группа:
+            <input type="text" name="group" value="{{.Lesson.Group}}" list="groupList" required>
+            <datalist id="groupList">
+                {{range .Groups}}
+                <option value="{{.}}">
+                    {{end}}
+            </datalist>
+        </label>
+        <label>Предмет:
+            <input type="text" name="subject" value="{{.Lesson.Subject}}" list="subjectList" required>
+            <datalist id="subjectList">
+                {{range .Subjects}}
+                <option value="{{.}}">
+                    {{end}}
+            </datalist>
+        </label>
+        <label>Тема:
+            <input type="text" name="topic" value="{{.Lesson.Topic}}" required>
+        </label>
+        <label>Часы:
+            <input name="hours" type="number" value="{{.Lesson.Hours}}" required>
+        </label>
+        <label>Дата:
+            <input name="date" type="date" value="{{.Lesson.Date}}" required>
+        </label>
+        <label>Тип занятия:
+            <select name="type" required>
+                <option value="Лекция" {{if eq .Lesson.Type "Лекция"}}selected{{end}}>Лекция</option>
+                <option value="Лабораторная работа" {{if eq .Lesson.Type "Лабораторная работа"}}selected{{end}}>Лабораторная работа</option>
+                <option value="Практика" {{if eq .Lesson.Type "Практика"}}selected{{end}}>Практика</option>
+            </select>
+        </label>
+        <button type="submit">Сохранить</button>
+    </form>
+    <a class="back-link" href="/dashboard">Назад</a>
+</div>
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+</body>
+</html>

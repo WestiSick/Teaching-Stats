@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Личный кабинет - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #444;
+    }
+    p {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    a {
+      margin-right: 10px;
+      text-decoration: none;
+      color: #007BFF;
+      font-size: 16px;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    form {
+      margin-top: 10px;
+    }
+    input[type="text"] {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .btn-add, .btn-logout, .btn-admin {
+      display: inline-block;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background-color 0.3s;
+      margin-top: 20px;
+    }
+    .btn-add {
+      background-color: #28a745;
+      color: #fff;
+    }
+    .btn-add:hover {
+      background-color: #1e7e34;
+    }
+    .btn-logout {
+      background-color: #dc3545;
+      color: #fff;
+      margin-left: 10px;
+    }
+    .btn-logout:hover {
+      background-color: #c82333;
+    }
+    .btn-admin {
+      background-color: #6c5ce7;
+      color: #fff;
+      margin-left: 10px;
+    }
+    .btn-admin:hover {
+      background-color: #5541d6;
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 24px;
+      }
+      p, a, button, .btn-add, .btn-logout, .btn-admin {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Статистика</h1>
+  {{if .HasLessons}}
+  <p>Общее количество пар: {{.TotalLessons}}</p>
+  <p>Общее количество часов: {{.TotalHours}}</p>
+
+  <h2>По предметам:</h2>
+  <ul>
+    {{range $subject, $count := .Subjects}}
+    <li>
+      <strong>{{$subject}}</strong>: {{$count}} пар<br>
+      <a href="/export?subject={{$subject}}">Выгрузить по предмету</a>
+      <a href="/lessons/subject?subject={{$subject}}">Посмотреть пары</a>
+      <form action="/export" method="GET" style="margin-top:10px;">
+        <input type="hidden" name="subject" value="{{$subject}}">
+        <input type="text" name="group" list="groupList" placeholder="Введите группу">
+        <datalist id="groupList">
+          {{range $.Groups}}
+          <option value="{{.}}">
+            {{end}}
+        </datalist>
+        <button type="submit">Выгрузить по группе</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p>У вас пока нет добавленных пар. <a href="/lesson/add">Добавить пару</a></p>
+  {{end}}
+  {{if .HasLessons}}
+  <a class="btn-add" href="/lesson/add">Добавить пару</a>
+  <a class="btn-add" href="/groups">Группы</a>
+  <a class="btn-add" href="/attendance">Посещения</a>
+  {{end}}
+  <a class="btn-logout" href="/logout">Выйти</a>
+  {{if eq .User.Role "admin"}}
+  <a class="btn-admin" href="/admin">Админка</a>
+  {{end}}
+</div>
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>
