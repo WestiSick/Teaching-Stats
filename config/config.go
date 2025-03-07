@@ -8,7 +8,7 @@ import (
 const (
 	CookieStoreKey     = "super-secret-key"
 	SessionName        = "session-name"
-	DBConnectionString = "../../../.././teaching_stats.db?_busy_timeout=5000"
+	DBConnectionString = "postgres://westys:vadimvadimvadim13@127.0.0.1:5432/teacher?sslmode=disable"
 )
 
 // TicketSystemPort is the port on which the ticket system runs
