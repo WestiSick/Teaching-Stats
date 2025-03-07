@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Подписка - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #444;
+            font-size: 28px;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        p {
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .subscription-plans {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .plan {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            width: 45%;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .plan:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .plan h2 {
+            color: #007BFF;
+            margin-bottom: 10px;
+            font-size: 22px;
+        }
+        .plan-price {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #212529;
+        }
+        .plan-features {
+            list-style-type: none;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .plan-features li {
+            margin-bottom: 10px;
+            padding-left: 25px;
+            position: relative;
+        }
+        .plan-features li:before {
+            content: "✓";
+            color: #28a745;
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        .special-note {
+            font-weight: bold;
+            color: #dc3545;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            cursor: not-allowed;
+            opacity: 0.8;
+            font-size: 16px;
+        }
+        .payment-note {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            color: #721c24;
+        }
+        .logout-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 30px;
+            transition: background-color 0.3s;
+            font-size: 16px;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        @media (max-width: 768px) {
+            .subscription-plans {
+                flex-direction: column;
+                align-items: center;
+            }
+            .plan {
+                width: 90%;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .subtitle {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Доступ к Teaching Stats</h1>
+    <p class="subtitle">Для использования функций приложения необходимо приобрести подписку</p>
+
+    <div class="subscription-plans">
+        <div class="plan">
+            <h2>Месячная подписка</h2>
+            <div class="plan-price">500 ₽/мес</div>
+            <ul class="plan-features">
+                <li>Полный доступ ко всем функциям</li>
+                <li>Неограниченное количество групп</li>
+                <li>Учет посещаемости</li>
+                <li>Экспорт в Excel</li>
+                <li>Отслеживание лабораторных работ</li>
+            </ul>
+            <a href="#" class="btn">Оформить подписку</a>
+        </div>
+        <div class="plan">
+            <h2>Годовая подписка</h2>
+            <div class="plan-price">4800 ₽/год</div>
+            <ul class="plan-features">
+                <li>Полный доступ ко всем функциям</li>
+                <li>Неограниченное количество групп</li>
+                <li>Учет посещаемости</li>
+                <li>Экспорт в Excel</li>
+                <li>Отслеживание лабораторных работ</li>
+                <li class="special-note">Экономия 20%</li>
+            </ul>
+            <a href="#" class="btn">Оформить подписку</a>
+        </div>
+    </div>
+
+    <div class="payment-note">
+        <p><strong>Важно:</strong> Оплата подписки временно недоступна. Пожалуйста, попробуйте позже или свяжитесь с администратором системы.</p>
+    </div>
+
+    <a href="/logout" class="logout-btn">Выйти</a>
+</div>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+</body>
+</html>

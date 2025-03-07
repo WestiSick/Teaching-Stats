@@ -59,7 +59,7 @@ func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	fio := r.FormValue("fio")
 	login := r.FormValue("login")
 	password := r.FormValue("password")
-	role := "teacher"
+	role := "free" // Changed from "teacher" to "free" for the subscription model
 
 	// Validate inputs
 	if fio == "" || login == "" || password == "" {
@@ -86,6 +86,22 @@ func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	db.LogAction(h.DB, int(userID), "Registration", fmt.Sprintf("New user registered: %s (%s)", fio, login))
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// SubscriptionHandler displays the subscription page for free users
+func (h *AuthHandler) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	data := struct {
+		User db.UserInfo
+	}{
+		User: userInfo,
+	}
+	renderTemplate(w, h.Tmpl, "subscription.html", data)
 }
 
 // LoginHandler handles user login

@@ -80,26 +80,31 @@ func main() {
 	router.HandleFunc("/register", authHandler.RegisterHandler).Methods("GET", "POST")
 	router.HandleFunc("/login", authHandler.LoginHandler).Methods("GET", "POST")
 	router.HandleFunc("/logout", authHandler.LogoutHandler).Methods("GET")
-	router.HandleFunc("/dashboard", handlers.AuthMiddleware(dashboardHandler.DashboardHandler)).Methods("GET")
+
+	// Subscription page - accessible to logged in users, including free users
+	router.HandleFunc("/subscription", handlers.AuthMiddleware(authHandler.SubscriptionHandler)).Methods("GET")
+
+	// Protected routes - require a paid subscription
+	router.HandleFunc("/dashboard", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, dashboardHandler.DashboardHandler))).Methods("GET")
 
 	// Lesson management
-	router.HandleFunc("/lesson/add", handlers.AuthMiddleware(lessonHandler.AddLessonHandler)).Methods("GET", "POST")
-	router.HandleFunc("/lessons/subject", handlers.AuthMiddleware(lessonHandler.SubjectLessonsHandler)).Methods("GET", "POST")
-	router.HandleFunc("/lesson/edit/{id}", handlers.AuthMiddleware(lessonHandler.EditLessonHandler)).Methods("GET", "POST")
-	router.HandleFunc("/export", handlers.AuthMiddleware(lessonHandler.ExportExcelHandler)).Methods("GET")
+	router.HandleFunc("/lesson/add", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, lessonHandler.AddLessonHandler))).Methods("GET", "POST")
+	router.HandleFunc("/lessons/subject", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, lessonHandler.SubjectLessonsHandler))).Methods("GET", "POST")
+	router.HandleFunc("/lesson/edit/{id}", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, lessonHandler.EditLessonHandler))).Methods("GET", "POST")
+	router.HandleFunc("/export", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, lessonHandler.ExportExcelHandler))).Methods("GET")
 
 	// Group management
-	router.HandleFunc("/groups", handlers.AuthMiddleware(groupHandler.GroupsHandler)).Methods("GET", "POST")
-	router.HandleFunc("/groups/edit/{groupName}", handlers.AuthMiddleware(groupHandler.EditGroupHandler)).Methods("GET", "POST")
-	router.HandleFunc("/groups/add", handlers.AuthMiddleware(groupHandler.AddGroupHandler)).Methods("GET", "POST")
+	router.HandleFunc("/groups", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, groupHandler.GroupsHandler))).Methods("GET", "POST")
+	router.HandleFunc("/groups/edit/{groupName}", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, groupHandler.EditGroupHandler))).Methods("GET", "POST")
+	router.HandleFunc("/groups/add", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, groupHandler.AddGroupHandler))).Methods("GET", "POST")
 
 	// Attendance management
-	router.HandleFunc("/attendance/add", handlers.AuthMiddleware(attendanceHandler.AddAttendanceHandler)).Methods("GET", "POST")
-	router.HandleFunc("/attendance", handlers.AuthMiddleware(attendanceHandler.AttendanceHandler)).Methods("GET", "POST")
-	router.HandleFunc("/attendance/edit/{id}", handlers.AuthMiddleware(attendanceHandler.EditAttendanceHandler)).Methods("GET", "POST")
-	router.HandleFunc("/export/attendance", handlers.AuthMiddleware(attendanceHandler.ExportAttendanceExcelHandler)).Methods("GET")
+	router.HandleFunc("/attendance/add", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, attendanceHandler.AddAttendanceHandler))).Methods("GET", "POST")
+	router.HandleFunc("/attendance", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, attendanceHandler.AttendanceHandler))).Methods("GET", "POST")
+	router.HandleFunc("/attendance/edit/{id}", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, attendanceHandler.EditAttendanceHandler))).Methods("GET", "POST")
+	router.HandleFunc("/export/attendance", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, attendanceHandler.ExportAttendanceExcelHandler))).Methods("GET")
 
-	// Admin routes
+	// Admin routes - admin middleware already checks role
 	router.HandleFunc("/admin", handlers.AdminMiddleware(database, adminHandler.AdminDashboardHandler)).Methods("GET")
 	router.HandleFunc("/admin/", handlers.AdminMiddleware(database, adminHandler.AdminDashboardHandler)).Methods("GET")
 	router.HandleFunc("/admin/users", handlers.AdminMiddleware(database, adminHandler.AdminUsersHandler)).Methods("GET", "POST")
@@ -120,9 +125,9 @@ func main() {
 	router.HandleFunc("/api/students", apiHandler.APIStudentsHandler).Methods("GET")
 
 	// Lab grades management
-	router.HandleFunc("/labs", handlers.AuthMiddleware(labHandler.GroupLabsHandler)).Methods("GET")
-	router.HandleFunc("/labs/grades/{subject}/{group}", handlers.AuthMiddleware(labHandler.LabGradesHandler)).Methods("GET", "POST")
-	router.HandleFunc("/labs/export/{subject}/{group}", handlers.AuthMiddleware(labHandler.ExportLabGradesHandler)).Methods("GET")
+	router.HandleFunc("/labs", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, labHandler.GroupLabsHandler))).Methods("GET")
+	router.HandleFunc("/labs/grades/{subject}/{group}", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, labHandler.LabGradesHandler))).Methods("GET", "POST")
+	router.HandleFunc("/labs/export/{subject}/{group}", handlers.AuthMiddleware(handlers.SubscriberMiddleware(database, labHandler.ExportLabGradesHandler))).Methods("GET")
 
 	// Admin labs management routes
 	router.HandleFunc("/admin/labs", handlers.AdminMiddleware(database, adminHandler.AdminLabsHandler)).Methods("GET", "POST")
