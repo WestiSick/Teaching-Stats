@@ -2,6 +2,7 @@ package handlers
 
 import (
 	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/config"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"TeacherJournal/app/TeacherTickets/config"
 	"TeacherJournal/app/TeacherTickets/models"
 	"TeacherJournal/app/dashboard/db"
 )
@@ -230,11 +230,14 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 // UpdateTicketHandler handles updating a ticket
 func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user info
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	dbUserInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
+	// Convert db.UserInfo to models.UserInfo
+	userInfo := ConvertUserInfo(dbUserInfo)
 
 	// Get ticket ID from URL
 	vars := mux.Vars(r)
@@ -257,8 +260,8 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 
 	// Check if user has permission to edit this ticket
 	// Only the creator, assignee, or admin can edit a ticket
-	if userInfo.Role != "admin" && userInfo.ID != ticket.CreatorID &&
-		(ticket.AssigneeID == nil || userInfo.ID != *ticket.AssigneeID) {
+	if dbUserInfo.Role != "admin" && dbUserInfo.ID != ticket.CreatorID &&
+		(ticket.AssigneeID == nil || dbUserInfo.ID != *ticket.AssigneeID) {
 		http.Error(w, "You don't have permission to edit this ticket", http.StatusForbidden)
 		return
 	}
@@ -288,7 +291,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 		ticket.Status = status
 
 		// Update assignee if admin and provided
-		if userInfo.Role == "admin" && r.FormValue("assignee_id") != "" {
+		if dbUserInfo.Role == "admin" && r.FormValue("assignee_id") != "" {
 			assigneeID, err := strconv.Atoi(r.FormValue("assignee_id"))
 			if err == nil {
 				ticket.AssigneeID = &assigneeID
@@ -304,14 +307,14 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 
 		// If status changed, add to history
 		if statusChanged {
-			err = db2.UpdateTicketStatus(h.DB, ticketID, status, userInfo.ID)
+			err = db2.UpdateTicketStatus(h.DB, ticketID, status, dbUserInfo.ID)
 			if err != nil {
 				log.Printf("Error updating ticket status history: %v", err)
 			}
 		}
 
 		// Log action
-		db.LogAction(h.DB, userInfo.ID, "Update Ticket", fmt.Sprintf("Updated ticket #%d: %s", ticket.ID, title))
+		db.LogAction(h.DB, dbUserInfo.ID, "Update Ticket", fmt.Sprintf("Updated ticket #%d: %s", ticket.ID, title))
 
 		// Redirect to ticket detail page
 		http.Redirect(w, r, fmt.Sprintf("/tickets/%d", ticket.ID), http.StatusSeeOther)
@@ -320,7 +323,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 
 	// Get all users for assignee selection (admin only)
 	var users []models.UserInfo
-	if userInfo.Role == "admin" {
+	if dbUserInfo.Role == "admin" {
 		rows, err := h.DB.Query("SELECT id, fio FROM users ORDER BY fio")
 		if err == nil {
 			defer rows.Close()
@@ -333,7 +336,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Determine if user can edit status
-	canEditStatus := userInfo.Role == "admin" || (ticket.AssigneeID != nil && *ticket.AssigneeID == userInfo.ID)
+	canEditStatus := dbUserInfo.Role == "admin" || (ticket.AssigneeID != nil && *ticket.AssigneeID == dbUserInfo.ID)
 
 	// Prepare template data
 	data := struct {
@@ -361,7 +364,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 // AddCommentHandler handles adding a comment to a ticket
 func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user info
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	dbUserInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -376,7 +379,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Verify ticket exists
-	ticket, err := db2.GetTicket(h.DB, ticketID)
+	_, err = db2.GetTicket(h.DB, ticketID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Ticket not found", http.StatusNotFound)
@@ -400,7 +403,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 		// Create comment
 		newComment := &models.TicketComment{
 			TicketID: ticketID,
-			UserID:   userInfo.ID,
+			UserID:   dbUserInfo.ID,
 			Comment:  comment,
 		}
 
@@ -412,7 +415,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 		}
 
 		// Log action
-		db.LogAction(h.DB, userInfo.ID, "Add Comment",
+		db.LogAction(h.DB, dbUserInfo.ID, "Add Comment",
 			fmt.Sprintf("Added comment to ticket #%d", ticketID))
 
 		// Redirect back to ticket detail page
@@ -427,7 +430,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 // UploadAttachmentHandler handles file uploads for tickets
 func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user info
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	dbUserInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -442,7 +445,7 @@ func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.R
 	}
 
 	// Verify ticket exists
-	ticket, err := db2.GetTicket(h.DB, ticketID)
+	_, err = db2.GetTicket(h.DB, ticketID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Ticket not found", http.StatusNotFound)
@@ -481,7 +484,7 @@ func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.R
 
 		// Generate unique filename to prevent collisions
 		fileExt := filepath.Ext(handler.Filename)
-		uniqueID := fmt.Sprintf("%d_%d_%s", ticketID, userInfo.ID, time.Now().Format("20060102150405"))
+		uniqueID := fmt.Sprintf("%d_%d_%s", ticketID, dbUserInfo.ID, time.Now().Format("20060102150405"))
 		safeFilename := fmt.Sprintf("%s%s", uniqueID, fileExt)
 		filePath := filepath.Join(config.AttachmentStoragePath, safeFilename)
 
@@ -505,7 +508,7 @@ func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.R
 			TicketID:   ticketID,
 			FileName:   handler.Filename,
 			FilePath:   safeFilename,
-			UploadedBy: userInfo.ID,
+			UploadedBy: dbUserInfo.ID,
 		}
 
 		err = db2.AddTicketAttachment(h.DB, attachment)
@@ -517,7 +520,7 @@ func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.R
 		}
 
 		// Log action
-		db.LogAction(h.DB, userInfo.ID, "Add Attachment",
+		db.LogAction(h.DB, dbUserInfo.ID, "Add Attachment",
 			fmt.Sprintf("Added attachment '%s' to ticket #%d", handler.Filename, ticketID))
 
 		// Redirect back to ticket detail page
@@ -532,7 +535,7 @@ func (h *TicketHandler) UploadAttachmentHandler(w http.ResponseWriter, r *http.R
 // DownloadAttachmentHandler handles downloading ticket attachments
 func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user info
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	dbUserInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -553,12 +556,12 @@ func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http
 	}
 
 	// Get attachment information from database
-	var filename, filepath string
+	var filename, filePath string
 	err = h.DB.QueryRow(`
 		SELECT file_name, file_path 
 		FROM ticket_attachments 
 		WHERE id = ? AND ticket_id = ?`,
-		attachmentID, ticketID).Scan(&filename, &filepath)
+		attachmentID, ticketID).Scan(&filename, &filePath)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -570,7 +573,7 @@ func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http
 	}
 
 	// Construct full path to file
-	fullPath := filepath.Join(config.AttachmentStoragePath, filepath)
+	fullPath := filepath.Join(config.AttachmentStoragePath, filePath)
 
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -586,6 +589,6 @@ func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http
 	http.ServeFile(w, r, fullPath)
 
 	// Log download (optional)
-	db.LogAction(h.DB, userInfo.ID, "Download Attachment",
+	db.LogAction(h.DB, dbUserInfo.ID, "Download Attachment",
 		fmt.Sprintf("Downloaded attachment '%s' from ticket #%d", filename, ticketID))
 }

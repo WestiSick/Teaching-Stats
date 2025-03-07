@@ -78,6 +78,65 @@ func InitDB() *sql.DB {
 			FOREIGN KEY (teacher_id) REFERENCES users(id),
 			UNIQUE (student_id, subject, lab_number)
 		);
+-- Tickets table
+CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    creator_id INTEGER NOT NULL,
+    assignee_id INTEGER,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    category TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_id) REFERENCES users(id),
+    FOREIGN KEY (assignee_id) REFERENCES users(id)
+);
+
+-- Ticket comments table
+CREATE TABLE IF NOT EXISTS ticket_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Ticket attachments table
+CREATE TABLE IF NOT EXISTS ticket_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    uploaded_by INTEGER NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+    FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+-- Ticket status history table
+CREATE TABLE IF NOT EXISTS ticket_status_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    changed_by INTEGER NOT NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+    FOREIGN KEY (changed_by) REFERENCES users(id)
+);
+
+-- User notification settings table
+CREATE TABLE IF NOT EXISTS user_notification_settings (
+    user_id INTEGER PRIMARY KEY,
+    notify_new_ticket BOOLEAN NOT NULL DEFAULT 1,
+    notify_ticket_update BOOLEAN NOT NULL DEFAULT 1,
+    notify_ticket_comment BOOLEAN NOT NULL DEFAULT 1,
+    notify_ticket_status BOOLEAN NOT NULL DEFAULT 1,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 	`)
 	if err != nil {
 		log.Fatal(err)

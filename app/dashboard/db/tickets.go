@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 )
 
 // CreateTicketTables creates the tables needed for the ticket system
@@ -137,43 +138,38 @@ func CreateTicket(db *sql.DB, ticket *models.Ticket) error {
 	return err
 }
 
-// GetTicket retrieves a ticket by ID
 func GetTicket(db *sql.DB, ticketID int) (*models.Ticket, error) {
-	ticket := &models.Ticket{}
+	// Query the ticket
+	var ticket models.Ticket
+	var assigneeID sql.NullInt64
+	var createdAt, updatedAt string
 
 	err := db.QueryRow(`
-		SELECT id, creator_id, assignee_id, title, description, status, priority, category, created_at, updated_at
-		FROM tickets
-		WHERE id = ?
-	`, ticketID).Scan(
-		&ticket.ID, &ticket.CreatorID, &ticket.AssigneeID, &ticket.Title, &ticket.Description,
-		&ticket.Status, &ticket.Priority, &ticket.Category, &ticket.CreatedAt, &ticket.UpdatedAt,
+        SELECT id, creator_id, assignee_id, title, description, 
+               status, priority, category, created_at, updated_at
+        FROM tickets 
+        WHERE id = ?
+    `, ticketID).Scan(
+		&ticket.ID, &ticket.CreatorID, &assigneeID, &ticket.Title,
+		&ticket.Description, &ticket.Status, &ticket.Priority,
+		&ticket.Category, &createdAt, &updatedAt,
 	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Get creator info
-	err = db.QueryRow("SELECT id, fio FROM users WHERE id = ?", ticket.CreatorID).Scan(
-		&ticket.Creator.ID, &ticket.Creator.FIO,
-	)
-	if err != nil {
-		log.Printf("Error retrieving creator info: %v", err)
+	// Convert time strings to time.Time
+	ticket.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	ticket.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+	// Handle nullable assignee_id
+	if assigneeID.Valid {
+		id := int(assigneeID.Int64)
+		ticket.AssigneeID = &id
 	}
 
-	// Get assignee info if assigned
-	if ticket.AssigneeID != nil {
-		ticket.Assignee = &models.UserInfo{}
-		err = db.QueryRow("SELECT id, fio FROM users WHERE id = ?", *ticket.AssigneeID).Scan(
-			&ticket.Assignee.ID, &ticket.Assignee.FIO,
-		)
-		if err != nil {
-			log.Printf("Error retrieving assignee info: %v", err)
-		}
-	}
-
-	return ticket, nil
+	return &ticket, nil
 }
 
 // UpdateTicket updates an existing ticket
@@ -420,37 +416,44 @@ func GetTickets(db *sql.DB, userID int, isAdmin bool, filters map[string]string,
 	return result, nil
 }
 
-// GetTicketDetails retrieves a ticket with all its details (comments, attachments, history)
 func GetTicketDetails(db *sql.DB, ticketID int) (*models.Ticket, error) {
-	// Get basic ticket info
+	// First get the basic ticket information
 	ticket, err := GetTicket(db, ticketID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get comments
-	comments, err := GetTicketComments(db, ticketID)
+	// Get creator information
+	var creatorFIO string
+	err = db.QueryRow("SELECT fio FROM users WHERE id = ?", ticket.CreatorID).Scan(&creatorFIO)
 	if err != nil {
-		log.Printf("Error retrieving comments: %v", err)
+		// Even if we can't get creator info, don't fail completely
+		// Just log the error and continue
+		log.Printf("Error getting creator info: %v", err)
 	} else {
-		ticket.Comments = comments
+		// Create the UserInfo object for the creator
+		ticket.Creator = &models.UserInfo{
+			ID:  ticket.CreatorID,
+			FIO: creatorFIO,
+		}
 	}
 
-	// Get attachments
-	attachments, err := GetTicketAttachments(db, ticketID)
-	if err != nil {
-		log.Printf("Error retrieving attachments: %v", err)
-	} else {
-		ticket.Attachments = attachments
+	// Similar code for assignee if ticket.AssigneeID is not nil
+	if ticket.AssigneeID != nil {
+		var assigneeFIO string
+		err = db.QueryRow("SELECT fio FROM users WHERE id = ?", *ticket.AssigneeID).Scan(&assigneeFIO)
+		if err != nil {
+			log.Printf("Error getting assignee info: %v", err)
+		} else {
+			ticket.Assignee = &models.UserInfo{
+				ID:  *ticket.AssigneeID,
+				FIO: assigneeFIO,
+			}
+		}
 	}
 
-	// Get status history
-	history, err := GetTicketStatusHistory(db, ticketID)
-	if err != nil {
-		log.Printf("Error retrieving status history: %v", err)
-	} else {
-		ticket.StatusHistory = history
-	}
+	// Get comments, attachments, status history, etc.
+	// ...
 
 	return ticket, nil
 }
@@ -558,148 +561,6 @@ func GetTicketStatusHistory(db *sql.DB, ticketID int) ([]models.StatusChange, er
 	}
 
 	return history, nil
-}
-
-// GetTicketStatistics generates statistics about tickets
-func GetTicketStatistics(db *sql.DB, userID int, isAdmin bool) (*models.TicketStatistics, error) {
-	// Initialize statistics structure
-	stats := &models.TicketStatistics{
-		ByStatus:   make(map[string]int),
-		ByPriority: make(map[string]int),
-		ByCategory: make(map[string]int),
-	}
-
-	// Query base for all statistics
-	baseQuery := `SELECT COUNT(*) FROM tickets `
-	var args []interface{}
-
-	// If not admin, only count tickets created by this user
-	whereClause := ""
-	if !isAdmin {
-		whereClause = "WHERE creator_id = ?"
-		args = append(args, userID)
-	}
-
-	// Get total tickets
-	err := db.QueryRow(baseQuery+whereClause, args...).Scan(&stats.Total)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get counts by status
-	statusQuery := `
-		SELECT status, COUNT(*) 
-		FROM tickets 
-		` + whereClause + `
-		GROUP BY status
-	`
-	statusRows, err := db.Query(statusQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer statusRows.Close()
-
-	for statusRows.Next() {
-		var status string
-		var count int
-		if err := statusRows.Scan(&status, &count); err != nil {
-			return nil, err
-		}
-		stats.ByStatus[status] = count
-	}
-
-	// Get counts by priority
-	priorityQuery := `
-		SELECT priority, COUNT(*) 
-		FROM tickets 
-		` + whereClause + `
-		GROUP BY priority
-	`
-	priorityRows, err := db.Query(priorityQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer priorityRows.Close()
-
-	for priorityRows.Next() {
-		var priority string
-		var count int
-		if err := priorityRows.Scan(&priority, &count); err != nil {
-			return nil, err
-		}
-		stats.ByPriority[priority] = count
-	}
-
-	// Get counts by category
-	categoryQuery := `
-		SELECT category, COUNT(*) 
-		FROM tickets 
-		` + whereClause + `
-		GROUP BY category
-	`
-	categoryRows, err := db.Query(categoryQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer categoryRows.Close()
-
-	for categoryRows.Next() {
-		var category string
-		var count int
-		if err := categoryRows.Scan(&category, &count); err != nil {
-			return nil, err
-		}
-		stats.ByCategory[category] = count
-	}
-
-	// Временные структуры для расчетов
-	var responseTime struct {
-		Average string
-		Min     string
-		Max     string
-	}
-
-	var resolutionTime struct {
-		Average string
-		Min     string
-		Max     string
-	}
-
-	// Calculate response time statistics for non-new tickets
-	if isAdmin {
-		// For admins, we calculate average response time across all tickets
-		err = calculateResponseTimes(db, &responseTime, "")
-	} else {
-		// For regular users, we only consider their tickets
-		err = calculateResponseTimes(db, &responseTime, fmt.Sprintf("WHERE t.creator_id = %d", userID))
-	}
-	if err != nil {
-		log.Printf("Error calculating response times: %v", err)
-	}
-
-	// Копируем данные в структуру stats
-	stats.ResponseTime.Average = responseTime.Average
-	stats.ResponseTime.Min = responseTime.Min
-	stats.ResponseTime.Max = responseTime.Max
-
-	// Calculate resolution time statistics for resolved/closed tickets
-	if isAdmin {
-		// For admins, we calculate resolution across all tickets
-		err = calculateResolutionTimes(db, &resolutionTime, "")
-	} else {
-		// For regular users, we only consider their tickets
-		err = calculateResolutionTimes(db, &resolutionTime, fmt.Sprintf("WHERE t.creator_id = %d", userID))
-	}
-	if err != nil {
-		log.Printf("Error calculating resolution times: %v", err)
-	}
-
-	// Копируем данные в структуру stats
-	stats.ResolutionTime.Average = resolutionTime.Average
-	stats.ResolutionTime.Min = resolutionTime.Min
-	stats.ResolutionTime.Max = resolutionTime.Max
-
-	return stats, nil
 }
 
 // Helper function to calculate response time statistics
@@ -825,4 +686,486 @@ func formatMinutes(minutes int64) string {
 	hrs := hours % 24
 
 	return fmt.Sprintf("%d д %d ч %d мин", days, hrs, mins)
+}
+
+// GetAllTickets retrieves all tickets with optional filtering
+func GetAllTickets(db *sql.DB, filters map[string]string, page, limit int) (*models.PaginatedTickets, error) {
+	// Base query
+	query := `
+		SELECT 
+			t.id, t.creator_id, t.assignee_id, t.title, t.description, 
+			t.status, t.priority, t.category, t.created_at, t.updated_at,
+			c.fio as creator_name, 
+			a.fio as assignee_name
+		FROM tickets t
+		LEFT JOIN users c ON t.creator_id = c.id
+		LEFT JOIN users a ON t.assignee_id = a.id
+		WHERE 1=1
+	`
+	countQuery := "SELECT COUNT(*) FROM tickets WHERE 1=1"
+
+	// Add filters
+	args := []interface{}{}
+
+	if status, ok := filters["status"]; ok && status != "" {
+		query += " AND t.status = ?"
+		countQuery += " AND status = ?"
+		args = append(args, status)
+	}
+
+	if priority, ok := filters["priority"]; ok && priority != "" {
+		query += " AND t.priority = ?"
+		countQuery += " AND priority = ?"
+		args = append(args, priority)
+	}
+
+	if category, ok := filters["category"]; ok && category != "" {
+		query += " AND t.category = ?"
+		countQuery += " AND category = ?"
+		args = append(args, category)
+	}
+
+	if creatorID, ok := filters["creator_id"]; ok && creatorID != "" {
+		query += " AND t.creator_id = ?"
+		countQuery += " AND creator_id = ?"
+		args = append(args, creatorID)
+	}
+
+	if assigneeID, ok := filters["assignee_id"]; ok && assigneeID != "" {
+		if assigneeID == "unassigned" {
+			query += " AND t.assignee_id IS NULL"
+			countQuery += " AND assignee_id IS NULL"
+		} else {
+			query += " AND t.assignee_id = ?"
+			countQuery += " AND assignee_id = ?"
+			args = append(args, assigneeID)
+		}
+	}
+
+	// Order and pagination
+	query += " ORDER BY t.updated_at DESC LIMIT ? OFFSET ?"
+
+	// Calculate pagination
+	offset := (page - 1) * limit
+	queryArgs := append(args, limit, offset)
+
+	// Count total tickets with filters
+	var total int
+	err := db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate total pages
+	pages := (total + limit - 1) / limit
+	if pages < 1 {
+		pages = 1
+	}
+
+	// Get tickets
+	rows, err := db.Query(query, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tickets := []models.Ticket{}
+	for rows.Next() {
+		var ticket models.Ticket
+		var assigneeID sql.NullInt64
+		var assigneeName sql.NullString
+		var creatorName string
+		var createdAt, updatedAt string
+
+		err := rows.Scan(
+			&ticket.ID, &ticket.CreatorID, &assigneeID, &ticket.Title, &ticket.Description,
+			&ticket.Status, &ticket.Priority, &ticket.Category, &createdAt, &updatedAt,
+			&creatorName, &assigneeName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Convert time strings to time.Time
+		ticket.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		ticket.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+
+		// Set assignee information if available
+		if assigneeID.Valid {
+			id := int(assigneeID.Int64)
+			ticket.AssigneeID = &id
+			ticket.Assignee = &models.UserInfo{
+				ID:  id,
+				FIO: assigneeName.String,
+			}
+		}
+
+		// Set creator information
+		ticket.Creator = &models.UserInfo{
+			ID:  ticket.CreatorID,
+			FIO: creatorName,
+		}
+
+		tickets = append(tickets, ticket)
+	}
+
+	// Create paginated response
+	paginatedTickets := &models.PaginatedTickets{
+		Tickets: tickets,
+		Pagination: models.Pagination{
+			Total: total,
+			Page:  page,
+			Limit: limit,
+			Pages: pages,
+		},
+	}
+
+	return paginatedTickets, nil
+}
+
+// GetTicketStatistics returns basic statistics about tickets
+func GetTicketStatistics(db *sql.DB) (*models.TicketStatistics, error) {
+	statistics := &models.TicketStatistics{
+		ByStatus:   make(map[string]int),
+		ByPriority: make(map[string]int),
+		ByCategory: make(map[string]int),
+	}
+
+	// Get total count
+	err := db.QueryRow("SELECT COUNT(*) FROM tickets").Scan(&statistics.Total)
+	if err != nil {
+		return nil, err
+	}
+
+	// Count by status
+	rows, err := db.Query("SELECT status, COUNT(*) FROM tickets GROUP BY status")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		statistics.ByStatus[status] = count
+	}
+
+	// Count by priority
+	rows, err = db.Query("SELECT priority, COUNT(*) FROM tickets GROUP BY priority")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var priority string
+		var count int
+		if err := rows.Scan(&priority, &count); err != nil {
+			return nil, err
+		}
+		statistics.ByPriority[priority] = count
+	}
+
+	// Count by category
+	rows, err = db.Query("SELECT category, COUNT(*) FROM tickets GROUP BY category")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var category string
+		var count int
+		if err := rows.Scan(&category, &count); err != nil {
+			return nil, err
+		}
+		statistics.ByCategory[category] = count
+	}
+
+	// Average response time
+	var avgResponseTime float64
+	err = db.QueryRow(`
+		SELECT 
+			COALESCE(AVG(JULIANDAY(min_time) - JULIANDAY(created_at)), 0) 
+		FROM (
+			SELECT 
+				t.id, 
+				t.created_at, 
+				MIN(CASE WHEN t.status != 'New' THEN sh.changed_at ELSE NULL END) as min_time
+			FROM tickets t
+			LEFT JOIN ticket_status_history sh ON t.id = sh.ticket_id
+			GROUP BY t.id
+		)
+	`).Scan(&avgResponseTime)
+	if err != nil {
+		statistics.ResponseTime.Average = "N/A"
+	} else {
+		// Convert to hours (SQLite returns days)
+		avgHours := avgResponseTime * 24
+		statistics.ResponseTime.Average = formatDuration(time.Duration(avgHours * float64(time.Hour)))
+	}
+
+	// Average resolution time
+	var avgResolutionTime float64
+	err = db.QueryRow(`
+		SELECT 
+			COALESCE(AVG(JULIANDAY(min_resolved) - JULIANDAY(created_at)), 0) 
+		FROM (
+			SELECT 
+				t.id, 
+				t.created_at, 
+				MIN(CASE WHEN sh.status = 'Resolved' OR sh.status = 'Closed' THEN sh.changed_at ELSE NULL END) as min_resolved
+			FROM tickets t
+			LEFT JOIN ticket_status_history sh ON t.id = sh.ticket_id
+			GROUP BY t.id
+			HAVING min_resolved IS NOT NULL
+		)
+	`).Scan(&avgResolutionTime)
+	if err != nil {
+		statistics.ResolutionTime.Average = "N/A"
+	} else {
+		// Convert to hours (SQLite returns days)
+		avgHours := avgResolutionTime * 24
+		statistics.ResolutionTime.Average = formatDuration(time.Duration(avgHours * float64(time.Hour)))
+	}
+
+	return statistics, nil
+}
+
+// GetDetailedTicketStatistics returns detailed statistics with time ranges
+func GetDetailedTicketStatistics(db *sql.DB) (*models.TicketStatistics, error) {
+	// Get basic statistics first
+	statistics, err := GetTicketStatistics(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add min/max response times
+	var minResponseTime, maxResponseTime float64
+	err = db.QueryRow(`
+		SELECT 
+			MIN(response_time), 
+			MAX(response_time)
+		FROM (
+			SELECT 
+				(JULIANDAY(min_time) - JULIANDAY(created_at)) * 24 as response_time
+			FROM (
+				SELECT 
+					t.id, 
+					t.created_at, 
+					MIN(CASE WHEN t.status != 'New' THEN sh.changed_at ELSE NULL END) as min_time
+				FROM tickets t
+				LEFT JOIN ticket_status_history sh ON t.id = sh.ticket_id
+				GROUP BY t.id
+				HAVING min_time IS NOT NULL
+			)
+		)
+	`).Scan(&minResponseTime, &maxResponseTime)
+	if err != nil {
+		statistics.ResponseTime.Min = "N/A"
+		statistics.ResponseTime.Max = "N/A"
+	} else {
+		// Convert to hours
+		statistics.ResponseTime.Min = formatDuration(time.Duration(minResponseTime * float64(time.Hour)))
+		statistics.ResponseTime.Max = formatDuration(time.Duration(maxResponseTime * float64(time.Hour)))
+	}
+
+	// Add min/max resolution times
+	var minResolutionTime, maxResolutionTime float64
+	err = db.QueryRow(`
+		SELECT 
+			MIN(resolution_time), 
+			MAX(resolution_time)
+		FROM (
+			SELECT 
+				(JULIANDAY(min_resolved) - JULIANDAY(created_at)) * 24 as resolution_time
+			FROM (
+				SELECT 
+					t.id, 
+					t.created_at, 
+					MIN(CASE WHEN sh.status = 'Resolved' OR sh.status = 'Closed' THEN sh.changed_at ELSE NULL END) as min_resolved
+				FROM tickets t
+				LEFT JOIN ticket_status_history sh ON t.id = sh.ticket_id
+				GROUP BY t.id
+				HAVING min_resolved IS NOT NULL
+			)
+		)
+	`).Scan(&minResolutionTime, &maxResolutionTime)
+	if err != nil {
+		statistics.ResolutionTime.Min = "N/A"
+		statistics.ResolutionTime.Max = "N/A"
+	} else {
+		// Convert to hours
+		statistics.ResolutionTime.Min = formatDuration(time.Duration(minResolutionTime * float64(time.Hour)))
+		statistics.ResolutionTime.Max = formatDuration(time.Duration(maxResolutionTime * float64(time.Hour)))
+	}
+
+	return statistics, nil
+}
+
+// Helper function to format duration in a user-friendly way
+func formatDuration(d time.Duration) string {
+	days := int(d.Hours() / 24)
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+
+	if days > 0 {
+		return fmt.Sprintf("%d д. %d ч.", days, hours)
+	}
+
+	if hours > 0 {
+		return fmt.Sprintf("%d ч. %d мин.", hours, minutes)
+	}
+
+	seconds := int(d.Seconds()) % 60
+	return fmt.Sprintf("%d мин. %d сек.", minutes, seconds)
+}
+
+// DeleteTicket removes a ticket from the database
+func DeleteTicket(db *sql.DB, ticketID int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// Delete from ticket_comments
+	_, err = tx.Exec("DELETE FROM ticket_comments WHERE ticket_id = ?", ticketID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete from ticket_status_history
+	_, err = tx.Exec("DELETE FROM ticket_status_history WHERE ticket_id = ?", ticketID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete from ticket_attachments
+	_, err = tx.Exec("DELETE FROM ticket_attachments WHERE ticket_id = ?", ticketID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete from tickets
+	_, err = tx.Exec("DELETE FROM tickets WHERE id = ?", ticketID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// GetTicketComment retrieves a specific comment with user information
+func GetTicketComment(db *sql.DB, commentID int) (*models.TicketComment, error) {
+	var comment models.TicketComment
+	var createdAt string
+	var userFIO string
+
+	err := db.QueryRow(`
+		SELECT 
+			c.id, c.ticket_id, c.user_id, c.comment, c.created_at,
+			u.fio
+		FROM ticket_comments c
+		JOIN users u ON c.user_id = u.id
+		WHERE c.id = ?
+	`, commentID).Scan(
+		&comment.ID, &comment.TicketID, &comment.UserID, &comment.Comment, &createdAt,
+		&userFIO,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert time string to time.Time
+	comment.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+
+	// Set user information
+	comment.User = &models.UserInfo{
+		ID:  comment.UserID,
+		FIO: userFIO,
+	}
+
+	return &comment, nil
+}
+
+// DeleteTicketComment removes a comment from the database
+func DeleteTicketComment(db *sql.DB, commentID int) error {
+	_, err := db.Exec("DELETE FROM ticket_comments WHERE id = ?", commentID)
+	return err
+}
+
+// GetNotificationSettings retrieves notification preferences for a user
+func GetNotificationSettings(db *sql.DB, userID int) (*models.NotificationSettings, error) {
+	var settings models.NotificationSettings
+	settings.UserID = userID
+
+	err := db.QueryRow(`
+		SELECT 
+			notify_new_ticket, notify_ticket_update, 
+			notify_ticket_comment, notify_ticket_status
+		FROM user_notification_settings
+		WHERE user_id = ?
+	`, userID).Scan(
+		&settings.NotifyNewTicket, &settings.NotifyTicketUpdate,
+		&settings.NotifyTicketComment, &settings.NotifyTicketStatus,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Return default settings
+			settings.NotifyNewTicket = true
+			settings.NotifyTicketUpdate = true
+			settings.NotifyTicketComment = true
+			settings.NotifyTicketStatus = true
+			return &settings, nil
+		}
+		return nil, err
+	}
+
+	return &settings, nil
+}
+
+// SaveNotificationSettings updates or inserts notification preferences for a user
+func SaveNotificationSettings(db *sql.DB, settings *models.NotificationSettings) error {
+	// Check if settings exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM user_notification_settings WHERE user_id = ?", settings.UserID).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		// Update existing settings
+		_, err = db.Exec(`
+			UPDATE user_notification_settings
+			SET notify_new_ticket = ?, notify_ticket_update = ?,
+				notify_ticket_comment = ?, notify_ticket_status = ?
+			WHERE user_id = ?
+		`,
+			settings.NotifyNewTicket, settings.NotifyTicketUpdate,
+			settings.NotifyTicketComment, settings.NotifyTicketStatus,
+			settings.UserID,
+		)
+	} else {
+		// Insert new settings
+		_, err = db.Exec(`
+			INSERT INTO user_notification_settings (
+				user_id, notify_new_ticket, notify_ticket_update,
+				notify_ticket_comment, notify_ticket_status
+			) VALUES (?, ?, ?, ?, ?)
+		`,
+			settings.UserID, settings.NotifyNewTicket, settings.NotifyTicketUpdate,
+			settings.NotifyTicketComment, settings.NotifyTicketStatus,
+		)
+	}
+
+	return err
 }

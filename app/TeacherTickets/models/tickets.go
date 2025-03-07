@@ -73,8 +73,9 @@ type NotificationSettings struct {
 
 // UserInfo contains basic user information
 type UserInfo struct {
-	ID  int    `json:"id"`
-	FIO string `json:"fio"`
+	ID   int    `json:"id"`
+	FIO  string `json:"fio"`
+	Role string `json:"role"` // Add this line
 }
 
 // TicketStatistics contains statistics about tickets

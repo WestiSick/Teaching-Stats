@@ -1,12 +1,10 @@
 package handlers
 
 import (
-	"database/sql"
 	"html/template"
 	"log"
 	"net/http"
 
-	"TeacherJournal/app/TeacherTickets/config"
 	"TeacherJournal/app/TeacherTickets/models"
 	"TeacherJournal/app/dashboard/db"
 )
@@ -17,11 +15,12 @@ func HandleError(w http.ResponseWriter, err error, message string, statusCode in
 	http.Error(w, message, statusCode)
 }
 
-// ConvertUserInfo конвертирует db.UserInfo в models.UserInfo
+// ConvertUserInfo converts db.UserInfo to models.UserInfo
 func ConvertUserInfo(dbUser db.UserInfo) models.UserInfo {
 	return models.UserInfo{
-		ID:  dbUser.ID,
-		FIO: dbUser.FIO,
+		ID:   dbUser.ID,
+		FIO:  dbUser.FIO,
+		Role: dbUser.Role, // Add this line
 	}
 }
 
@@ -64,48 +63,5 @@ func CreateTemplateHelperFunctions() template.FuncMap {
 			}
 			return *i
 		},
-	}
-}
-
-// AuthMiddleware verifies user authentication
-func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := config.Store.Get(r, config.SessionName)
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		userID, ok := session.Values["userID"]
-		if !ok || userID == nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		next.ServeHTTP(w, r)
-	}
-}
-
-// AdminMiddleware verifies admin role
-func AdminMiddleware(database *sql.DB, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := config.Store.Get(r, config.SessionName)
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		userID, ok := session.Values["userID"]
-		if !ok || userID == nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		var role string
-		err = database.QueryRow("SELECT role FROM users WHERE id = ?", userID).Scan(&role)
-		if err != nil || role != "admin" {
-			http.Error(w, "Access denied", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
 	}
 }

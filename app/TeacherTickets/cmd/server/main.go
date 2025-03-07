@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"TeacherJournal/app/TeacherTickets/config"
 	"TeacherJournal/app/TeacherTickets/handlers"
 	"TeacherJournal/app/dashboard/db"
 	handlers2 "TeacherJournal/app/dashboard/handlers"
@@ -21,7 +20,7 @@ func main() {
 	// Parse templates
 	tmpl := template.New("")
 	tmpl = tmpl.Funcs(handlers.CreateTemplateHelperFunctions())
-	tmpl, err := tmpl.ParseGlob("TeacherJournal/app/TeacherTickets/templates/*.html")
+	tmpl, err := tmpl.ParseGlob("../../templates/*.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +31,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers2.NewAuthHandler(database, tmpl)
 	ticketHandler := handlers.NewTicketHandler(database, tmpl)
-	apiHandler := handlers2.NewAPIHandler(database)
+	apiHandler := handlers.NewAPIHandler(database) // Use our custom API handler
 	adminTicketHandler := handlers.NewAdminTicketHandler(database, tmpl)
 
 	// Static files
@@ -58,7 +57,7 @@ func main() {
 	router.HandleFunc("/admin/tickets/statistics", handlers2.AdminMiddleware(database, adminTicketHandler.AdminTicketStatsHandler)).Methods("GET")
 	router.HandleFunc("/admin/tickets/{id:[0-9]+}/assign", handlers2.AdminMiddleware(database, adminTicketHandler.AdminAssignTicketHandler)).Methods("POST")
 
-	// API routes
+	// API routes - using our custom implementation
 	router.HandleFunc("/api/tickets", handlers2.AuthMiddleware(apiHandler.APITicketsHandler)).Methods("GET", "POST")
 	router.HandleFunc("/api/tickets/{id:[0-9]+}", handlers2.AuthMiddleware(apiHandler.APITicketHandler)).Methods("GET", "PUT", "DELETE")
 	router.HandleFunc("/api/tickets/{id:[0-9]+}/status", handlers2.AuthMiddleware(apiHandler.APITicketStatusHandler)).Methods("PUT")
