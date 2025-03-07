@@ -123,6 +123,7 @@
           <select name="role" onchange="this.form.submit()">
             <option value="teacher" {{if eq .Role "teacher"}}selected{{end}}>Преподаватель</option>
             <option value="admin" {{if eq .Role "admin"}}selected{{end}}>Администратор</option>
+            <option value="free" {{if eq .Role "free"}}selected{{end}}>Free</option>
           </select>
         </form>
       </td>
