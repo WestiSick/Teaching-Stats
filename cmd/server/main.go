@@ -37,6 +37,13 @@ func createTemplateHelperFunctions() template.FuncMap {
 		"ge": func(a, b float64) bool {
 			return a >= b
 		},
+		"iter": func(count int) []int {
+			var result []int
+			for i := 0; i < count; i++ {
+				result = append(result, i)
+			}
+			return result
+		},
 	}
 }
 
@@ -66,6 +73,7 @@ func main() {
 	attendanceHandler := handlers.NewAttendanceHandler(database, tmpl)
 	adminHandler := handlers.NewAdminHandler(database, tmpl)
 	apiHandler := handlers.NewAPIHandler(database)
+	labHandler := handlers.NewLabHandler(database, tmpl)
 
 	// Basic routes
 	router.HandleFunc("/", authHandler.IndexHandler).Methods("GET")
@@ -110,6 +118,17 @@ func main() {
 	// API endpoints
 	router.HandleFunc("/api/lessons", apiHandler.APILessonsHandler).Methods("GET")
 	router.HandleFunc("/api/students", apiHandler.APIStudentsHandler).Methods("GET")
+
+	// Lab grades management
+	router.HandleFunc("/labs", handlers.AuthMiddleware(labHandler.GroupLabsHandler)).Methods("GET")
+	router.HandleFunc("/labs/grades/{subject}/{group}", handlers.AuthMiddleware(labHandler.LabGradesHandler)).Methods("GET", "POST")
+	router.HandleFunc("/labs/export/{subject}/{group}", handlers.AuthMiddleware(labHandler.ExportLabGradesHandler)).Methods("GET")
+
+	// Admin labs management routes
+	router.HandleFunc("/admin/labs", handlers.AdminMiddleware(database, adminHandler.AdminLabsHandler)).Methods("GET", "POST")
+	router.HandleFunc("/admin/labs/view/{teacherID}/{subject}/{group}", handlers.AdminMiddleware(database, adminHandler.AdminViewLabGradesHandler)).Methods("GET")
+	router.HandleFunc("/admin/labs/edit/{teacherID}/{subject}/{group}", handlers.AdminMiddleware(database, adminHandler.AdminEditLabGradesHandler)).Methods("GET", "POST")
+	router.HandleFunc("/admin/labs/export/{teacherID}/{subject}/{group}", handlers.AdminMiddleware(database, adminHandler.AdminExportLabGradesHandler)).Methods("GET")
 
 	log.Println("Server started on :8080")
 	http.ListenAndServe(":8080", router)

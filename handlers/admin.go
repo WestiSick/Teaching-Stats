@@ -1440,3 +1440,429 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=attendance_%s.xlsx", strings.ReplaceAll(teacherFIO, " ", "_")))
 	file.Write(w)
 }
+
+// AdminLabsHandler handles admin management of lab grades
+func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Get all teachers for dropdown
+	teacherRows, err := h.DB.Query("SELECT id, fio FROM users WHERE role = 'teacher' ORDER BY fio")
+	if err != nil {
+		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
+		return
+	}
+	defer teacherRows.Close()
+
+	var teacherList []struct {
+		ID  int
+		FIO string
+	}
+	for teacherRows.Next() {
+		var t struct {
+			ID  int
+			FIO string
+		}
+		teacherRows.Scan(&t.ID, &t.FIO)
+		teacherList = append(teacherList, t)
+	}
+
+	// Check if a teacher is selected
+	teacherIDParam := r.URL.Query().Get("teacher_id")
+	var selectedTeacherID int
+	if teacherIDParam != "" {
+		selectedTeacherID, _ = strconv.Atoi(teacherIDParam)
+	}
+
+	// Initialize template data
+	data := struct {
+		User        db.UserInfo
+		TeacherList []struct {
+			ID  int
+			FIO string
+		}
+		SelectedTeacherID int
+		TeacherFIO        string
+		SubjectGroups     []struct {
+			Subject string
+			Groups  []struct {
+				GroupName    string
+				TotalLabs    int
+				GroupAverage float64
+			}
+		}
+	}{
+		User:              userInfo,
+		TeacherList:       teacherList,
+		SelectedTeacherID: selectedTeacherID,
+	}
+
+	// If a teacher is selected, get their subject-group data
+	if selectedTeacherID > 0 {
+		// Get teacher info
+		err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", selectedTeacherID).Scan(&data.TeacherFIO)
+		if err != nil {
+			HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
+			return
+		}
+
+		// Get subjects for this teacher
+		subjects, err := db.GetTeacherSubjects(h.DB, selectedTeacherID)
+		if err != nil {
+			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
+			return
+		}
+
+		// For each subject, get the groups
+		for _, subject := range subjects {
+			sg := struct {
+				Subject string
+				Groups  []struct {
+					GroupName    string
+					TotalLabs    int
+					GroupAverage float64
+				}
+			}{
+				Subject: subject,
+			}
+
+			// Get groups for this subject
+			rows, err := h.DB.Query(`
+				SELECT DISTINCT group_name 
+				FROM lessons 
+				WHERE teacher_id = ? AND subject = ? 
+				ORDER BY group_name`,
+				selectedTeacherID, subject)
+			if err != nil {
+				HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
+				return
+			}
+
+			for rows.Next() {
+				var groupName string
+				rows.Scan(&groupName)
+
+				// Get lab settings and summary
+				var totalLabs int
+				var groupAverage float64
+
+				// Try to get settings if they exist
+				err := h.DB.QueryRow(`
+					SELECT total_labs 
+					FROM lab_settings 
+					WHERE teacher_id = ? AND subject = ? AND group_name = ?`,
+					selectedTeacherID, subject, groupName).Scan(&totalLabs)
+				if err != nil {
+					totalLabs = 5 // Default if not set
+				}
+
+				// Get average grade
+				err = h.DB.QueryRow(`
+					SELECT AVG(grade) 
+					FROM lab_grades lg
+					JOIN students s ON lg.student_id = s.id
+					WHERE lg.teacher_id = ? AND lg.subject = ? AND s.group_name = ?`,
+					selectedTeacherID, subject, groupName).Scan(&groupAverage)
+				if err != nil || groupAverage == 0 {
+					groupAverage = 0 // Default if not set or error
+				}
+
+				sg.Groups = append(sg.Groups, struct {
+					GroupName    string
+					TotalLabs    int
+					GroupAverage float64
+				}{
+					GroupName:    groupName,
+					TotalLabs:    totalLabs,
+					GroupAverage: groupAverage,
+				})
+			}
+			rows.Close()
+
+			if len(sg.Groups) > 0 {
+				data.SubjectGroups = append(data.SubjectGroups, sg)
+			}
+		}
+	}
+
+	renderTemplate(w, h.Tmpl, "admin_labs.html", data)
+}
+
+// AdminViewLabGradesHandler handles viewing lab grades for a specific teacher, subject, and group
+func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	teacherID, err := strconv.Atoi(vars["teacherID"])
+	if err != nil {
+		http.Error(w, "Invalid teacher ID", http.StatusBadRequest)
+		return
+	}
+	subject := vars["subject"]
+	groupName := vars["group"]
+
+	// Get teacher name
+	var teacherFIO string
+	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
+	if err != nil {
+		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
+		return
+	}
+
+	// Get lab summary
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	if err != nil {
+		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		User       db.UserInfo
+		TeacherID  int
+		TeacherFIO string
+		Summary    db.GroupLabSummary
+	}{
+		User:       userInfo,
+		TeacherID:  teacherID,
+		TeacherFIO: teacherFIO,
+		Summary:    summary,
+	}
+
+	renderTemplate(w, h.Tmpl, "admin_view_labs.html", data)
+}
+
+// AdminEditLabGradesHandler handles editing lab grades for a specific teacher, subject, and group
+func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	teacherID, err := strconv.Atoi(vars["teacherID"])
+	if err != nil {
+		http.Error(w, "Invalid teacher ID", http.StatusBadRequest)
+		return
+	}
+	subject := vars["subject"]
+	groupName := vars["group"]
+
+	// Get teacher name
+	var teacherFIO string
+	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
+	if err != nil {
+		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
+		return
+	}
+
+	// Handle form submission
+	if r.Method == "POST" {
+		if err := r.ParseForm(); err != nil {
+			HandleError(w, err, "Error parsing form", http.StatusBadRequest)
+			return
+		}
+
+		action := r.FormValue("action")
+
+		switch action {
+		case "update_settings":
+			totalLabs, err := strconv.Atoi(r.FormValue("total_labs"))
+			if err != nil || totalLabs < 1 {
+				http.Error(w, "Invalid number of labs", http.StatusBadRequest)
+				return
+			}
+
+			settings := db.LabSettings{
+				TeacherID: teacherID,
+				GroupName: groupName,
+				Subject:   subject,
+				TotalLabs: totalLabs,
+			}
+
+			if err := db.SaveLabSettings(h.DB, settings); err != nil {
+				HandleError(w, err, "Error saving lab settings", http.StatusInternalServerError)
+				return
+			}
+
+			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Settings",
+				fmt.Sprintf("Updated lab settings for teacher ID %d, %s, %s: %d labs",
+					teacherID, subject, groupName, totalLabs))
+
+		case "update_grades":
+			// Process all grade inputs
+			for key, values := range r.Form {
+				// Keys should be in format grade_studentID_labNumber
+				if len(values) == 0 {
+					continue
+				}
+
+				var studentID, labNumber int
+
+				// Parse the key to get studentID and labNumber
+				if n, err := fmt.Sscanf(key, "grade_%d_%d", &studentID, &labNumber); err != nil || n != 2 {
+					continue // Skip if not in expected format
+				}
+
+				// Parse the grade
+				gradeStr := values[0]
+				if gradeStr == "" {
+					continue // Skip empty grades
+				}
+
+				grade, err := strconv.Atoi(gradeStr)
+				if err != nil || grade < 1 || grade > 5 {
+					continue // Skip invalid grades
+				}
+
+				// Save the grade - note we're using the teacher's ID, not the admin's
+				if err := db.SaveLabGrade(h.DB, teacherID, studentID, subject, labNumber, grade); err != nil {
+					HandleError(w, err, "Error saving grade", http.StatusInternalServerError)
+					return
+				}
+			}
+
+			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Grades",
+				fmt.Sprintf("Updated lab grades for teacher ID %d, %s, %s",
+					teacherID, subject, groupName))
+		}
+
+		// Redirect to prevent form resubmission
+		http.Redirect(w, r, fmt.Sprintf("/admin/labs/edit/%d/%s/%s", teacherID, subject, groupName),
+			http.StatusSeeOther)
+		return
+	}
+
+	// Get lab summary
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	if err != nil {
+		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		User       db.UserInfo
+		TeacherID  int
+		TeacherFIO string
+		Summary    db.GroupLabSummary
+	}{
+		User:       userInfo,
+		TeacherID:  teacherID,
+		TeacherFIO: teacherFIO,
+		Summary:    summary,
+	}
+
+	renderTemplate(w, h.Tmpl, "admin_edit_labs.html", data)
+}
+
+// AdminExportLabGradesHandler exports lab grades to Excel
+func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	teacherID, err := strconv.Atoi(vars["teacherID"])
+	if err != nil {
+		http.Error(w, "Invalid teacher ID", http.StatusBadRequest)
+		return
+	}
+	subject := vars["subject"]
+	groupName := vars["group"]
+
+	// Get teacher name
+	var teacherFIO string
+	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
+	if err != nil {
+		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
+		return
+	}
+
+	// Get lab summary
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	if err != nil {
+		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
+		return
+	}
+
+	// Create Excel file
+	file := xlsx.NewFile()
+	sheet, err := file.AddSheet(fmt.Sprintf("%s - %s", subject, groupName))
+	if err != nil {
+		HandleError(w, err, "Error creating Excel sheet", http.StatusInternalServerError)
+		return
+	}
+
+	// Add header row
+	header := sheet.AddRow()
+	header.AddCell().SetString("ФИО")
+
+	// Add columns for each lab
+	for i := 1; i <= summary.TotalLabs; i++ {
+		header.AddCell().SetString(fmt.Sprintf("%d", i))
+	}
+
+	// Add average column
+	header.AddCell().SetString("Средний балл")
+
+	// Add student rows
+	for _, student := range summary.Students {
+		row := sheet.AddRow()
+		row.AddCell().SetString(student.StudentFIO)
+
+		// Add grades for each lab
+		for _, grade := range student.Grades {
+			cell := row.AddCell()
+			if grade > 0 {
+				cell.SetInt(grade)
+			}
+			// If grade is 0, leave cell empty
+		}
+
+		// Add average
+		if student.Average > 0 {
+			row.AddCell().SetString(fmt.Sprintf("%.2f", student.Average))
+		} else {
+			row.AddCell().SetString("")
+		}
+	}
+
+	// Add group average row
+	if len(summary.Students) > 0 {
+		avgRow := sheet.AddRow()
+		avgRow.AddCell().SetString("Средний балл группы")
+
+		// Empty cells for each lab
+		for i := 0; i < summary.TotalLabs; i++ {
+			avgRow.AddCell().SetString("")
+		}
+
+		// Group average in the last cell
+		avgRow.AddCell().SetString(fmt.Sprintf("%.2f", summary.GroupAverage))
+	}
+
+	// Log the export action
+	db.LogAction(h.DB, userInfo.ID, "Admin Export Lab Grades",
+		fmt.Sprintf("Exported lab grades for teacher %s (ID: %d), subject %s, group %s",
+			teacherFIO, teacherID, subject, groupName))
+
+	// Set headers for file download
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=lab_grades_%s_%s.xlsx", subject, groupName))
+
+	// Write the file to the response
+	err = file.Write(w)
+	if err != nil {
+		HandleError(w, err, "Error writing Excel file", http.StatusInternalServerError)
+		return
+	}
+}

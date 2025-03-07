@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Просмотр лабораторных работ - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #444;
+    }
+    .info-section {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .teacher-info {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .group-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .group-name {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .group-average {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    table td:first-child {
+      text-align: left;
+      font-weight: bold;
+    }
+    table td:last-child {
+      font-weight: bold;
+      background-color: #f2f2f2;
+    }
+    .grade {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: bold;
+    }
+    .grade-1 {
+      background-color: #dc3545;
+      color: white;
+    }
+    .grade-2 {
+      background-color: #fd7e14;
+      color: white;
+    }
+    .grade-3 {
+      background-color: #ffc107;
+      color: black;
+    }
+    .grade-4 {
+      background-color: #28a745;
+      color: white;
+    }
+    .grade-5 {
+      background-color: #007bff;
+      color: white;
+    }
+    .btn-group {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin: 0 10px;
+    }
+    .btn-admin {
+      background-color: #007BFF;
+      color: #fff;
+    }
+    .btn-admin:hover {
+      background-color: #0056b3;
+    }
+    .btn-edit {
+      background-color: #28a745;
+      color: #fff;
+    }
+    .btn-edit:hover {
+      background-color: #218838;
+    }
+    .btn-export {
+      background-color: #6c757d;
+      color: #fff;
+    }
+    .btn-export:hover {
+      background-color: #5a6268;
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      h1 { font-size: 24px; }
+      h2, .btn { font-size: 14px; }
+      table th, table td {
+        padding: 5px;
+        font-size: 12px;
+      }
+      .grade {
+        width: 25px;
+        height: 25px;
+        line-height: 25px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Просмотр лабораторных работ</h1>
+
+  <div class="info-section">
+    <div class="info-header">
+      <div class="teacher-info">
+        Преподаватель: {{.TeacherFIO}}
+      </div>
+    </div>
+    <div class="group-info">
+      <div class="group-name">
+        Предмет: {{.Summary.Subject}}, Группа: {{.Summary.GroupName}}
+      </div>
+      <div class="group-average">
+        Средний балл: {{printf "%.2f" .Summary.GroupAverage}}
+      </div>
+    </div>
+    <div>
+      Количество лабораторных работ: {{.Summary.TotalLabs}}
+    </div>
+  </div>
+
+  <h2>Оценки студентов</h2>
+
+  <table>
+    <tr>
+      <th>Студент</th>
+      {{range $i := iter .Summary.TotalLabs}}
+      <th>Лаб {{inc $i}}</th>
+      {{end}}
+      <th>Средний балл</th>
+    </tr>
+
+    {{range .Summary.Students}}
+    <tr>
+      <td>{{.StudentFIO}}</td>
+      {{range .Grades}}
+      <td>
+        {{if gt . 0}}
+        <span class="grade grade-{{.}}">{{.}}</span>
+        {{else}}
+        -
+        {{end}}
+      </td>
+      {{end}}
+      <td>{{printf "%.2f" .Average}}</td>
+    </tr>
+    {{end}}
+  </table>
+
+  <div class="btn-group">
+    <a href="/admin/labs/edit/{{.TeacherID}}/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-edit">Редактировать</a>
+    <a href="/admin/labs/export/{{.TeacherID}}/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-export">Экспорт в Excel</a>
+    <a href="/admin/labs?teacher_id={{.TeacherID}}" class="btn btn-admin">Назад к списку</a>
+  </div>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+</body>
+</html>

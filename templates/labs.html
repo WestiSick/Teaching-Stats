@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лабораторные работы - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #444;
+            font-size: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .subject-section {
+            margin-bottom: 30px;
+        }
+        .group-item {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .group-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .student-count {
+            font-size: 14px;
+            color: #666;
+        }
+        .lab-button, .export-button {
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            margin-left: 5px;
+        }
+        .lab-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .lab-button:hover {
+            background-color: #388E3C;
+        }
+        .export-button {
+            background-color: #007BFF;
+            color: white;
+        }
+        .export-button:hover {
+            background-color: #0056b3;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007BFF;
+            font-size: 16px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 480px) {
+            h1, h2, .back-link {
+                font-size: 16px;
+            }
+            .group-name {
+                font-size: 14px;
+            }
+            .student-count, .lab-button {
+                font-size: 12px;
+            }
+            .user-info {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Лабораторные работы</h1>
+
+    {{if .SubjectGroups}}
+    {{range .SubjectGroups}}
+    <div class="subject-section">
+        <h2>{{.Subject}}</h2>
+        {{$currentSubject := .Subject}}
+        {{range .Groups}}
+        <div class="group-item">
+            <div>
+                <span class="group-name">{{.Name}}</span>
+                <span class="student-count">({{.StudentCount}} студентов)</span>
+            </div>
+            <div>
+                <a href="/labs/grades/{{$currentSubject}}/{{.Name}}" class="lab-button">Сдача лабораторных</a>
+                <a href="/labs/export/{{$currentSubject}}/{{.Name}}" class="export-button">Экспортировать в Excel</a>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+    {{else}}
+    <p>У вас нет групп с предметами для сдачи лабораторных работ.</p>
+    {{end}}
+
+    <a href="/dashboard" class="back-link">Назад</a>
+</div>
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+</body>
+</html>

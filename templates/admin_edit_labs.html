@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактирование лабораторных работ - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #444;
+        }
+        .settings-section {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .teacher-info {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .group-info {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+        .group-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .group-average {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            align-self: flex-start;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        table td:first-child {
+            text-align: left;
+            font-weight: bold;
+        }
+        table td:last-child {
+            font-weight: bold;
+            background-color: #f2f2f2;
+        }
+        .grade-input {
+            width: 40px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .btn-group {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+        .btn-admin {
+            background-color: #007BFF;
+            color: #fff;
+        }
+        .btn-admin:hover {
+            background-color: #0056b3;
+        }
+        .btn-export {
+            background-color: #6c757d;
+            color: #fff;
+        }
+        .btn-export:hover {
+            background-color: #5a6268;
+        }
+        .save-grades-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        .save-grades-btn:hover {
+            background-color: #218838;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 { font-size: 24px; }
+            h2, button, .btn, label, input { font-size: 14px; }
+            table th, table td {
+                padding: 5px;
+                font-size: 12px;
+            }
+            .grade-input {
+                width: 30px;
+                padding: 3px;
+                font-size: 12px;
+            }
+            .save-grades-btn {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Редактирование лабораторных работ</h1>
+
+    <div class="settings-section">
+        <div class="settings-header">
+            <div class="teacher-info">
+                Преподаватель: {{.TeacherFIO}}
+            </div>
+        </div>
+
+        <div class="group-info">
+            <div class="group-name">
+                Предмет: {{.Summary.Subject}}, Группа: {{.Summary.GroupName}}
+            </div>
+            <div class="group-average">
+                Средний балл: {{printf "%.2f" .Summary.GroupAverage}}
+            </div>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="update_settings">
+            <label>
+                Количество лабораторных работ:
+                <input type="number" name="total_labs" value="{{.Summary.TotalLabs}}" min="1" max="20">
+            </label>
+            <button type="submit">Сохранить настройки</button>
+        </form>
+    </div>
+
+    <h2>Редактирование оценок</h2>
+
+    <form method="POST">
+        <input type="hidden" name="action" value="update_grades">
+
+        <table>
+            <tr>
+                <th>Студент</th>
+                {{range $i := iter .Summary.TotalLabs}}
+                <th>Лаб {{inc $i}}</th>
+                {{end}}
+                <th>Средний балл</th>
+            </tr>
+
+            {{range .Summary.Students}}
+            <tr>
+                <td>{{.StudentFIO}}</td>
+                {{$studentID := .StudentID}}
+                {{range $i, $grade := .Grades}}
+                <td>
+                    <input type="number" class="grade-input" name="grade_{{$studentID}}_{{inc $i}}"
+                           value="{{if gt $grade 0}}{{$grade}}{{end}}" min="1" max="5">
+                </td>
+                {{end}}
+                <td>{{printf "%.2f" .Average}}</td>
+            </tr>
+            {{end}}
+        </table>
+
+        <button type="submit" class="save-grades-btn">Сохранить оценки</button>
+    </form>
+
+    <div class="btn-group">
+        <a href="/admin/labs/export/{{.TeacherID}}/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-export">Экспорт в Excel</a>
+        <a href="/admin/labs?teacher_id={{.TeacherID}}" class="btn btn-admin">Назад к списку</a>
+    </div>
+</div>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+
+<script>
+    // Function to validate grade inputs
+    function validateGradeInputs() {
+        const inputs = document.querySelectorAll('.grade-input');
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                const value = parseInt(this.value);
+                if (value < 1 || value > 5 || isNaN(value)) {
+                    if (this.value !== '') {
+                        alert('Оценка должна быть от 1 до 5');
+                        this.value = '';
+                    }
+                }
+            });
+        });
+    }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        validateGradeInputs();
+    });
+</script>
+</body>
+</html>

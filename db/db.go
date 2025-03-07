@@ -62,6 +62,26 @@ func InitDB() *sql.DB {
 			FOREIGN KEY (student_id) REFERENCES students(id),
 			UNIQUE (lesson_id, student_id)
 		);
+		CREATE TABLE IF NOT EXISTS lab_settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			teacher_id INTEGER,
+			group_name TEXT NOT NULL,
+			subject TEXT NOT NULL,
+			total_labs INTEGER NOT NULL DEFAULT 5,
+			FOREIGN KEY (teacher_id) REFERENCES users(id),
+			UNIQUE (teacher_id, group_name, subject)
+		);
+		CREATE TABLE IF NOT EXISTS lab_grades (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			student_id INTEGER,
+			teacher_id INTEGER,
+			subject TEXT NOT NULL,
+			lab_number INTEGER NOT NULL,
+			grade INTEGER NOT NULL,
+			FOREIGN KEY (student_id) REFERENCES students(id),
+			FOREIGN KEY (teacher_id) REFERENCES users(id),
+			UNIQUE (student_id, subject, lab_number)
+		);
 	`)
 	if err != nil {
 		log.Fatal(err)
