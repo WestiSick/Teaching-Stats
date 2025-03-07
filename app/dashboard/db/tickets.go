@@ -1,12 +1,10 @@
 package db
 
 import (
+	"TeacherJournal/app/TeacherTickets/models"
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
-
-	"TeacherJournal/app/TeacherTickets/models"
 )
 
 // CreateTicketTables creates the tables needed for the ticket system
@@ -457,9 +455,374 @@ func GetTicketDetails(db *sql.DB, ticketID int) (*models.Ticket, error) {
 	return ticket, nil
 }
 
-// Additional functions to implement:
-// - GetTicketAttachments
-// - AddTicketAttachment
-// - GetTicketStatusHistory
-// - GetTicketStatistics
-// etc.
+// GetTicketAttachments retrieves all attachments for a specified ticket
+func GetTicketAttachments(db *sql.DB, ticketID int) ([]models.Attachment, error) {
+	rows, err := db.Query(`
+		SELECT a.id, a.ticket_id, a.file_name, a.file_path, a.uploaded_by, a.uploaded_at, u.fio
+		FROM ticket_attachments a
+		JOIN users u ON a.uploaded_by = u.id
+		WHERE a.ticket_id = ?
+		ORDER BY a.uploaded_at DESC
+	`, ticketID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var attachments []models.Attachment
+	for rows.Next() {
+		var attachment models.Attachment
+		var userFIO string
+
+		err := rows.Scan(
+			&attachment.ID, &attachment.TicketID, &attachment.FileName, &attachment.FilePath,
+			&attachment.UploadedBy, &attachment.UploadedAt, &userFIO,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		attachment.User = &models.UserInfo{
+			ID:  attachment.UploadedBy,
+			FIO: userFIO,
+		}
+
+		attachments = append(attachments, attachment)
+	}
+
+	return attachments, nil
+}
+
+// AddTicketAttachment adds a new attachment to a ticket
+func AddTicketAttachment(db *sql.DB, attachment *models.Attachment) error {
+	result, err := db.Exec(`
+		INSERT INTO ticket_attachments (ticket_id, file_name, file_path, uploaded_by, uploaded_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, attachment.TicketID, attachment.FileName, attachment.FilePath, attachment.UploadedBy)
+
+	if err != nil {
+		return err
+	}
+
+	attachmentID, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+
+	attachment.ID = int(attachmentID)
+
+	// Update the ticket's updated_at timestamp
+	_, err = db.Exec(`
+		UPDATE tickets
+		SET updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, attachment.TicketID)
+
+	return err
+}
+
+// GetTicketStatusHistory retrieves the status history of a ticket
+func GetTicketStatusHistory(db *sql.DB, ticketID int) ([]models.StatusChange, error) {
+	rows, err := db.Query(`
+		SELECT h.id, h.ticket_id, h.status, h.changed_by, h.changed_at, u.fio
+		FROM ticket_status_history h
+		JOIN users u ON h.changed_by = u.id
+		WHERE h.ticket_id = ?
+		ORDER BY h.changed_at DESC
+	`, ticketID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []models.StatusChange
+	for rows.Next() {
+		var change models.StatusChange
+		var userFIO string
+
+		err := rows.Scan(
+			&change.ID, &change.TicketID, &change.Status, &change.ChangedBy, &change.ChangedAt, &userFIO,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		change.User = &models.UserInfo{
+			ID:  change.ChangedBy,
+			FIO: userFIO,
+		}
+
+		history = append(history, change)
+	}
+
+	return history, nil
+}
+
+// GetTicketStatistics generates statistics about tickets
+func GetTicketStatistics(db *sql.DB, userID int, isAdmin bool) (*models.TicketStatistics, error) {
+	// Initialize statistics structure
+	stats := &models.TicketStatistics{
+		ByStatus:   make(map[string]int),
+		ByPriority: make(map[string]int),
+		ByCategory: make(map[string]int),
+	}
+
+	// Query base for all statistics
+	baseQuery := `SELECT COUNT(*) FROM tickets `
+	var args []interface{}
+
+	// If not admin, only count tickets created by this user
+	whereClause := ""
+	if !isAdmin {
+		whereClause = "WHERE creator_id = ?"
+		args = append(args, userID)
+	}
+
+	// Get total tickets
+	err := db.QueryRow(baseQuery+whereClause, args...).Scan(&stats.Total)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get counts by status
+	statusQuery := `
+		SELECT status, COUNT(*) 
+		FROM tickets 
+		` + whereClause + `
+		GROUP BY status
+	`
+	statusRows, err := db.Query(statusQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer statusRows.Close()
+
+	for statusRows.Next() {
+		var status string
+		var count int
+		if err := statusRows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		stats.ByStatus[status] = count
+	}
+
+	// Get counts by priority
+	priorityQuery := `
+		SELECT priority, COUNT(*) 
+		FROM tickets 
+		` + whereClause + `
+		GROUP BY priority
+	`
+	priorityRows, err := db.Query(priorityQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer priorityRows.Close()
+
+	for priorityRows.Next() {
+		var priority string
+		var count int
+		if err := priorityRows.Scan(&priority, &count); err != nil {
+			return nil, err
+		}
+		stats.ByPriority[priority] = count
+	}
+
+	// Get counts by category
+	categoryQuery := `
+		SELECT category, COUNT(*) 
+		FROM tickets 
+		` + whereClause + `
+		GROUP BY category
+	`
+	categoryRows, err := db.Query(categoryQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer categoryRows.Close()
+
+	for categoryRows.Next() {
+		var category string
+		var count int
+		if err := categoryRows.Scan(&category, &count); err != nil {
+			return nil, err
+		}
+		stats.ByCategory[category] = count
+	}
+
+	// Временные структуры для расчетов
+	var responseTime struct {
+		Average string
+		Min     string
+		Max     string
+	}
+
+	var resolutionTime struct {
+		Average string
+		Min     string
+		Max     string
+	}
+
+	// Calculate response time statistics for non-new tickets
+	if isAdmin {
+		// For admins, we calculate average response time across all tickets
+		err = calculateResponseTimes(db, &responseTime, "")
+	} else {
+		// For regular users, we only consider their tickets
+		err = calculateResponseTimes(db, &responseTime, fmt.Sprintf("WHERE t.creator_id = %d", userID))
+	}
+	if err != nil {
+		log.Printf("Error calculating response times: %v", err)
+	}
+
+	// Копируем данные в структуру stats
+	stats.ResponseTime.Average = responseTime.Average
+	stats.ResponseTime.Min = responseTime.Min
+	stats.ResponseTime.Max = responseTime.Max
+
+	// Calculate resolution time statistics for resolved/closed tickets
+	if isAdmin {
+		// For admins, we calculate resolution across all tickets
+		err = calculateResolutionTimes(db, &resolutionTime, "")
+	} else {
+		// For regular users, we only consider their tickets
+		err = calculateResolutionTimes(db, &resolutionTime, fmt.Sprintf("WHERE t.creator_id = %d", userID))
+	}
+	if err != nil {
+		log.Printf("Error calculating resolution times: %v", err)
+	}
+
+	// Копируем данные в структуру stats
+	stats.ResolutionTime.Average = resolutionTime.Average
+	stats.ResolutionTime.Min = resolutionTime.Min
+	stats.ResolutionTime.Max = resolutionTime.Max
+
+	return stats, nil
+}
+
+// Helper function to calculate response time statistics
+func calculateResponseTimes(db *sql.DB, timeStats *struct {
+	Average string
+	Min     string
+	Max     string
+}, whereClause string) error {
+	// Query to calculate the time between ticket creation and first status change
+	query := `
+		SELECT 
+			AVG(response_time) as avg_time,
+			MIN(response_time) as min_time,
+			MAX(response_time) as max_time
+		FROM (
+			SELECT 
+				t.id,
+				CAST((julianday(MIN(h.changed_at)) - julianday(t.created_at)) * 24 * 60 as INTEGER) as response_time
+			FROM tickets t
+			JOIN ticket_status_history h ON t.id = h.ticket_id
+			` + whereClause + `
+			GROUP BY t.id
+			HAVING MIN(h.changed_at) > t.created_at
+		) response_times
+	`
+
+	var avgMinutes, minMinutes, maxMinutes sql.NullInt64
+	err := db.QueryRow(query).Scan(&avgMinutes, &minMinutes, &maxMinutes)
+	if err != nil {
+		return err
+	}
+
+	// Format the times as strings
+	if avgMinutes.Valid {
+		timeStats.Average = formatMinutes(avgMinutes.Int64)
+	} else {
+		timeStats.Average = "N/A"
+	}
+
+	if minMinutes.Valid {
+		timeStats.Min = formatMinutes(minMinutes.Int64)
+	} else {
+		timeStats.Min = "N/A"
+	}
+
+	if maxMinutes.Valid {
+		timeStats.Max = formatMinutes(maxMinutes.Int64)
+	} else {
+		timeStats.Max = "N/A"
+	}
+
+	return nil
+}
+
+// Helper function to calculate resolution time statistics
+func calculateResolutionTimes(db *sql.DB, timeStats *struct {
+	Average string
+	Min     string
+	Max     string
+}, whereClause string) error {
+	// Query to calculate the time between ticket creation and resolution
+	query := `
+		SELECT 
+			AVG(resolution_time) as avg_time,
+			MIN(resolution_time) as min_time,
+			MAX(resolution_time) as max_time
+		FROM (
+			SELECT 
+				t.id,
+				CAST((julianday(h.changed_at) - julianday(t.created_at)) * 24 * 60 as INTEGER) as resolution_time
+			FROM tickets t
+			JOIN ticket_status_history h ON t.id = h.ticket_id
+			` + whereClause + `
+			AND h.status IN ('Resolved', 'Closed')
+			AND t.status IN ('Resolved', 'Closed')
+			GROUP BY t.id
+			HAVING MIN(h.changed_at) > t.created_at
+		) resolution_times
+	`
+
+	var avgMinutes, minMinutes, maxMinutes sql.NullInt64
+	err := db.QueryRow(query).Scan(&avgMinutes, &minMinutes, &maxMinutes)
+	if err != nil {
+		return err
+	}
+
+	// Format the times as strings
+	if avgMinutes.Valid {
+		timeStats.Average = formatMinutes(avgMinutes.Int64)
+	} else {
+		timeStats.Average = "N/A"
+	}
+
+	if minMinutes.Valid {
+		timeStats.Min = formatMinutes(minMinutes.Int64)
+	} else {
+		timeStats.Min = "N/A"
+	}
+
+	if maxMinutes.Valid {
+		timeStats.Max = formatMinutes(maxMinutes.Int64)
+	} else {
+		timeStats.Max = "N/A"
+	}
+
+	return nil
+}
+
+// Helper function to format minutes into a readable duration
+func formatMinutes(minutes int64) string {
+	if minutes < 60 {
+		return fmt.Sprintf("%d мин", minutes)
+	}
+
+	hours := minutes / 60
+	mins := minutes % 60
+
+	if hours < 24 {
+		return fmt.Sprintf("%d ч %d мин", hours, mins)
+	}
+
+	days := hours / 24
+	hrs := hours % 24
+
+	return fmt.Sprintf("%d д %d ч %d мин", days, hrs, mins)
+}
