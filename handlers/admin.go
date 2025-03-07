@@ -365,6 +365,9 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get user filter parameters
+	userIDFilter := r.URL.Query().Get("user_id")
+
 	// Get pagination parameters
 	pageStr := r.URL.Query().Get("page")
 	page := 1 // Default to first page
@@ -378,9 +381,32 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 	const entriesPerPage = 10
 	offset := (page - 1) * entriesPerPage
 
+	// Build the base query with WHERE clause if user filter is specified
+	countQuery := "SELECT COUNT(*) FROM logs l"
+	logsQuery := `
+		SELECT l.id, u.fio, l.action, l.details, l.timestamp
+		FROM logs l
+		JOIN users u ON l.user_id = u.id
+	`
+
+	var args []interface{}
+	if userIDFilter != "" {
+		countQuery += " WHERE l.user_id = ?"
+		logsQuery += " WHERE l.user_id = ?"
+		args = append(args, userIDFilter)
+	}
+
+	// Append ordering and limit
+	logsQuery += " ORDER BY l.timestamp DESC LIMIT ? OFFSET ?"
+
 	// Get total count for pagination
 	var totalEntries int
-	err = h.DB.QueryRow("SELECT COUNT(*) FROM logs").Scan(&totalEntries)
+	if userIDFilter != "" {
+		err = h.DB.QueryRow(countQuery, userIDFilter).Scan(&totalEntries)
+	} else {
+		err = h.DB.QueryRow(countQuery).Scan(&totalEntries)
+	}
+
 	if err != nil {
 		HandleError(w, err, "Error retrieving log count", http.StatusInternalServerError)
 		return
@@ -388,14 +414,11 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 
 	totalPages := (totalEntries + entriesPerPage - 1) / entriesPerPage // Ceiling division
 
-	// Get system logs with pagination
-	rows, err := h.DB.Query(`
-		SELECT l.id, u.fio, l.action, l.details, l.timestamp
-		FROM logs l
-		JOIN users u ON l.user_id = u.id
-		ORDER BY l.timestamp DESC
-		LIMIT ? OFFSET ?
-	`, entriesPerPage, offset)
+	// Add pagination parameters to args
+	args = append(args, entriesPerPage, offset)
+
+	// Get system logs with pagination and filtering
+	rows, err := h.DB.Query(logsQuery, args...)
 	if err != nil {
 		HandleError(w, err, "Error retrieving logs", http.StatusInternalServerError)
 		return
@@ -417,10 +440,31 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 		logs = append(logs, l)
 	}
 
+	// Get all users for the dropdown
+	userRows, err := h.DB.Query("SELECT id, fio FROM users ORDER BY fio")
+	if err != nil {
+		HandleError(w, err, "Error retrieving user list", http.StatusInternalServerError)
+		return
+	}
+	defer userRows.Close()
+
+	type UserOption struct {
+		ID  int
+		FIO string
+	}
+	var userList []UserOption
+	for userRows.Next() {
+		var u UserOption
+		userRows.Scan(&u.ID, &u.FIO)
+		userList = append(userList, u)
+	}
+
 	data := struct {
-		User       db.UserInfo
-		Logs       []LogEntry
-		Pagination struct {
+		User           db.UserInfo
+		Logs           []LogEntry
+		UserList       []UserOption
+		SelectedUserID string
+		Pagination     struct {
 			CurrentPage int
 			TotalPages  int
 			HasPrev     bool
@@ -429,8 +473,10 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 			NextPage    int
 		}
 	}{
-		User: userInfo,
-		Logs: logs,
+		User:           userInfo,
+		Logs:           logs,
+		UserList:       userList,
+		SelectedUserID: userIDFilter,
 		Pagination: struct {
 			CurrentPage int
 			TotalPages  int
