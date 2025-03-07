@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/utils"
+	"TeacherJournal/config"
 	"bufio"
 	"database/sql"
 	"fmt"
@@ -11,10 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
-
-	"TeacherJournal/config"
-	"TeacherJournal/db"
-	"TeacherJournal/utils"
 )
 
 // AdminHandler handles admin-related routes
@@ -33,7 +32,7 @@ func NewAdminHandler(database *sql.DB, tmpl *template.Template) *AdminHandler {
 
 // AdminDashboardHandler handles the admin dashboard
 func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -75,9 +74,9 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 	defer rows.Close()
 
 	// Process teacher statistics
-	var teachers []db.TeacherStats
+	var teachers []db2.TeacherStats
 	for rows.Next() {
-		var t db.TeacherStats
+		var t db2.TeacherStats
 		rows.Scan(&t.ID, &t.FIO, &t.Lessons, &t.Hours)
 		t.Subjects = make(map[string]int)
 
@@ -214,8 +213,8 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	data := struct {
-		User        db.UserInfo
-		Teachers    []db.TeacherStats
+		User        db2.UserInfo
+		Teachers    []db2.TeacherStats
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -252,7 +251,7 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 
 // AdminUsersHandler handles user management (admin)
 func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -298,7 +297,7 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Delete User", fmt.Sprintf("Deleted user: %s (ID: %s)", fio, userID))
+			db2.LogAction(h.DB, userInfo.ID, "Delete User", fmt.Sprintf("Deleted user: %s (ID: %s)", fio, userID))
 
 		case "update_role":
 			// Update user role
@@ -311,13 +310,13 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 			var fio string
 			h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", userID).Scan(&fio)
 
-			_, err := db.ExecuteQuery(h.DB, "UPDATE users SET role = ? WHERE id = ?", newRole, userID)
+			_, err := db2.ExecuteQuery(h.DB, "UPDATE users SET role = ? WHERE id = ?", newRole, userID)
 			if err != nil {
 				HandleError(w, err, "Error updating role", http.StatusInternalServerError)
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Change Role",
+			db2.LogAction(h.DB, userInfo.ID, "Change Role",
 				fmt.Sprintf("Changed role of user %s (ID: %s) to %s", fio, userID, newRole))
 		}
 
@@ -348,7 +347,7 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	data := struct {
-		User  db.UserInfo
+		User  db2.UserInfo
 		Users []UserData
 	}{
 		User:  userInfo,
@@ -359,7 +358,7 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 
 // AdminLogsHandler handles viewing system logs (admin)
 func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -460,7 +459,7 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	data := struct {
-		User           db.UserInfo
+		User           db2.UserInfo
 		Logs           []LogEntry
 		UserList       []UserOption
 		SelectedUserID string
@@ -498,7 +497,7 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 
 // AdminTeacherGroupsHandler handles admin management of teacher groups
 func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -618,7 +617,7 @@ func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.
 	}
 
 	data := struct {
-		User        db.UserInfo
+		User        db2.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -648,7 +647,7 @@ func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.
 
 // AdminAddGroupHandler handles admin to add a group to a teacher
 func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -671,7 +670,7 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 
 	if r.Method == "GET" {
 		data := struct {
-			User       db.UserInfo
+			User       db2.UserInfo
 			TeacherID  int
 			TeacherFIO string
 		}{
@@ -718,7 +717,7 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 		for scanner.Scan() {
 			studentFIO := strings.TrimSpace(scanner.Text())
 			if studentFIO != "" {
-				_, err := db.ExecuteQuery(h.DB,
+				_, err := db2.ExecuteQuery(h.DB,
 					"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
 					teacherID, groupName, studentFIO)
 				if err == nil {
@@ -739,7 +738,7 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 	for _, studentFIO := range studentFIOs {
 		studentFIO = strings.TrimSpace(studentFIO)
 		if studentFIO != "" {
-			_, err := db.ExecuteQuery(h.DB,
+			_, err := db2.ExecuteQuery(h.DB,
 				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
 				teacherID, groupName, studentFIO)
 			if err == nil {
@@ -754,14 +753,14 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 	if studentsAdded {
 		logMessage += fmt.Sprintf(" with added students (from file: %v, manually: %d)", file != nil, studentCount)
 	}
-	db.LogAction(h.DB, userInfo.ID, "Admin Create Group", logMessage)
+	db2.LogAction(h.DB, userInfo.ID, "Admin Create Group", logMessage)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/groups?teacher_id=%d", teacherID), http.StatusSeeOther)
 }
 
 // AdminEditGroupHandler handles admin to edit a teacher's group
 func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -808,7 +807,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 			for scanner.Scan() {
 				studentFIO := strings.TrimSpace(scanner.Text())
 				if studentFIO != "" {
-					_, err := db.ExecuteQuery(h.DB,
+					_, err := db2.ExecuteQuery(h.DB,
 						"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
 						teacherID, groupName, studentFIO)
 					if err == nil {
@@ -821,26 +820,26 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Upload Student List",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Upload Student List",
 				fmt.Sprintf("Uploaded list of %d students to group %s for teacher ID %d", studentsAdded, groupName, teacherID))
 
 		case "delete":
 			// Delete student
 			studentID := r.FormValue("student_id")
-			_, err := db.ExecuteQuery(h.DB, "DELETE FROM students WHERE id = ? AND teacher_id = ?", studentID, teacherID)
+			_, err := db2.ExecuteQuery(h.DB, "DELETE FROM students WHERE id = ? AND teacher_id = ?", studentID, teacherID)
 			if err != nil {
 				HandleError(w, err, "Error deleting student", http.StatusInternalServerError)
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Delete Student",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Delete Student",
 				fmt.Sprintf("Deleted student from group %s for teacher ID %d (Student ID: %s)", groupName, teacherID, studentID))
 
 		case "update":
 			// Update student name
 			studentID := r.FormValue("student_id")
 			newFIO := r.FormValue("new_fio")
-			_, err := db.ExecuteQuery(h.DB,
+			_, err := db2.ExecuteQuery(h.DB,
 				"UPDATE students SET student_fio = ? WHERE id = ? AND teacher_id = ?",
 				newFIO, studentID, teacherID)
 			if err != nil {
@@ -848,14 +847,14 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Update Student Name",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Update Student Name",
 				fmt.Sprintf("Updated student ID %s in group %s for teacher ID %d to %s", studentID, groupName, teacherID, newFIO))
 
 		case "move":
 			// Move student to another group
 			studentID := r.FormValue("student_id")
 			newGroup := r.FormValue("new_group")
-			_, err := db.ExecuteQuery(h.DB,
+			_, err := db2.ExecuteQuery(h.DB,
 				"UPDATE students SET group_name = ? WHERE id = ? AND teacher_id = ?",
 				newGroup, studentID, teacherID)
 			if err != nil {
@@ -863,7 +862,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Move Student",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Move Student",
 				fmt.Sprintf("Moved student ID %s from group %s to %s for teacher ID %d", studentID, groupName, newGroup, teacherID))
 
 		case "add_student":
@@ -874,7 +873,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			_, err := db.ExecuteQuery(h.DB,
+			_, err := db2.ExecuteQuery(h.DB,
 				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
 				teacherID, groupName, studentFIO)
 			if err != nil {
@@ -882,7 +881,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Add Student",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Add Student",
 				fmt.Sprintf("Added student %s to group %s for teacher ID %d", studentFIO, groupName, teacherID))
 		}
 
@@ -891,7 +890,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get students in this group
-	students, err := db.GetStudentsInGroup(h.DB, teacherID, groupName)
+	students, err := db2.GetStudentsInGroup(h.DB, teacherID, groupName)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
@@ -919,11 +918,11 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	data := struct {
-		User       db.UserInfo
+		User       db2.UserInfo
 		TeacherID  int
 		TeacherFIO string
 		GroupName  string
-		Students   []db.StudentData
+		Students   []db2.StudentData
 		Groups     []string
 	}{
 		User:       userInfo,
@@ -938,7 +937,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 
 // AdminAttendanceHandler handles viewing and managing attendance from admin panel
 func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -953,14 +952,14 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		// Delete attendance records
-		_, err := db.ExecuteQuery(h.DB,
+		_, err := db2.ExecuteQuery(h.DB,
 			"DELETE FROM attendance WHERE lesson_id = ?", attendanceID)
 		if err != nil {
 			HandleError(w, err, "Error deleting attendance", http.StatusInternalServerError)
 			return
 		}
 
-		db.LogAction(h.DB, userInfo.ID, "Admin Delete Attendance",
+		db2.LogAction(h.DB, userInfo.ID, "Admin Delete Attendance",
 			fmt.Sprintf("Deleted attendance records for lesson ID %s", attendanceID))
 
 		http.Redirect(w, r, "/admin/attendance", http.StatusSeeOther)
@@ -995,7 +994,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 
 	// Initialize template data
 	data := struct {
-		User        db.UserInfo
+		User        db2.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -1005,7 +1004,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		SelectedSubject   string
 		Groups            []string
 		Subjects          []string
-		AttendanceData    []db.AttendanceData
+		AttendanceData    []db2.AttendanceData
 	}{
 		User:              userInfo,
 		TeacherList:       teacherList,
@@ -1023,7 +1022,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		// Get groups for this teacher
-		groups, err := db.GetTeacherGroups(h.DB, teacherID)
+		groups, err := db2.GetTeacherGroups(h.DB, teacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 			return
@@ -1031,7 +1030,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		data.Groups = groups
 
 		// Get subjects for this teacher
-		subjects, err := db.GetTeacherSubjects(h.DB, teacherID)
+		subjects, err := db2.GetTeacherSubjects(h.DB, teacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
@@ -1071,9 +1070,9 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		defer rows.Close()
 
 		// Process attendance records
-		var attendances []db.AttendanceData
+		var attendances []db2.AttendanceData
 		for rows.Next() {
-			var a db.AttendanceData
+			var a db2.AttendanceData
 			var dateStr string
 			err := rows.Scan(&a.LessonID, &dateStr, &a.Subject, &a.GroupName, &a.TotalStudents, &a.AttendedStudents)
 			if err != nil {
@@ -1092,7 +1091,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 
 // AdminEditAttendanceHandler handles admin to edit attendance
 func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1154,13 +1153,13 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 		}
 
 		// Save attendance
-		err = db.SaveAttendance(h.DB, lessonID, lesson.TeacherID, attendedIDs)
+		err = db2.SaveAttendance(h.DB, lessonID, lesson.TeacherID, attendedIDs)
 		if err != nil {
 			HandleError(w, err, "Error updating attendance", http.StatusInternalServerError)
 			return
 		}
 
-		db.LogAction(h.DB, userInfo.ID, "Admin Edit Attendance",
+		db2.LogAction(h.DB, userInfo.ID, "Admin Edit Attendance",
 			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.Group))
 
 		http.Redirect(w, r, "/admin/attendance?teacher_id="+strconv.Itoa(lesson.TeacherID), http.StatusSeeOther)
@@ -1169,14 +1168,14 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 
 	// For GET requests, display the form
 	// Get student attendance records
-	students, err := db.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
+	students, err := db2.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User   db.UserInfo
+		User   db2.UserInfo
 		Lesson struct {
 			ID      int
 			Group   string
@@ -1187,7 +1186,7 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 		}
 		TeacherID  int
 		TeacherFIO string
-		Students   []db.StudentAttendance
+		Students   []db2.StudentAttendance
 	}{
 		User: userInfo,
 		Lesson: struct {
@@ -1214,7 +1213,7 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 
 // AdminViewAttendanceHandler handles viewing attendance details
 func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1258,7 +1257,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 	lesson.Date = utils.FormatDate(lesson.Date)
 
 	// Get student attendance records
-	students, err := db.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
+	students, err := db2.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
@@ -1280,7 +1279,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 	}
 
 	data := struct {
-		User   db.UserInfo
+		User   db2.UserInfo
 		Lesson struct {
 			ID      int
 			Group   string
@@ -1291,7 +1290,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 		}
 		TeacherID         int
 		TeacherFIO        string
-		Students          []db.StudentAttendance
+		Students          []db2.StudentAttendance
 		TotalStudents     int
 		PresentStudents   int
 		AttendancePercent float64
@@ -1325,7 +1324,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 
 // AdminExportAttendanceHandler handles exporting attendance data
 func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1478,7 +1477,7 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 		}, -1)
 	}
 
-	db.LogAction(h.DB, userInfo.ID, "Admin Export Attendance",
+	db2.LogAction(h.DB, userInfo.ID, "Admin Export Attendance",
 		fmt.Sprintf("Exported attendance data for teacher %s (ID: %d)", teacherFIO, teacherID))
 
 	// Send file to user
@@ -1489,7 +1488,7 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 
 // AdminLabsHandler handles admin management of lab grades
 func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1525,7 +1524,7 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Initialize template data
 	data := struct {
-		User        db.UserInfo
+		User        db2.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -1556,7 +1555,7 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 		}
 
 		// Get subjects for this teacher
-		subjects, err := db.GetTeacherSubjects(h.DB, selectedTeacherID)
+		subjects, err := db2.GetTeacherSubjects(h.DB, selectedTeacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
@@ -1639,7 +1638,7 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 
 // AdminViewLabGradesHandler handles viewing lab grades for a specific teacher, subject, and group
 func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1663,17 +1662,17 @@ func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.
 	}
 
 	// Get lab summary
-	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User       db.UserInfo
+		User       db2.UserInfo
 		TeacherID  int
 		TeacherFIO string
-		Summary    db.GroupLabSummary
+		Summary    db2.GroupLabSummary
 	}{
 		User:       userInfo,
 		TeacherID:  teacherID,
@@ -1686,7 +1685,7 @@ func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.
 
 // AdminEditLabGradesHandler handles editing lab grades for a specific teacher, subject, and group
 func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1726,19 +1725,19 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 				return
 			}
 
-			settings := db.LabSettings{
+			settings := db2.LabSettings{
 				TeacherID: teacherID,
 				GroupName: groupName,
 				Subject:   subject,
 				TotalLabs: totalLabs,
 			}
 
-			if err := db.SaveLabSettings(h.DB, settings); err != nil {
+			if err := db2.SaveLabSettings(h.DB, settings); err != nil {
 				HandleError(w, err, "Error saving lab settings", http.StatusInternalServerError)
 				return
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Settings",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Update Lab Settings",
 				fmt.Sprintf("Updated lab settings for teacher ID %d, %s, %s: %d labs",
 					teacherID, subject, groupName, totalLabs))
 
@@ -1769,13 +1768,13 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 				}
 
 				// Save the grade - note we're using the teacher's ID, not the admin's
-				if err := db.SaveLabGrade(h.DB, teacherID, studentID, subject, labNumber, grade); err != nil {
+				if err := db2.SaveLabGrade(h.DB, teacherID, studentID, subject, labNumber, grade); err != nil {
 					HandleError(w, err, "Error saving grade", http.StatusInternalServerError)
 					return
 				}
 			}
 
-			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Grades",
+			db2.LogAction(h.DB, userInfo.ID, "Admin Update Lab Grades",
 				fmt.Sprintf("Updated lab grades for teacher ID %d, %s, %s",
 					teacherID, subject, groupName))
 		}
@@ -1787,17 +1786,17 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 	}
 
 	// Get lab summary
-	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User       db.UserInfo
+		User       db2.UserInfo
 		TeacherID  int
 		TeacherFIO string
-		Summary    db.GroupLabSummary
+		Summary    db2.GroupLabSummary
 	}{
 		User:       userInfo,
 		TeacherID:  teacherID,
@@ -1810,7 +1809,7 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 
 // AdminExportLabGradesHandler exports lab grades to Excel
 func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1834,7 +1833,7 @@ func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Get lab summary
-	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
@@ -1897,7 +1896,7 @@ func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Log the export action
-	db.LogAction(h.DB, userInfo.ID, "Admin Export Lab Grades",
+	db2.LogAction(h.DB, userInfo.ID, "Admin Export Lab Grades",
 		fmt.Sprintf("Exported lab grades for teacher %s (ID: %d), subject %s, group %s",
 			teacherFIO, teacherID, subject, groupName))
 

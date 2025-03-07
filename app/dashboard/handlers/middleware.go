@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"TeacherJournal/config"
 	"database/sql"
 	"net/http"
-
-	"TeacherJournal/config"
 )
 
 // AuthMiddleware verifies user authentication

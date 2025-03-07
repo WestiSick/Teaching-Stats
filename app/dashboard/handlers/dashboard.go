@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/config"
 	"database/sql"
 	"html/template"
 	"net/http"
-
-	"TeacherJournal/config"
-	"TeacherJournal/db"
 )
 
 // DashboardHandler handles dashboard-related routes
@@ -25,7 +24,7 @@ func NewDashboardHandler(database *sql.DB, tmpl *template.Template) *DashboardHa
 
 // DashboardHandler handles the dashboard page
 func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -66,7 +65,7 @@ func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get groups
-	groups, err := db.GetTeacherGroups(h.DB, userInfo.ID)
+	groups, err := db2.GetTeacherGroups(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
@@ -74,7 +73,7 @@ func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Reque
 
 	// Render dashboard template
 	data := struct {
-		User         db.UserInfo
+		User         db2.UserInfo
 		TotalLessons int
 		TotalHours   int
 		Subjects     map[string]int

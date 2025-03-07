@@ -1,10 +1,10 @@
 package db
 
 import (
+	"TeacherJournal/config"
 	"database/sql"
 	"log"
 
-	"TeacherJournal/config"
 	_ "github.com/mattn/go-sqlite3"
 )
 

@@ -1,7 +1,9 @@
 package handlers
 
 import (
-	"TeacherJournal/utils"
+	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/utils"
+	"TeacherJournal/config"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -10,9 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
-
-	"TeacherJournal/config"
-	"TeacherJournal/db"
 )
 
 // AttendanceHandler handles attendance-related routes
@@ -31,7 +30,7 @@ func NewAttendanceHandler(database *sql.DB, tmpl *template.Template) *Attendance
 
 // EditAttendanceHandler handles editing attendance records
 func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -45,7 +44,7 @@ func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http
 	}
 
 	// Verify the lesson belongs to this teacher
-	var lesson db.LessonData
+	var lesson db2.LessonData
 	err = h.DB.QueryRow(`
 		SELECT l.id, l.group_name, l.subject, l.topic, l.date, l.type
 		FROM lessons l
@@ -82,13 +81,13 @@ func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http
 		}
 
 		// Save attendance using our DB function
-		err = db.SaveAttendance(h.DB, lessonID, userInfo.ID, attendedIDs)
+		err = db2.SaveAttendance(h.DB, lessonID, userInfo.ID, attendedIDs)
 		if err != nil {
 			HandleError(w, err, "Error updating attendance", http.StatusInternalServerError)
 			return
 		}
 
-		db.LogAction(h.DB, userInfo.ID, "Edit Attendance",
+		db2.LogAction(h.DB, userInfo.ID, "Edit Attendance",
 			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.Group))
 
 		http.Redirect(w, r, "/attendance", http.StatusSeeOther)
@@ -97,16 +96,16 @@ func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http
 
 	// For GET requests, display the form
 	// Get student attendance records using our DB function
-	students, err := db.GetAttendanceForLesson(h.DB, lessonID, userInfo.ID)
+	students, err := db2.GetAttendanceForLesson(h.DB, lessonID, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User     db.UserInfo
-		Lesson   db.LessonData
-		Students []db.StudentAttendance
+		User     db2.UserInfo
+		Lesson   db2.LessonData
+		Students []db2.StudentAttendance
 	}{
 		User:     userInfo,
 		Lesson:   lesson,
@@ -117,7 +116,7 @@ func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http
 
 // AttendanceHandler handles viewing and managing attendance records
 func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -132,7 +131,7 @@ func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		// Delete attendance records
-		_, err := db.ExecuteQuery(h.DB,
+		_, err := db2.ExecuteQuery(h.DB,
 			"DELETE FROM attendance WHERE lesson_id = ? AND EXISTS (SELECT 1 FROM lessons WHERE id = ? AND teacher_id = ?)",
 			attendanceID, attendanceID, userInfo.ID)
 		if err != nil {
@@ -140,7 +139,7 @@ func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		db.LogAction(h.DB, userInfo.ID, "Delete Attendance",
+		db2.LogAction(h.DB, userInfo.ID, "Delete Attendance",
 			fmt.Sprintf("Deleted attendance for lesson ID %s", attendanceID))
 
 		http.Redirect(w, r, "/attendance", http.StatusSeeOther)
@@ -148,7 +147,7 @@ func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get attendance records
-	attendances, err := db.GetTeacherAttendanceRecords(h.DB, userInfo.ID)
+	attendances, err := db2.GetTeacherAttendanceRecords(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving attendance list", http.StatusInternalServerError)
 		return
@@ -160,8 +159,8 @@ func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	data := struct {
-		User        db.UserInfo
-		Attendances []db.AttendanceData
+		User        db2.UserInfo
+		Attendances []db2.AttendanceData
 	}{
 		User:        userInfo,
 		Attendances: attendances,
@@ -171,7 +170,7 @@ func (h *AttendanceHandler) AttendanceHandler(w http.ResponseWriter, r *http.Req
 
 // AddAttendanceHandler handles creating/recording attendance
 func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -179,14 +178,14 @@ func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.
 
 	if r.Method == "GET" {
 		// Get subjects for selection
-		subjects, err := db.GetTeacherSubjects(h.DB, userInfo.ID)
+		subjects, err := db2.GetTeacherSubjects(h.DB, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
 		}
 
 		data := struct {
-			User     db.UserInfo
+			User     db2.UserInfo
 			Subjects []string
 		}{
 			User:     userInfo,
@@ -220,7 +219,7 @@ func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.
 	}
 
 	// Save attendance using our DB function
-	err = db.SaveAttendance(h.DB, lessonID, userInfo.ID, attendedIDs)
+	err = db2.SaveAttendance(h.DB, lessonID, userInfo.ID, attendedIDs)
 	if err != nil {
 		HandleError(w, err, "Error saving attendance", http.StatusInternalServerError)
 		return
@@ -230,7 +229,7 @@ func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.
 	var groupName string
 	h.DB.QueryRow("SELECT group_name FROM lessons WHERE id = ?", lessonID).Scan(&groupName)
 
-	db.LogAction(h.DB, userInfo.ID, "Create Attendance",
+	db2.LogAction(h.DB, userInfo.ID, "Create Attendance",
 		fmt.Sprintf("Added attendance for lesson ID %d, group %s", lessonID, groupName))
 
 	http.Redirect(w, r, "/attendance", http.StatusSeeOther)
@@ -238,7 +237,7 @@ func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.
 
 // ExportAttendanceExcelHandler handles exporting attendance data to Excel
 func (h *AttendanceHandler) ExportAttendanceExcelHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -255,9 +254,9 @@ func (h *AttendanceHandler) ExportAttendanceExcelHandler(w http.ResponseWriter, 
 
 	var err2 error
 	if exportMode == "group" {
-		err2 = db.ExportAttendanceByGroup(h.DB, userInfo.ID, file)
+		err2 = db2.ExportAttendanceByGroup(h.DB, userInfo.ID, file)
 	} else {
-		err2 = db.ExportAttendanceByLesson(h.DB, userInfo.ID, file)
+		err2 = db2.ExportAttendanceByLesson(h.DB, userInfo.ID, file)
 	}
 
 	if err2 != nil {
@@ -265,7 +264,7 @@ func (h *AttendanceHandler) ExportAttendanceExcelHandler(w http.ResponseWriter, 
 		return
 	}
 
-	db.LogAction(h.DB, userInfo.ID, "Export Attendance",
+	db2.LogAction(h.DB, userInfo.ID, "Export Attendance",
 		fmt.Sprintf("Exported attendance data in %s mode", exportMode))
 
 	// Send file to user

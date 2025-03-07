@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/utils"
+	"TeacherJournal/config"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -9,10 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
-
-	"TeacherJournal/config"
-	"TeacherJournal/db"
-	"TeacherJournal/utils"
 )
 
 // LessonHandler handles lesson-related routes
@@ -31,7 +30,7 @@ func NewLessonHandler(database *sql.DB, tmpl *template.Template) *LessonHandler 
 
 // AddLessonHandler handles adding a new lesson
 func (h *LessonHandler) AddLessonHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -39,21 +38,21 @@ func (h *LessonHandler) AddLessonHandler(w http.ResponseWriter, r *http.Request)
 
 	if r.Method == "GET" {
 		// Get groups for selection
-		groups, err := db.GetTeacherGroups(h.DB, userInfo.ID)
+		groups, err := db2.GetTeacherGroups(h.DB, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 			return
 		}
 
 		// Get subjects for selection
-		subjects, err := db.GetTeacherSubjects(h.DB, userInfo.ID)
+		subjects, err := db2.GetTeacherSubjects(h.DB, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
 		}
 
 		data := struct {
-			User     db.UserInfo
+			User     db2.UserInfo
 			Groups   []string
 			Subjects []string
 		}{
@@ -85,7 +84,7 @@ func (h *LessonHandler) AddLessonHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Insert lesson
-	_, err = db.ExecuteQuery(h.DB,
+	_, err = db2.ExecuteQuery(h.DB,
 		"INSERT INTO lessons (teacher_id, group_name, subject, topic, hours, date, type) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		userInfo.ID, group, subject, topic, hours, date, lessonType)
 	if err != nil {
@@ -93,7 +92,7 @@ func (h *LessonHandler) AddLessonHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	db.LogAction(h.DB, userInfo.ID, "Add Lesson",
+	db2.LogAction(h.DB, userInfo.ID, "Add Lesson",
 		fmt.Sprintf("Added %s: %s, %s, %s, %d hours, %s", lessonType, subject, group, topic, hours, date))
 
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
@@ -101,7 +100,7 @@ func (h *LessonHandler) AddLessonHandler(w http.ResponseWriter, r *http.Request)
 
 // SubjectLessonsHandler handles viewing and managing lessons by subject
 func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -135,14 +134,14 @@ func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		// Delete lesson
-		_, err = db.ExecuteQuery(h.DB, "DELETE FROM lessons WHERE id = ? AND teacher_id = ?", lessonID, userInfo.ID)
+		_, err = db2.ExecuteQuery(h.DB, "DELETE FROM lessons WHERE id = ? AND teacher_id = ?", lessonID, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error deleting lesson", http.StatusInternalServerError)
 			return
 		}
 
 		formattedDate := utils.FormatDate(dateStr)
-		db.LogAction(h.DB, userInfo.ID, "Delete Lesson",
+		db2.LogAction(h.DB, userInfo.ID, "Delete Lesson",
 			fmt.Sprintf("Deleted lesson ID %s: %s, %s, %s, %d hours, %s, type: %s",
 				lessonID, subject, group, topic, hours, formattedDate, lessonType))
 
@@ -151,7 +150,7 @@ func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get lessons for this subject using our DB function
-	lessons, err := db.GetLessonsBySubject(h.DB, userInfo.ID, subject)
+	lessons, err := db2.GetLessonsBySubject(h.DB, userInfo.ID, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lessons", http.StatusInternalServerError)
 		return
@@ -163,9 +162,9 @@ func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	data := struct {
-		User    db.UserInfo
+		User    db2.UserInfo
 		Subject string
-		Lessons []db.LessonData
+		Lessons []db2.LessonData
 	}{
 		User:    userInfo,
 		Subject: subject,
@@ -176,7 +175,7 @@ func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Req
 
 // EditLessonHandler handles editing a lesson
 func (h *LessonHandler) EditLessonHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -191,29 +190,29 @@ func (h *LessonHandler) EditLessonHandler(w http.ResponseWriter, r *http.Request
 
 	if r.Method == "GET" {
 		// Get lesson details
-		lesson, err := db.GetLessonByID(h.DB, lessonID, userInfo.ID)
+		lesson, err := db2.GetLessonByID(h.DB, lessonID, userInfo.ID)
 		if err != nil {
 			http.Error(w, "Lesson not found", http.StatusNotFound)
 			return
 		}
 
 		// Get groups for selection
-		groups, err := db.GetTeacherGroups(h.DB, userInfo.ID)
+		groups, err := db2.GetTeacherGroups(h.DB, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 			return
 		}
 
 		// Get subjects for selection
-		subjects, err := db.GetTeacherSubjects(h.DB, userInfo.ID)
+		subjects, err := db2.GetTeacherSubjects(h.DB, userInfo.ID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
 		}
 
 		data := struct {
-			User     db.UserInfo
-			Lesson   db.LessonData
+			User     db2.UserInfo
+			Lesson   db2.LessonData
 			Groups   []string
 			Subjects []string
 		}{
@@ -246,7 +245,7 @@ func (h *LessonHandler) EditLessonHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Update lesson
-	_, err = db.ExecuteQuery(h.DB, `
+	_, err = db2.ExecuteQuery(h.DB, `
 		UPDATE lessons 
 		SET group_name = ?, subject = ?, topic = ?, hours = ?, date = ?, type = ? 
 		WHERE id = ? AND teacher_id = ?`,
@@ -256,7 +255,7 @@ func (h *LessonHandler) EditLessonHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	db.LogAction(h.DB, userInfo.ID, "Edit Lesson",
+	db2.LogAction(h.DB, userInfo.ID, "Edit Lesson",
 		fmt.Sprintf("Edited lesson ID %d: %s, %s, %s, %d hours, %s, type: %s",
 			lessonID, subject, group, topic, hours, date, lessonType))
 
@@ -265,7 +264,7 @@ func (h *LessonHandler) EditLessonHandler(w http.ResponseWriter, r *http.Request
 
 // ExportExcelHandler handles the export functionality
 func (h *LessonHandler) ExportExcelHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return

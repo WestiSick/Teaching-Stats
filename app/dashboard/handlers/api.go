@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/utils"
 	"database/sql"
 	"net/http"
 	"strconv"
-
-	"TeacherJournal/db"
-	"TeacherJournal/utils"
 )
 
 // APIHandler handles API-related routes
