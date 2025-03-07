@@ -4,17 +4,13 @@ import (
 	"database/sql"
 	"log"
 
+	"TeacherJournal/config"
 	_ "github.com/mattn/go-sqlite3"
-)
-
-// Application constants related to the database
-const (
-	DBConnectionString = "./teaching_stats.db?_busy_timeout=5000"
 )
 
 // InitDB initializes the database and creates tables if they don't exist
 func InitDB() *sql.DB {
-	db, err := sql.Open("sqlite3", DBConnectionString)
+	db, err := sql.Open("sqlite3", config.DBConnectionString)
 	if err != nil {
 		log.Fatal(err)
 	}
