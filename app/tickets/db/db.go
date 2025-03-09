@@ -97,24 +97,64 @@ func GetTicketAttachments(db *gorm.DB, ticketID int) ([]models.TicketAttachment,
 	return attachments, result.Error
 }
 
-// CreateTicket creates a new ticket
+// CreateTicket creates a new ticket with robust error handling
 func CreateTicket(db *gorm.DB, ticket *models.Ticket) error {
-	result := db.Create(ticket)
+	// Validate required fields
+	if ticket.CreatedBy == 0 {
+		log.Println("Error: CreatedBy is 0")
+		return fmt.Errorf("creator ID is required when creating a ticket")
+	}
 
-	if result.Error == nil {
+	// Ensure default values are set
+	if ticket.Status == "" {
+		ticket.Status = "New"
+	}
+	if ticket.Priority == "" {
+		ticket.Priority = "Medium"
+	}
+
+	// Start a transaction with detailed logging
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Create the ticket with verbose error checking
+		log.Printf("Attempting to create ticket with CreatedBy: %d", ticket.CreatedBy)
+		result := tx.Create(ticket)
+		if result.Error != nil {
+			log.Printf("Ticket creation database error: %v", result.Error)
+			return result.Error
+		}
+
+		// Log number of rows affected
+		log.Printf("Rows affected: %d", result.RowsAffected)
+
+		// Verify ticket was created
+		var checkTicket models.Ticket
+		if err := tx.First(&checkTicket, ticket.ID).Error; err != nil {
+			log.Printf("Error verifying ticket creation: %v", err)
+			return err
+		}
+
 		// Create a subscription for the ticket creator
 		subscription := models.TicketSubscription{
 			TicketID:   ticket.ID,
 			UserID:     ticket.CreatedBy,
 			Subscribed: true,
 		}
-		db.Create(&subscription)
+		if err := tx.Create(&subscription).Error; err != nil {
+			log.Printf("Error creating ticket subscription: %v", err)
+			return err
+		}
 
-		// Log the action
-		LogTicketAction(db, ticket.ID, ticket.CreatedBy, "Created ticket: "+ticket.Title)
-	}
+		// Log the ticket creation action
+		if err := tx.Exec(`
+			INSERT INTO logs (user_id, action, details, timestamp) 
+			VALUES (?, ?, ?, ?)
+		`, ticket.CreatedBy, "Ticket System", fmt.Sprintf("Created ticket: %s", ticket.Title), time.Now()).Error; err != nil {
+			log.Printf("Error logging ticket creation: %v", err)
+			return err
+		}
 
-	return result.Error
+		return nil
+	})
 }
 
 // UpdateTicket updates an existing ticket

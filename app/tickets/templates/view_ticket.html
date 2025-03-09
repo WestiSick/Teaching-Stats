@@ -377,7 +377,7 @@
         <select name="assigned_to">
           <option value="">Назначить...</option>
           {{range .AdminUsers}}
-          <option value="{{.ID}}" {{if $.Ticket.AssignedTo}}{{if eq *$.Ticket.AssignedTo .ID}}selected{{end}}{{end}}>{{.FIO}}</option>
+          <option value="{{.ID}}" {{if eq $.AssignedToID .ID}}selected{{end}}>{{.FIO}}</option>
           {{end}}
         </select>
         {{end}}

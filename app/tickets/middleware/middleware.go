@@ -4,6 +4,7 @@ import (
 	"TeacherJournal/app/dashboard/db"
 	ticketDB "TeacherJournal/app/tickets/db"
 	"TeacherJournal/config"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -106,10 +107,10 @@ func GetAdminTicketCounts() (int, error) {
 	database := ticketDB.InitTicketDB()
 
 	// Get count of unassigned tickets
-	var count int64
+	var unassignedCount int64
 	err := database.Table("tickets").
 		Where("assigned_to IS NULL AND status NOT IN ('Closed', 'Resolved')").
-		Count(&count).Error
+		Count(&unassignedCount).Error
 
 	if err != nil {
 		return 0, err
@@ -122,7 +123,7 @@ func GetAdminTicketCounts() (int, error) {
 		Count(&openCount).Error
 
 	// Return the sum
-	return int(count + openCount), err
+	return int(unassignedCount + openCount), err
 }
 
 // AddTicketLinks adds ticket system links and notifications to the dashboard
@@ -135,16 +136,22 @@ func AddTicketLinks(w http.ResponseWriter, r *http.Request, next http.Handler) {
 		return
 	}
 
-	// Get ticket counts for the user
+	// Declare ticketCount at function scope
 	var ticketCount int
+
+	// Get ticket counts for the user
 	if userInfo.Role == "admin" {
-		ticketCount, _ = GetAdminTicketCounts()
+		ticketCount, err = GetAdminTicketCounts()
 	} else {
-		ticketCount, _ = GetUserTicketCounts(userInfo.ID)
+		ticketCount, err = GetUserTicketCounts(userInfo.ID)
 	}
 
-	// TODO: Use this information to add ticket notification badges to the UI
-	// This would need to be injected into the template data
+	// Log the ticket count or any errors
+	if err != nil {
+		log.Printf("Error getting ticket counts: %v", err)
+	} else if ticketCount > 0 {
+		log.Printf("User %d has %d active tickets", userInfo.ID, ticketCount)
+	}
 
 	// Continue with the next handler
 	next.ServeHTTP(w, r)

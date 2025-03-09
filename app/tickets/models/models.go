@@ -7,13 +7,13 @@ import (
 // Ticket represents a support ticket in the system
 type Ticket struct {
 	ID           int       `gorm:"primaryKey"`
-	Title        string    `gorm:"not null"`
-	Description  string    `gorm:"type:text;not null"`
-	Status       string    `gorm:"not null;default:New"`    // New, Open, InProgress, Resolved, Closed
-	Priority     string    `gorm:"not null;default:Medium"` // Low, Medium, High, Critical
-	Category     string    `gorm:"not null"`                // Technical, Administrative, Account, Feature, Bug, Other
-	CreatedBy    int       `gorm:"not null"`                // UserID from main app
-	AssignedTo   *int      `gorm:"default:null"`            // UserID from main app, can be null
+	Title        string    `gorm:"not null;type:varchar(255)"`
+	Description  string    `gorm:"not null;type:text"`
+	Status       string    `gorm:"not null;default:'New';type:varchar(50)"`    // New, Open, InProgress, Resolved, Closed
+	Priority     string    `gorm:"not null;default:'Medium';type:varchar(50)"` // Low, Medium, High, Critical
+	Category     string    `gorm:"not null;type:varchar(100)"`                 // Technical, Administrative, Account, Feature, Bug, Other
+	CreatedBy    int       `gorm:"column:created_by;not null"`                 // UserID from main app
+	AssignedTo   *int      `gorm:"column:assigned_to"`                         // UserID from main app, can be null
 	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	LastActivity time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`

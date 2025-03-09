@@ -12,7 +12,7 @@ import (
 	"html/template"
 	"io"
 	"log"
-	"mime/multipart" // Добавляем этот импорт
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -99,7 +99,7 @@ func (h *TicketHandler) TicketDashboardHandler(w http.ResponseWriter, r *http.Re
 
 	// Format tickets for display
 	for _, ticket := range tickets {
-		createdByName := userNames[ticket.CreatedBy]
+		createdByName := userNames[ticket.CreatorID]
 		var assignedToName string
 		if ticket.AssignedTo != nil {
 			assignedToName = userNames[*ticket.AssignedTo]
@@ -139,6 +139,7 @@ func (h *TicketHandler) TicketDashboardHandler(w http.ResponseWriter, r *http.Re
 
 // CreateTicketHandler handles the creation of new tickets
 func (h *TicketHandler) CreateTicketHandler(w http.ResponseWriter, r *http.Request) {
+	// Get user info from session
 	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -177,7 +178,7 @@ func (h *TicketHandler) CreateTicketHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Create ticket
+	// Create ticket method in CreateTicketHandler
 	ticket := ticketModels.Ticket{
 		Title:        title,
 		Description:  description,
@@ -190,8 +191,12 @@ func (h *TicketHandler) CreateTicketHandler(w http.ResponseWriter, r *http.Reque
 		LastActivity: time.Now(),
 	}
 
-	// Save ticket
+	// Add extra logging to track the creation process
+	log.Printf("Creating ticket - User ID: %d, Title: %s", userInfo.ID, title)
+
+	// Save ticket with robust error handling
 	if err := dbTicket.CreateTicket(h.DB, &ticket); err != nil {
+		log.Printf("Ticket creation error: %v", err)
 		utils.HandleError(w, err, "Error creating ticket", http.StatusInternalServerError)
 		return
 	}
@@ -240,12 +245,11 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get comments
-	includeInternal := userInfo.Role == "admin" // Only admins can see internal comments
-	comments, err := dbTicket.GetTicketComments(h.DB, ticketID, includeInternal)
-	if err != nil {
-		utils.HandleError(w, err, "Error retrieving comments", http.StatusInternalServerError)
-		return
+	// Get users for comments and ticket
+	var userIDs []int
+	userIDs = append(userIDs, ticket.CreatedBy)
+	if ticket.AssignedTo != nil {
+		userIDs = append(userIDs, *ticket.AssignedTo)
 	}
 
 	// Get attachments
@@ -257,7 +261,7 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 
 	// Get users for comments and ticket
 	var userIDs []int
-	userIDs = append(userIDs, ticket.CreatedBy)
+	userIDs = append(userIDs, ticket.CreatorID)
 	if ticket.AssignedTo != nil {
 		userIDs = append(userIDs, *ticket.AssignedTo)
 	}
@@ -352,9 +356,11 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 
 	// Get assignee name with proper null checking
 	var ticketAssignee string
+	var assignedToID int
 	if ticket.AssignedTo != nil {
 		if assigneeName, ok := userNames[*ticket.AssignedTo]; ok {
 			ticketAssignee = assigneeName
+			assignedToID = *ticket.AssignedTo
 		}
 	}
 
@@ -363,6 +369,7 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 		Ticket            ticketModels.Ticket
 		TicketCreator     string
 		TicketAssignee    string
+		AssignedToID      int
 		Comments          []CommentDisplay
 		TicketAttachments []ticketModels.TicketAttachment
 		AdminUsers        []struct {
@@ -376,8 +383,9 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 	}{
 		User:              userInfo,
 		Ticket:            ticket,
-		TicketCreator:     userNames[ticket.CreatedBy],
+		TicketCreator:     userNames[ticket.CreatorID],
 		TicketAssignee:    ticketAssignee,
+		AssignedToID:      assignedToID,
 		Comments:          commentsDisplay,
 		TicketAttachments: ticketAttachments,
 		AdminUsers:        adminUsers,
@@ -417,11 +425,10 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Verify permissions
-	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID {
+	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID {
 		http.Error(w, "You don't have permission to update this ticket", http.StatusForbidden)
 		return
 	}
-
 	// Parse form
 	if err := r.ParseForm(); err != nil {
 		utils.HandleError(w, err, "Error parsing form", http.StatusBadRequest)
@@ -432,7 +439,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 	updates := make(map[string]interface{})
 
 	// Users can update some fields
-	if userInfo.Role == "admin" || ticket.CreatedBy == userInfo.ID {
+	if userInfo.Role == "admin" || ticket.CreatorID == userInfo.ID {
 		// Regular users can only update certain fields
 		if r.FormValue("title") != "" && r.FormValue("title") != ticket.Title {
 			updates["title"] = r.FormValue("title")
@@ -511,7 +518,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Check if user has access
-	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
+	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
 		http.Error(w, "You don't have permission to comment on this ticket", http.StatusForbidden)
 		return
 	}
@@ -603,7 +610,7 @@ func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http
 	}
 
 	// Check if user has access to the ticket
-	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
+	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
 		http.Error(w, "You don't have permission to download this attachment", http.StatusForbidden)
 		return
 	}
