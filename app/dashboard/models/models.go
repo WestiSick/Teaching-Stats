@@ -82,56 +82,6 @@ type LabGrade struct {
 	Grade     int     `gorm:"not null"`
 }
 
-// Ticket represents a support ticket
-type Ticket struct {
-	ID          int       `gorm:"primaryKey"`
-	CreatorID   int       `gorm:"index;not null"`
-	Creator     User      `gorm:"foreignKey:CreatorID"`
-	AssigneeID  *int      `gorm:"index"`
-	Assignee    User      `gorm:"foreignKey:AssigneeID"`
-	Title       string    `gorm:"not null"`
-	Description string    `gorm:"not null"`
-	Status      string    `gorm:"not null"`
-	Priority    string    `gorm:"not null"`
-	Category    string    `gorm:"not null"`
-	CreatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-}
-
-// TicketComment represents a comment on a ticket
-type TicketComment struct {
-	ID        int       `gorm:"primaryKey"`
-	TicketID  int       `gorm:"index;not null"`
-	Ticket    Ticket    `gorm:"foreignKey:TicketID"`
-	UserID    int       `gorm:"index;not null"`
-	User      User      `gorm:"foreignKey:UserID"`
-	Comment   string    `gorm:"not null"`
-	CreatedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-}
-
-// TicketAttachment represents a file attached to a ticket
-type TicketAttachment struct {
-	ID         int       `gorm:"primaryKey"`
-	TicketID   int       `gorm:"index;not null"`
-	Ticket     Ticket    `gorm:"foreignKey:TicketID"`
-	FileName   string    `gorm:"not null"`
-	FilePath   string    `gorm:"not null"`
-	UploadedBy int       `gorm:"index;not null"`
-	User       User      `gorm:"foreignKey:UploadedBy"`
-	UploadedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-}
-
-// TicketStatusHistory represents a record of status changes for a ticket
-type TicketStatusHistory struct {
-	ID        int       `gorm:"primaryKey"`
-	TicketID  int       `gorm:"index;not null"`
-	Ticket    Ticket    `gorm:"foreignKey:TicketID"`
-	Status    string    `gorm:"not null"`
-	ChangedBy int       `gorm:"index;not null"`
-	User      User      `gorm:"foreignKey:ChangedBy"`
-	ChangedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-}
-
 // UserNotificationSettings represents notification preferences for a user
 type UserNotificationSettings struct {
 	UserID              int  `gorm:"primaryKey"`

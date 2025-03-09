@@ -45,10 +45,6 @@ func InitDB() *gorm.DB {
 		&models.Log{},
 		&models.LabSettings{},
 		&models.LabGrade{},
-		&models.Ticket{},
-		&models.TicketComment{},
-		&models.TicketAttachment{},
-		&models.TicketStatusHistory{},
 		&models.UserNotificationSettings{},
 	)
 
