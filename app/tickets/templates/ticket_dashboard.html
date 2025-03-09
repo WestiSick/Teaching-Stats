@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тикет-система - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Сброс стилей */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+        }
+        .container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 1100px;
+            margin: 20px;
+        }
+        .user-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .create-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .create-btn:hover {
+            background-color: #218838;
+        }
+        .filter-form {
+            display: flex;
+            align-items: center;
+        }
+        .filter-form label {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        .filter-form select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .ticket-link {
+            color: #007BFF;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .ticket-link:hover {
+            text-decoration: underline;
+        }
+        .status-badge, .priority-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            color: white;
+        }
+        .status-new {
+            background-color: #007BFF;
+        }
+        .status-open {
+            background-color: #6610f2;
+        }
+        .status-progress {
+            background-color: #fd7e14;
+        }
+        .status-resolved {
+            background-color: #28a745;
+        }
+        .status-closed {
+            background-color: #6c757d;
+        }
+        .priority-low {
+            background-color: #17a2b8;
+        }
+        .priority-medium {
+            background-color: #fd7e14;
+        }
+        .priority-high {
+            background-color: #dc3545;
+        }
+        .priority-critical {
+            background-color: #6f42c1;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .navigation {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .nav-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .nav-btn:hover {
+            background-color: #0056b3;
+        }
+        .activity-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius:.5px;
+            background-color: #28a745;
+            margin-right: 5px;
+        }
+        .activity-old {
+            background-color: #dc3545;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 50px 0;
+            color: #6c757d;
+        }
+        .empty-state p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .header-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .filter-form {
+                margin-top: 10px;
+            }
+            h1, .create-btn, .nav-btn {
+                font-size: 14px;
+            }
+            table th, table td {
+                padding: 5px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Система поддержки пользователей</h1>
+
+    <div class="header-actions">
+        <a href="/tickets/create" class="create-btn">Создать новый тикет</a>
+
+        <form class="filter-form" method="GET">
+            <label for="status-filter">Статус:</label>
+            <select id="status-filter" name="status" onchange="this.form.submit()">
+                <option value="all" {{if eq .Status "all"}}selected{{end}}>Все тикеты</option>
+                {{if eq .User.Role "admin"}}
+                <option value="assigned" {{if eq .Status "assigned"}}selected{{end}}>Назначенные мне</option>
+                {{end}}
+                {{range .StatusOptions}}
+                <option value="{{.}}" {{if eq $.Status .}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+        </form>
+    </div>
+
+    {{if .Tickets}}
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Заголовок</th>
+            <th>Статус</th>
+            <th>Приоритет</th>
+            <th>Категория</th>
+            <th>Создан</th>
+            <th>Последняя активность</th>
+            {{if eq .User.Role "admin"}}
+            <th>Создатель</th>
+            <th>Назначен</th>
+            {{end}}
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Tickets}}
+        <tr>
+            <td>#{{.ID}}</td>
+            <td>
+                <a href="/tickets/view/{{.ID}}" class="ticket-link">{{.Title}}</a>
+                {{if lt .DaysAgo 1}}
+                <span class="activity-indicator"></span>
+                {{else if gt .DaysAgo 3}}
+                <span class="activity-indicator activity-old"></span>
+                {{end}}
+            </td>
+            <td><span class="status-badge {{statusClass .Status}}">{{.Status}}</span></td>
+            <td><span class="priority-badge {{priorityClass .Priority}}">{{.Priority}}</span></td>
+            <td>{{.Category}}</td>
+            <td>{{.CreatedAt}}</td>
+            <td>{{.LastActivity}}</td>
+            {{if eq $.User.Role "admin"}}
+            <td>{{.CreatedBy}}</td>
+            <td>{{if .AssignedTo}}{{.AssignedTo}}{{else}}<em>Не назначен</em>{{end}}</td>
+            {{end}}
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+        <p>У вас пока нет тикетов.</p>
+        <a href="/tickets/create" class="create-btn">Создать новый тикет</a>
+    </div>
+    {{end}}
+
+    <div class="navigation">
+        <a href="/dashboard" class="nav-btn">К основному приложению</a>
+        {{if eq .User.Role "admin"}}
+        <a href="/admin" class="nav-btn">К админ-панели</a>
+        {{end}}
+    </div>
+</div>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
+</div>
+</body>
+</html>

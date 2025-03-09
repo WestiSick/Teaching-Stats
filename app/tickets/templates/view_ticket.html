@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Просмотр тикета #{{.Ticket.ID}} - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    .ticket-header {
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+    .ticket-title {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #444;
+    }
+    .ticket-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    .meta-item {
+      background: #f2f2f2;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+    .status-badge, .priority-badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      color: white;
+    }
+    .status-new {
+      background-color: #007BFF;
+    }
+    .status-open {
+      background-color: #6610f2;
+    }
+    .status-progress {
+      background-color: #fd7e14;
+    }
+    .status-resolved {
+      background-color: #28a745;
+    }
+    .status-closed {
+      background-color: #6c757d;
+    }
+    .priority-low {
+      background-color: #17a2b8;
+    }
+    .priority-medium {
+      background-color: #fd7e14;
+    }
+    .priority-high {
+      background-color: #dc3545;
+    }
+    .priority-critical {
+      background-color: #6f42c1;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+    .ticket-description {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .ticket-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .ticket-attachments {
+      margin-bottom: 20px;
+    }
+    .attachment-list {
+      list-style-type: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .attachment-item {
+      background: #f2f2f2;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+    }
+    .attachment-link {
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .attachment-link:hover {
+      text-decoration: underline;
+    }
+    .comments-section {
+      margin-top: 30px;
+    }
+    .comments-title {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #444;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    .comment {
+      background: #f9f9f9;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 15px;
+      position: relative;
+    }
+    .comment.internal-note {
+      background: #fff3cd;
+      border-left: 5px solid #ffc107;
+    }
+    .comment-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+    .comment-author {
+      font-weight: bold;
+      color: #333;
+    }
+    .comment-body {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .add-comment-form {
+      margin-top: 30px;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 5px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      min-height: 100px;
+      resize: vertical;
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .form-checkbox {
+      margin-right: 10px;
+    }
+    .submit-btn {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .submit-btn:hover {
+      background-color: #0056b3;
+    }
+    .ticket-tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-bottom: 3px solid transparent;
+    }
+    .tab.active {
+      border-bottom-color: #007BFF;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .history-item {
+      display: flex;
+      border-bottom: 1px solid #eee;
+      padding: 10px 0;
+      font-size: 14px;
+    }
+    .history-user {
+      width: 150px;
+      font-weight: bold;
+      padding-right: 10px;
+    }
+    .history-info {
+      flex-grow: 1;
+    }
+    .history-time {
+      color: #666;
+      font-size: 12px;
+    }
+    .change-highlight {
+      background-color: #e6f7ff;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    select, input[type="text"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #007BFF;
+      text-decoration: none;
+      font-size: 16px;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .attachment-area {
+      border: 2px dashed #ddd;
+      padding: 15px;
+      text-align: center;
+      margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+    .attachment-area:hover {
+      border-color: #aaa;
+    }
+    .attachment-area p {
+      margin-bottom: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+    .attachment-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .file-item {
+      padding: 5px 10px;
+      background: #f2f2f2;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+    }
+    .remove-file {
+      color: #dc3545;
+      margin-left: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      .ticket-title {
+        font-size: 20px;
+      }
+      .ticket-actions, .ticket-meta {
+        flex-direction: column;
+        gap: 5px;
+      }
+      textarea, select, input, .submit-btn {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="ticket-header">
+    <h1 class="ticket-title">#{{.Ticket.ID}}: {{.Ticket.Title}}</h1>
+
+    <div class="ticket-meta">
+      <div class="meta-item">
+        <strong>Статус:</strong>
+        <span class="status-badge {{statusClass .Ticket.Status}}">{{.Ticket.Status}}</span>
+      </div>
+      <div class="meta-item">
+        <strong>Приоритет:</strong>
+        <span class="priority-badge {{priorityClass .Ticket.Priority}}">{{.Ticket.Priority}}</span>
+      </div>
+      <div class="meta-item">
+        <strong>Категория:</strong> {{.Ticket.Category}}
+      </div>
+      <div class="meta-item">
+        <strong>Создан:</strong> {{.TicketCreator}} ({{.Ticket.CreatedAt.Format "02.01.2006 15:04"}})
+      </div>
+      <div class="meta-item">
+        <strong>Назначен:</strong> {{if .TicketAssignee}}{{.TicketAssignee}}{{else}}Не назначен{{end}}
+      </div>
+    </div>
+
+    <div class="ticket-actions">
+      <form action="/tickets/update/{{.Ticket.ID}}" method="POST" style="display: inline;">
+        {{if eq .User.Role "admin"}}
+        <select name="status">
+          <option value="">Статус...</option>
+          {{range .StatusOptions}}
+          <option value="{{.}}" {{if eq $.Ticket.Status .}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+
+        <select name="assigned_to">
+          <option value="">Назначить...</option>
+          {{range .AdminUsers}}
+          <option value="{{.ID}}" {{if $.Ticket.AssignedTo}}{{if eq *$.Ticket.AssignedTo .ID}}selected{{end}}{{end}}>{{.FIO}}</option>
+          {{end}}
+        </select>
+        {{end}}
+
+        <select name="priority">
+          <option value="">Приоритет...</option>
+          {{range .PriorityOptions}}
+          <option value="{{.}}" {{if eq $.Ticket.Priority .}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+
+        <button type="submit" class="submit-btn">Обновить</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="ticket-tabs">
+    <div class="tab active" onclick="switchTab('details')">Детали</div>
+    {{if eq .User.Role "admin"}}
+    <div class="tab" onclick="switchTab('history')">История изменений</div>
+    {{end}}
+  </div>
+
+  <div id="details-tab" class="tab-content active">
+    <div class="ticket-description">
+      {{.Ticket.Description}}
+    </div>
+
+    {{if .TicketAttachments}}
+    <div class="ticket-attachments">
+      <h3>Прикрепленные файлы:</h3>
+      <ul class="attachment-list">
+        {{range .TicketAttachments}}
+        <li class="attachment-item">
+          <a href="/tickets/download/{{.ID}}" class="attachment-link" target="_blank">{{.FileName}}</a>
+        </li>
+        {{end}}
+      </ul>
+    </div>
+    {{end}}
+
+    <div class="comments-section">
+      <h2 class="comments-title">Комментарии</h2>
+
+      {{if .Comments}}
+      {{range .Comments}}
+      <div class="comment {{if .IsInternal}}internal-note{{end}}">
+        <div class="comment-header">
+          <span class="comment-author">{{.UserName}}</span>
+          <span class="comment-time">{{.CreatedAt}}</span>
+        </div>
+        <div class="comment-body">{{.Content}}</div>
+
+        {{if .Attachments}}
+        <div class="ticket-attachments" style="margin-top: 10px;">
+          <h4>Прикрепленные файлы:</h4>
+          <ul class="attachment-list">
+            {{range .Attachments}}
+            <li class="attachment-item">
+              <a href="/tickets/download/{{.ID}}" class="attachment-link" target="_blank">{{.FileName}}</a>
+            </li>
+            {{end}}
+          </ul>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+      {{else}}
+      <p>Пока нет комментариев.</p>
+      {{end}}
+
+      <div class="add-comment-form">
+        <h3>Добавить комментарий</h3>
+        <form action="/tickets/comment/{{.Ticket.ID}}" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <textarea name="content" required placeholder="Введите ваш комментарий..."></textarea>
+          </div>
+
+          {{if eq .User.Role "admin"}}
+          <div class="form-row">
+            <input type="checkbox" id="internal" name="internal" value="1" class="form-checkbox">
+            <label for="internal" style="display: inline; font-weight: normal;">Внутренняя заметка (видна только администраторам)</label>
+          </div>
+          {{end}}
+
+          <div class="form-group">
+            <label for="attachments">Прикрепить файлы (опционально)</label>
+            <div class="attachment-area" onclick="document.getElementById('attachments').click()">
+              <p>Нажмите здесь, чтобы выбрать файлы</p>
+              <input type="file" id="attachments" name="attachments" multiple style="display: none;" onchange="previewFiles()">
+            </div>
+            <div class="attachment-preview" id="filePreview"></div>
+          </div>
+
+          <button type="submit" class="submit-btn">Отправить комментарий</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {{if eq .User.Role "admin"}}
+  <div id="history-tab" class="tab-content">
+    <h2 class="comments-title">История изменений</h2>
+
+    {{if .History}}
+    <div class="history-list">
+      {{range .History}}
+      <div class="history-item">
+        <div class="history-user">{{.UserName}}</div>
+        <div class="history-info">
+          изменил поле <strong>{{.FieldName}}</strong> с
+          "<span class="change-highlight">{{.OldValue}}</span>" на
+          "<span class="change-highlight">{{.NewValue}}</span>"
+          <div class="history-time">{{.ChangeTime}}</div>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <p>История изменений пуста.</p>
+    {{end}}
+  </div>
+  {{end}}
+
+  <a href="/tickets" class="back-link">Вернуться к списку тикетов</a>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+
+<script>
+  function switchTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+      tab.classList.remove('active');
+    });
+
+    // Remove active class from tab buttons
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+
+    // Show the selected tab
+    document.getElementById(tabName + '-tab').classList.add('active');
+
+    // Activate the tab button
+    document.querySelectorAll('.tab').forEach(tab => {
+      if (tab.textContent.toLowerCase().includes(tabName)) {
+        tab.classList.add('active');
+      }
+    });
+  }
+
+  // Handle file selection for comment attachments
+  function previewFiles() {
+    const fileInput = document.getElementById('attachments');
+    const preview = document.getElementById('filePreview');
+
+    preview.innerHTML = '';
+
+    if (fileInput.files.length > 0) {
+      for (let i = 0; i < fileInput.files.length; i++) {
+        const file = fileInput.files[i];
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+          ${file.name} (${formatFileSize(file.size)})
+          <span class="remove-file" data-index="${i}" onclick="removeFile(this)">×</span>
+        `;
+        preview.appendChild(fileItem);
+      }
+    }
+  }
+
+  // Format file size
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  // This is a simplified version - in a real app you'd need to use a FileList API
+  // to actually remove files from the input
+  function removeFile(element) {
+    element.parentNode.remove();
+  }

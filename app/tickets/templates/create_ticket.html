@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Создание тикета - Teaching Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+      position: relative;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px;
+    }
+    .user-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    form {
+      width: 100%;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+    }
+    .form-tip {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #666;
+    }
+    .submit-btn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .submit-btn:hover {
+      background-color: #218838;
+    }
+    .cancel-btn {
+      display: block;
+      text-align: center;
+      margin-top: 15px;
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .cancel-btn:hover {
+      text-decoration: underline;
+    }
+    .attachment-area {
+      border: 2px dashed #ddd;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+    .attachment-area:hover {
+      border-color: #aaa;
+    }
+    .attachment-area p {
+      margin-bottom: 10px;
+      color: #666;
+    }
+    .attachment-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .file-item {
+      padding: 5px 10px;
+      background: #f2f2f2;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+    }
+    .remove-file {
+      color: #dc3545;
+      margin-left: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .priority-options {
+      display: flex;
+      gap: 15px;
+    }
+    .priority-option {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border: 2px solid #eee;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .priority-option.selected {
+      border-color: #007BFF;
+      background-color: #f0f7ff;
+    }
+    .priority-option:hover {
+      border-color: #007BFF;
+    }
+    .priority-option.low {
+      border-left: 5px solid #17a2b8;
+    }
+    .priority-option.medium {
+      border-left: 5px solid #fd7e14;
+    }
+    .priority-option.high {
+      border-left: 5px solid #dc3545;
+    }
+    .priority-option.critical {
+      border-left: 5px solid #6f42c1;
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      h1, input, select, textarea, .submit-btn, label {
+        font-size: 14px;
+      }
+      .priority-options {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Создание нового тикета</h1>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="form-group">
+      <label for="title">Заголовок</label>
+      <input type="text" id="title" name="title" required placeholder="Кратко опишите проблему">
+      <div class="form-tip">Точный и информативный заголовок поможет быстрее решить вашу проблему</div>
+    </div>
+
+    <div class="form-group">
+      <label for="category">Категория</label>
+      <select id="category" name="category" required>
+        <option value="">-- Выберите категорию --</option>
+        {{range .CategoryOptions}}
+        <option value="{{.}}">{{.}}</option>
+        {{end}}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Приоритет</label>
+      <div class="priority-options">
+        <div class="priority-option low" onclick="selectPriority('Low', this)">
+          <h3>Низкий</h3>
+          <p>Небольшая проблема, не мешающая работе</p>
+        </div>
+        <div class="priority-option medium selected" onclick="selectPriority('Medium', this)">
+          <h3>Средний</h3>
+          <p>Есть неудобства в работе</p>
+        </div>
+        <div class="priority-option high" onclick="selectPriority('High', this)">
+          <h3>Высокий</h3>
+          <p>Существенно влияет на работу</p>
+        </div>
+        <div class="priority-option critical" onclick="selectPriority('Critical', this)">
+          <h3>Критический</h3>
+          <p>Работа невозможна</p>
+        </div>
+      </div>
+      <input type="hidden" id="priority" name="priority" value="Medium">
+    </div>
+
+    <div class="form-group">
+      <label for="description">Описание</label>
+      <textarea id="description" name="description" required placeholder="Подробно опишите проблему или запрос..."></textarea>
+      <div class="form-tip">Укажите шаги для воспроизведения проблемы, ожидаемый и фактический результаты</div>
+    </div>
+
+    <div class="form-group">
+      <label for="attachments">Прикрепить файлы (опционально)</label>
+      <div class="attachment-area" onclick="document.getElementById('attachments').click()">
+        <p>Нажмите здесь, чтобы выбрать файлы</p>
+        <p>или перетащите их сюда</p>
+        <input type="file" id="attachments" name="attachments" multiple style="display: none;" onchange="previewFiles()">
+      </div>
+      <div class="attachment-preview" id="filePreview"></div>
+      <div class="form-tip">Вы можете прикрепить скриншоты или другие файлы, поясняющие проблему</div>
+    </div>
+
+    <button type="submit" class="submit-btn">Отправить тикет</button>
+  </form>
+
+  <a href="/tickets" class="cancel-btn">Отмена</a>
+</div>
+
+<div class="user-info">
+  {{if .User.ID}}
+  ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+  {{end}}
+</div>
+
+<script>
+  // Handle file selection
+  function previewFiles() {
+    const fileInput = document.getElementById('attachments');
+    const preview = document.getElementById('filePreview');
+
+    preview.innerHTML = '';
+
+    if (fileInput.files.length > 0) {
+      for (let i = 0; i < fileInput.files.length; i++) {
+        const file = fileInput.files[i];
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+          ${file.name} (${formatFileSize(file.size)})
+          <span class="remove-file" data-index="${i}" onclick="removeFile(this)">×</span>
+        `;
+        preview.appendChild(fileItem);
+      }
+    }
+  }
+
+  // Format file size
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  // Select priority
+  function selectPriority(priority, element) {
+    document.getElementById('priority').value = priority;
+
+    // Remove selected class from all options
+    const options = document.querySelectorAll('.priority-option');
+    options.forEach(option => option.classList.remove('selected'));
+
+    // Add selected class to clicked option
+    element.classList.add('selected');
+  }
+
+  // Handle file drag and drop
+  const attachmentArea = document.querySelector('.attachment-area');
+
+  attachmentArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    attachmentArea.style.borderColor = '#007BFF';
+  });
+
+  attachmentArea.addEventListener('dragleave', () => {
+    attachmentArea.style.borderColor = '#ddd';
+  });
+
+  attachmentArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    attachmentArea.style.borderColor = '#ddd';
+
+    if (e.dataTransfer.files.length > 0) {
+      document.getElementById('attachments').files = e.dataTransfer.files;
+      previewFiles();
+    }
+  });
+
+  // This is a simplified version - in a real app you'd need to use a FileList API
+  // to actually remove files from the input
+  function removeFile(element) {
+    element.parentNode.remove();
+  }
+</script>
+</body>
+</html>

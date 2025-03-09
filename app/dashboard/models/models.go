@@ -91,10 +91,3 @@ type UserNotificationSettings struct {
 	NotifyTicketComment bool `gorm:"not null;default:true"`
 	NotifyTicketStatus  bool `gorm:"not null;default:true"`
 }
-
-// APIResponse is a generic API response structure
-type APIResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-}

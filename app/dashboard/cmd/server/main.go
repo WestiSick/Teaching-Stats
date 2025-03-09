@@ -3,6 +3,7 @@ package main
 import (
 	"TeacherJournal/app/dashboard/db"
 	handlers2 "TeacherJournal/app/dashboard/handlers"
+	ticketMiddleware "TeacherJournal/app/tickets/middleware"
 	"html/template"
 	"log"
 	"net/http"
@@ -140,6 +141,9 @@ func main() {
 	router.HandleFunc("/admin/labs/view/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminViewLabGradesHandler)).Methods("GET")
 	router.HandleFunc("/admin/labs/edit/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminEditLabGradesHandler)).Methods("GET", "POST")
 	router.HandleFunc("/admin/labs/export/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminExportLabGradesHandler)).Methods("GET")
+
+	// Initialize ticket system middleware
+	router.Use(ticketMiddleware.TicketSystemMiddleware)
 
 	log.Println("Server started on :8080")
 	http.ListenAndServe(":8080", router)

@@ -11,11 +11,11 @@ const (
 	DBConnectionString = "postgres://postgres:vadimvadimvadim13@127.0.0.1:5432/teacher?sslmode=disable"
 )
 
-// TicketSystemPort is the port on which the ticket system runs
-const TicketSystemPort = 8090
-
 // Store is the global store for sessions (shared with Teaching Stats)
 var Store = sessions.NewCookieStore([]byte(CookieStoreKey))
+
+// TicketSystemPort is the port on which the ticket system runs
+const TicketSystemPort = 8090
 
 // TicketStatusValues defines the valid status values for tickets
 var TicketStatusValues = []string{"New", "Open", "InProgress", "Resolved", "Closed"}
