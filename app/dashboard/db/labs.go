@@ -1,7 +1,9 @@
 package db
 
 import (
-	"database/sql"
+	"TeacherJournal/app/dashboard/models"
+
+	"gorm.io/gorm"
 )
 
 // LabSettings stores settings for labs by subject and group
@@ -39,82 +41,88 @@ type GroupLabSummary struct {
 }
 
 // GetLabSettings retrieves lab settings for a teacher, group and subject
-func GetLabSettings(db *sql.DB, teacherID int, groupName, subject string) (LabSettings, error) {
+func GetLabSettings(db *gorm.DB, teacherID int, groupName, subject string) (LabSettings, error) {
 	var settings LabSettings
-	err := db.QueryRow(
-		"SELECT id, teacher_id, group_name, subject, total_labs FROM lab_settings WHERE teacher_id = ? AND group_name = ? AND subject = ?",
-		teacherID, groupName, subject).Scan(&settings.ID, &settings.TeacherID, &settings.GroupName, &settings.Subject, &settings.TotalLabs)
 
-	if err == sql.ErrNoRows {
+	result := db.Model(&models.LabSettings{}).
+		Select("id, teacher_id, group_name, subject, total_labs").
+		Where("teacher_id = ? AND group_name = ? AND subject = ?", teacherID, groupName, subject).
+		First(&settings)
+
+	if result.Error != nil {
 		// If no settings exist, return defaults
-		settings = LabSettings{
-			TeacherID: teacherID,
-			GroupName: groupName,
-			Subject:   subject,
-			TotalLabs: 5, // Default to 5 labs
+		if result.Error == gorm.ErrRecordNotFound {
+			settings = LabSettings{
+				TeacherID: teacherID,
+				GroupName: groupName,
+				Subject:   subject,
+				TotalLabs: 5, // Default to 5 labs
+			}
+			return settings, nil
 		}
-		return settings, nil
+		return settings, result.Error
 	}
 
-	return settings, err
+	return settings, nil
 }
 
 // SaveLabSettings saves lab settings for a teacher, group and subject
-func SaveLabSettings(db *sql.DB, settings LabSettings) error {
+func SaveLabSettings(db *gorm.DB, settings LabSettings) error {
 	// Check if settings already exist
-	var exists int
-	err := db.QueryRow(
-		"SELECT COUNT(*) FROM lab_settings WHERE teacher_id = ? AND group_name = ? AND subject = ?",
-		settings.TeacherID, settings.GroupName, settings.Subject).Scan(&exists)
+	var count int64
+	db.Model(&models.LabSettings{}).
+		Where("teacher_id = ? AND group_name = ? AND subject = ?",
+			settings.TeacherID, settings.GroupName, settings.Subject).
+		Count(&count)
 
-	if err != nil {
-		return err
-	}
-
-	if exists > 0 {
+	if count > 0 {
 		// Update existing settings
-		_, err = db.Exec(
-			"UPDATE lab_settings SET total_labs = ? WHERE teacher_id = ? AND group_name = ? AND subject = ?",
-			settings.TotalLabs, settings.TeacherID, settings.GroupName, settings.Subject)
+		return db.Model(&models.LabSettings{}).
+			Where("teacher_id = ? AND group_name = ? AND subject = ?",
+				settings.TeacherID, settings.GroupName, settings.Subject).
+			Update("total_labs", settings.TotalLabs).Error
 	} else {
 		// Insert new settings
-		_, err = db.Exec(
-			"INSERT INTO lab_settings (teacher_id, group_name, subject, total_labs) VALUES (?, ?, ?, ?)",
-			settings.TeacherID, settings.GroupName, settings.Subject, settings.TotalLabs)
+		newSettings := models.LabSettings{
+			TeacherID: settings.TeacherID,
+			GroupName: settings.GroupName,
+			Subject:   settings.Subject,
+			TotalLabs: settings.TotalLabs,
+		}
+		return db.Create(&newSettings).Error
 	}
-
-	return err
 }
 
 // SaveLabGrade saves a lab grade for a student
-func SaveLabGrade(db *sql.DB, teacherID, studentID int, subject string, labNumber, grade int) error {
+func SaveLabGrade(db *gorm.DB, teacherID, studentID int, subject string, labNumber, grade int) error {
 	// Check if grade already exists
-	var exists int
-	err := db.QueryRow(
-		"SELECT COUNT(*) FROM lab_grades WHERE student_id = ? AND subject = ? AND lab_number = ?",
-		studentID, subject, labNumber).Scan(&exists)
+	var count int64
+	db.Model(&models.LabGrade{}).
+		Where("student_id = ? AND subject = ? AND lab_number = ?",
+			studentID, subject, labNumber).
+		Count(&count)
 
-	if err != nil {
-		return err
-	}
-
-	if exists > 0 {
+	if count > 0 {
 		// Update existing grade
-		_, err = db.Exec(
-			"UPDATE lab_grades SET grade = ? WHERE student_id = ? AND subject = ? AND lab_number = ?",
-			grade, studentID, subject, labNumber)
+		return db.Model(&models.LabGrade{}).
+			Where("student_id = ? AND subject = ? AND lab_number = ?",
+				studentID, subject, labNumber).
+			Update("grade", grade).Error
 	} else {
 		// Insert new grade
-		_, err = db.Exec(
-			"INSERT INTO lab_grades (student_id, teacher_id, subject, lab_number, grade) VALUES (?, ?, ?, ?, ?)",
-			studentID, teacherID, subject, labNumber, grade)
+		newGrade := models.LabGrade{
+			StudentID: studentID,
+			TeacherID: teacherID,
+			Subject:   subject,
+			LabNumber: labNumber,
+			Grade:     grade,
+		}
+		return db.Create(&newGrade).Error
 	}
-
-	return err
 }
 
 // GetGroupLabSummary gets a summary of lab grades for a group in a subject
-func GetGroupLabSummary(db *sql.DB, teacherID int, groupName, subject string) (GroupLabSummary, error) {
+func GetGroupLabSummary(db *gorm.DB, teacherID int, groupName, subject string) (GroupLabSummary, error) {
 	// Get lab settings
 	settings, err := GetLabSettings(db, teacherID, groupName, subject)
 	if err != nil {
@@ -139,9 +147,17 @@ func GetGroupLabSummary(db *sql.DB, teacherID int, groupName, subject string) (G
 
 	for _, student := range students {
 		// Get student's lab grades
-		labGrades, err := db.Query(
-			"SELECT lab_number, grade FROM lab_grades WHERE student_id = ? AND subject = ? ORDER BY lab_number",
-			student.ID, subject)
+		var labGrades []struct {
+			LabNumber int
+			Grade     int
+		}
+
+		err := db.Model(&models.LabGrade{}).
+			Select("lab_number, grade").
+			Where("student_id = ? AND subject = ?", student.ID, subject).
+			Order("lab_number").
+			Find(&labGrades).Error
+
 		if err != nil {
 			return GroupLabSummary{}, err
 		}
@@ -151,20 +167,14 @@ func GetGroupLabSummary(db *sql.DB, teacherID int, groupName, subject string) (G
 		var gradeSum int
 		var gradeCount int
 
-		for labGrades.Next() {
-			var labNumber, grade int
-			if err := labGrades.Scan(&labNumber, &grade); err != nil {
-				labGrades.Close()
-				return GroupLabSummary{}, err
-			}
-			gradeMap[labNumber] = grade
-			gradeSum += grade
+		for _, lg := range labGrades {
+			gradeMap[lg.LabNumber] = lg.Grade
+			gradeSum += lg.Grade
 			gradeCount++
 
-			totalGradeSum += float64(grade)
+			totalGradeSum += float64(lg.Grade)
 			totalGradeCount++
 		}
-		labGrades.Close()
 
 		// Create grades array filled with zeros initially
 		grades := make([]int, settings.TotalLabs)

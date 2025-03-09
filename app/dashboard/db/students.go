@@ -1,7 +1,9 @@
 package db
 
 import (
-	"database/sql"
+	"TeacherJournal/app/dashboard/models"
+
+	"gorm.io/gorm"
 )
 
 // StudentData stores information about a student
@@ -17,53 +19,54 @@ type GroupData struct {
 }
 
 // GetStudentsInGroup retrieves all students in a specific group
-func GetStudentsInGroup(db *sql.DB, teacherID int, groupName string) ([]StudentData, error) {
-	rows, err := db.Query(
-		"SELECT id, student_fio FROM students WHERE teacher_id = ? AND group_name = ? ORDER BY student_fio",
-		teacherID, groupName)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
+func GetStudentsInGroup(db *gorm.DB, teacherID int, groupName string) ([]StudentData, error) {
 	var students []StudentData
-	for rows.Next() {
-		var s StudentData
-		rows.Scan(&s.ID, &s.FIO)
-		students = append(students, s)
-	}
-	return students, nil
+
+	err := db.Model(&models.Student{}).
+		Select("id, student_fio as fio").
+		Where("teacher_id = ? AND group_name = ?", teacherID, groupName).
+		Order("student_fio").
+		Find(&students).Error
+
+	return students, err
 }
 
 // GetGroupsByTeacher retrieves all groups for a specific teacher
-func GetGroupsByTeacher(db *sql.DB, teacherID int) ([]GroupData, error) {
-	rows, err := db.Query(`
-		SELECT DISTINCT group_name 
-		FROM (
-			SELECT group_name FROM lessons WHERE teacher_id = ? 
-			UNION 
+func GetGroupsByTeacher(db *gorm.DB, teacherID int) ([]GroupData, error) {
+	var groups []GroupData
+
+	// Get unique group names from both lessons and students tables
+	var groupNames []string
+	subQuery := db.Raw(`
+		SELECT DISTINCT group_name FROM (
+			SELECT group_name FROM lessons WHERE teacher_id = ?
+			UNION
 			SELECT group_name FROM students WHERE teacher_id = ?
-		) ORDER BY group_name`,
-		teacherID, teacherID)
+		) AS combined_groups
+		ORDER BY group_name
+	`, teacherID, teacherID)
+
+	err := subQuery.Scan(&groupNames).Error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var groups []GroupData
-	for rows.Next() {
-		var groupName string
-		rows.Scan(&groupName)
+	// For each group, count students
+	for _, groupName := range groupNames {
+		var count int64
+		err := db.Model(&models.Student{}).
+			Where("teacher_id = ? AND group_name = ?", teacherID, groupName).
+			Count(&count).Error
 
-		// Count students in this group
-		var count int
-		err := db.QueryRow("SELECT COUNT(*) FROM students WHERE teacher_id = ? AND group_name = ?",
-			teacherID, groupName).Scan(&count)
 		if err != nil {
 			return nil, err
 		}
 
-		groups = append(groups, GroupData{Name: groupName, StudentCount: count})
+		groups = append(groups, GroupData{
+			Name:         groupName,
+			StudentCount: int(count),
+		})
 	}
+
 	return groups, nil
 }

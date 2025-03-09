@@ -1,48 +1,40 @@
 package db
 
 import (
-	"database/sql"
+	"TeacherJournal/app/dashboard/models"
+
+	"gorm.io/gorm"
 )
 
 // GetTeacherGroups gets a list of groups for the specified teacher
-func GetTeacherGroups(db *sql.DB, teacherID int) ([]string, error) {
-	rows, err := db.Query(`
+func GetTeacherGroups(db *gorm.DB, teacherID int) ([]string, error) {
+	var groups []string
+
+	// Use raw SQL for complex union query
+	err := db.Raw(`
 		SELECT DISTINCT group_name 
 		FROM (
 			SELECT group_name FROM lessons WHERE teacher_id = ? 
 			UNION 
 			SELECT group_name FROM students WHERE teacher_id = ?
-		) ORDER BY group_name`,
-		teacherID, teacherID)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	defer rows.Close()
+		) AS combined_groups 
+		ORDER BY group_name
+	`, teacherID, teacherID).Scan(&groups).Error
 
-	var groups []string
-	for rows.Next() {
-		var group string
-		rows.Scan(&group)
-		groups = append(groups, group)
-	}
-	return groups, nil
+	return groups, err
 }
 
 // GetTeacherSubjects gets a list of subjects for the specified teacher
-func GetTeacherSubjects(db *sql.DB, teacherID int) ([]string, error) {
-	rows, err := db.Query("SELECT DISTINCT subject FROM lessons WHERE teacher_id = ? ORDER BY subject", teacherID)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	defer rows.Close()
-
+func GetTeacherSubjects(db *gorm.DB, teacherID int) ([]string, error) {
 	var subjects []string
-	for rows.Next() {
-		var subject string
-		rows.Scan(&subject)
-		subjects = append(subjects, subject)
-	}
-	return subjects, nil
+
+	err := db.Model(&models.Lesson{}).
+		Distinct("subject").
+		Where("teacher_id = ?", teacherID).
+		Order("subject").
+		Pluck("subject", &subjects).Error
+
+	return subjects, err
 }
 
 // TeacherStats stores statistics about a teacher

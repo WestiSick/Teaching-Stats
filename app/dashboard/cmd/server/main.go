@@ -47,8 +47,15 @@ func createTemplateHelperFunctions() template.FuncMap {
 }
 
 func main() {
+	// Initialize the database
 	database := db.InitDB()
-	defer database.Close()
+
+	// Get the underlying sql.DB for defer Close
+	sqlDB, err := database.DB()
+	if err != nil {
+		log.Fatal("Failed to get SQL DB for closing:", err)
+	}
+	defer sqlDB.Close()
 
 	// Create a new template with the function map
 	tmpl := template.New("")
@@ -57,7 +64,7 @@ func main() {
 	tmpl = tmpl.Funcs(createTemplateHelperFunctions())
 
 	// Parse the templates
-	tmpl, err := tmpl.ParseGlob("app/dashboard/templates/*.html")
+	tmpl, err = tmpl.ParseGlob("app/dashboard/templates/*.html")
 	if err != nil {
 		log.Fatal(err)
 	}

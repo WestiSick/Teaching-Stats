@@ -1,11 +1,12 @@
 package db
 
 import (
-	"database/sql"
+	"TeacherJournal/app/dashboard/models"
 	"fmt"
 	"time"
 
 	"github.com/tealeg/xlsx"
+	"gorm.io/gorm"
 )
 
 // AttendanceData stores attendance information
@@ -26,160 +27,124 @@ type StudentAttendance struct {
 }
 
 // GetAttendanceForLesson retrieves attendance records for a specific lesson
-func GetAttendanceForLesson(db *sql.DB, lessonID int, teacherID int) ([]StudentAttendance, error) {
-	// Get lesson details to verify ownership
-	var group string
-	err := db.QueryRow(
-		"SELECT group_name FROM lessons WHERE id = ? AND teacher_id = ?",
-		lessonID, teacherID).Scan(&group)
+func GetAttendanceForLesson(db *gorm.DB, lessonID int, teacherID int) ([]StudentAttendance, error) {
+	// Verify the lesson belongs to this teacher
+	var groupName string
+	err := db.Model(&models.Lesson{}).
+		Select("group_name").
+		Where("id = ? AND teacher_id = ?", lessonID, teacherID).
+		Pluck("group_name", &groupName).Error
+
 	if err != nil {
 		return nil, err
 	}
 
 	// Get all students in the group with their attendance status
-	rows, err := db.Query(`
-		SELECT s.id, s.student_fio, IFNULL(a.attended, 0) as attended
+	var studentsAttendance []StudentAttendance
+
+	err = db.Raw(`
+		SELECT s.id, s.student_fio as fio, COALESCE(a.attended, 0) as attended
 		FROM students s
 		LEFT JOIN attendance a ON s.id = a.student_id AND a.lesson_id = ?
 		WHERE s.teacher_id = ? AND s.group_name = ?
-		ORDER BY s.student_fio`,
-		lessonID, teacherID, group)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+		ORDER BY s.student_fio
+	`, lessonID, teacherID, groupName).Scan(&studentsAttendance).Error
 
-	var students []StudentAttendance
-	for rows.Next() {
-		var s StudentAttendance
-		var attended int
-		err = rows.Scan(&s.ID, &s.FIO, &attended)
-		if err != nil {
-			return nil, err
-		}
-		s.Attended = attended == 1
-		students = append(students, s)
+	// Convert attendance integer to boolean
+	for i := range studentsAttendance {
+		studentsAttendance[i].Attended = studentsAttendance[i].Attended == true
 	}
-	return students, nil
+
+	return studentsAttendance, err
 }
 
 // GetTeacherAttendanceRecords retrieves all attendance records for a teacher
-func GetTeacherAttendanceRecords(db *sql.DB, teacherID int) ([]AttendanceData, error) {
-	rows, err := db.Query(`
-		SELECT l.id, l.date, l.subject, l.group_name, 
+func GetTeacherAttendanceRecords(db *gorm.DB, teacherID int) ([]AttendanceData, error) {
+	var attendances []AttendanceData
+
+	err := db.Raw(`
+		SELECT l.id as lesson_id, l.date, l.subject, l.group_name, 
 			(SELECT COUNT(*) FROM students s WHERE s.teacher_id = ? AND s.group_name = l.group_name) as total_students,
 			(SELECT COUNT(*) FROM attendance a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students
 		FROM lessons l
 		WHERE l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendance a WHERE a.lesson_id = l.id)
-		ORDER BY l.date DESC`, teacherID, teacherID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+		ORDER BY l.date DESC
+	`, teacherID, teacherID).Scan(&attendances).Error
 
-	var attendances []AttendanceData
-	for rows.Next() {
-		var a AttendanceData
-		var dateStr string
-		err := rows.Scan(&a.LessonID, &dateStr, &a.Subject, &a.GroupName, &a.TotalStudents, &a.AttendedStudents)
-		if err != nil {
-			return nil, err
-		}
-		a.Date = dateStr
-		attendances = append(attendances, a)
-	}
-	return attendances, nil
+	return attendances, err
 }
 
 // SaveAttendance saves attendance records for a lesson
-func SaveAttendance(db *sql.DB, lessonID int, teacherID int, attendedStudentIDs []int) error {
+func SaveAttendance(db *gorm.DB, lessonID int, teacherID int, attendedStudentIDs []int) error {
 	// Verify the lesson belongs to this teacher
 	var groupName string
-	err := db.QueryRow("SELECT group_name FROM lessons WHERE id = ? AND teacher_id = ?",
-		lessonID, teacherID).Scan(&groupName)
+	err := db.Model(&models.Lesson{}).
+		Select("group_name").
+		Where("id = ? AND teacher_id = ?", lessonID, teacherID).
+		Pluck("group_name", &groupName).Error
+
 	if err != nil {
 		return err
 	}
 
 	// Start transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Delete existing attendance records
-	_, err = tx.Exec("DELETE FROM attendance WHERE lesson_id = ?", lessonID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Create a map for faster lookup
-	attendedMap := make(map[int]bool)
-	for _, id := range attendedStudentIDs {
-		attendedMap[id] = true
-	}
-
-	// Get all students in this group
-	studentRows, err := db.Query(
-		"SELECT id FROM students WHERE teacher_id = ? AND group_name = ?",
-		teacherID, groupName)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer studentRows.Close()
-
-	// Insert new attendance records
-	for studentRows.Next() {
-		var studentID int
-		err = studentRows.Scan(&studentID)
-		if err != nil {
-			tx.Rollback()
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Delete existing attendance records
+		if err := tx.Where("lesson_id = ?", lessonID).Delete(&models.Attendance{}).Error; err != nil {
 			return err
 		}
 
-		attended := 0
-		if attendedMap[studentID] {
-			attended = 1
+		// Create a map for faster lookup
+		attendedMap := make(map[int]bool)
+		for _, id := range attendedStudentIDs {
+			attendedMap[id] = true
 		}
 
-		_, err = tx.Exec(
-			"INSERT INTO attendance (lesson_id, student_id, attended) VALUES (?, ?, ?)",
-			lessonID, studentID, attended)
-		if err != nil {
-			tx.Rollback()
+		// Get all students in this group
+		var students []models.Student
+		if err := tx.Where("teacher_id = ? AND group_name = ?", teacherID, groupName).Find(&students).Error; err != nil {
 			return err
 		}
-	}
 
-	// Commit transaction
-	return tx.Commit()
+		// Insert new attendance records
+		var attendanceRecords []models.Attendance
+
+		for _, student := range students {
+			attended := 0
+			if attendedMap[student.ID] {
+				attended = 1
+			}
+
+			attendanceRecords = append(attendanceRecords, models.Attendance{
+				LessonID:  lessonID,
+				StudentID: student.ID,
+				Attended:  attended,
+			})
+		}
+
+		// Bulk insert all attendance records
+		if len(attendanceRecords) > 0 {
+			return tx.Create(&attendanceRecords).Error
+		}
+
+		return nil
+	})
 }
 
 // ExportAttendanceByGroup exports attendance data grouped by subject
-func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
+func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error {
 	// Get all subjects taught by this teacher with attendance
-	subjectQuery := `
+	var subjects []string
+	err := db.Raw(`
 		SELECT DISTINCT l.subject
 		FROM lessons l
 		JOIN attendance a ON l.id = a.lesson_id
 		WHERE l.teacher_id = ?
-		ORDER BY l.subject`
+		ORDER BY l.subject
+	`, teacherID).Scan(&subjects).Error
 
-	subjectRows, err := db.Query(subjectQuery, teacherID)
 	if err != nil {
 		return err
-	}
-	defer subjectRows.Close()
-
-	var subjects []string
-	for subjectRows.Next() {
-		var subject string
-		if err := subjectRows.Scan(&subject); err != nil {
-			return err
-		}
-		subjects = append(subjects, subject)
 	}
 
 	// Process each subject
@@ -191,19 +156,6 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 		}
 
 		// Get all lessons for this subject with attendance
-		lessonQuery := `
-			SELECT l.id, l.date, l.group_name, l.topic
-			FROM lessons l
-			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
-				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
-			)
-			ORDER BY l.date`
-
-		lessonRows, err := db.Query(lessonQuery, teacherID, subject)
-		if err != nil {
-			return err
-		}
-
 		type LessonInfo struct {
 			ID      int
 			Date    string
@@ -211,27 +163,30 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 			Group   string
 			Topic   string
 		}
+
 		var lessons []LessonInfo
+		err = db.Raw(`
+			SELECT l.id, l.date, l.group_name as 'group', l.topic
+			FROM lessons l
+			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
+				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
+			)
+			ORDER BY l.date
+		`, teacherID, subject).Scan(&lessons).Error
 
-		for lessonRows.Next() {
-			var lesson LessonInfo
-			err := lessonRows.Scan(&lesson.ID, &lesson.Date, &lesson.Group, &lesson.Topic)
-			if err != nil {
-				lessonRows.Close()
-				return err
-			}
-
-			// Format the date
-			date, err := time.Parse("2006-01-02", lesson.Date)
-			if err == nil {
-				lesson.DateFmt = date.Format("02.01.2006")
-			} else {
-				lesson.DateFmt = lesson.Date
-			}
-
-			lessons = append(lessons, lesson)
+		if err != nil {
+			return err
 		}
-		lessonRows.Close()
+
+		// Format dates
+		for i := range lessons {
+			date, err := time.Parse("2006-01-02", lessons[i].Date)
+			if err == nil {
+				lessons[i].DateFmt = date.Format("02.01.2006")
+			} else {
+				lessons[i].DateFmt = lessons[i].Date
+			}
+		}
 
 		if len(lessons) == 0 {
 			// No lessons with attendance for this subject
@@ -265,54 +220,42 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 		}
 
 		// Get all groups for this subject
-		groupQuery := `
+		var groups []string
+		err = db.Raw(`
 			SELECT DISTINCT l.group_name
 			FROM lessons l
 			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
 				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
 			)
-			ORDER BY l.group_name`
+			ORDER BY l.group_name
+		`, teacherID, subject).Scan(&groups).Error
 
-		groupRows, err := db.Query(groupQuery, teacherID, subject)
 		if err != nil {
 			return err
 		}
 
-		var groups []string
-		for groupRows.Next() {
-			var group string
-			if err := groupRows.Scan(&group); err != nil {
-				groupRows.Close()
-				return err
-			}
-			groups = append(groups, group)
-		}
-		groupRows.Close()
-
 		// For each group
 		for _, group := range groups {
 			// Get all students in this group
-			studentQuery := `
+			var students []struct {
+				ID         int
+				StudentFIO string
+			}
+
+			err = db.Raw(`
 				SELECT id, student_fio
 				FROM students
 				WHERE teacher_id = ? AND group_name = ?
-				ORDER BY student_fio`
+				ORDER BY student_fio
+			`, teacherID, group).Scan(&students).Error
 
-			studentRows, err := db.Query(studentQuery, teacherID, group)
 			if err != nil {
 				return err
 			}
 
 			var firstStudent = true
 			// For each student
-			for studentRows.Next() {
-				var studentID int
-				var studentFIO string
-				if err := studentRows.Scan(&studentID, &studentFIO); err != nil {
-					studentRows.Close()
-					return err
-				}
-
+			for _, student := range students {
 				row := sheet.AddRow()
 
 				// Only show group name for first student in group
@@ -323,7 +266,7 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 					row.AddCell().SetString("")
 				}
 
-				row.AddCell().SetString(studentFIO)
+				row.AddCell().SetString(student.StudentFIO)
 
 				// For each date
 				for _, dateStr := range dates {
@@ -337,12 +280,12 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 
 							// Check attendance
 							var attendanceValue int
-							attendanceQuery := `
-								SELECT IFNULL(attended, 0)
+							err := db.Raw(`
+								SELECT COALESCE(attended, 0)
 								FROM attendance
-								WHERE lesson_id = ? AND student_id = ?`
+								WHERE lesson_id = ? AND student_id = ?
+							`, lesson.ID, student.ID).Scan(&attendanceValue).Error
 
-							err := db.QueryRow(attendanceQuery, lesson.ID, studentID).Scan(&attendanceValue)
 							if err == nil && attendanceValue == 1 {
 								attended = true
 								break
@@ -362,7 +305,6 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 					}
 				}
 			}
-			studentRows.Close()
 		}
 	}
 
@@ -370,28 +312,19 @@ func ExportAttendanceByGroup(db *sql.DB, teacherID int, file *xlsx.File) error {
 }
 
 // ExportAttendanceByLesson exports attendance data grouped by group
-func ExportAttendanceByLesson(db *sql.DB, teacherID int, file *xlsx.File) error {
+func ExportAttendanceByLesson(db *gorm.DB, teacherID int, file *xlsx.File) error {
 	// Get all groups for this teacher with attendance data
-	groupQuery := `
+	var groups []string
+	err := db.Raw(`
 		SELECT DISTINCT l.group_name
 		FROM lessons l
 		JOIN attendance a ON l.id = a.lesson_id
 		WHERE l.teacher_id = ?
-		ORDER BY l.group_name`
+		ORDER BY l.group_name
+	`, teacherID).Scan(&groups).Error
 
-	groupRows, err := db.Query(groupQuery, teacherID)
 	if err != nil {
 		return err
-	}
-	defer groupRows.Close()
-
-	var groups []string
-	for groupRows.Next() {
-		var group string
-		if err := groupRows.Scan(&group); err != nil {
-			return err
-		}
-		groups = append(groups, group)
 	}
 
 	// Process each group
@@ -403,19 +336,6 @@ func ExportAttendanceByLesson(db *sql.DB, teacherID int, file *xlsx.File) error 
 		}
 
 		// Get all lessons for this group with attendance
-		lessonQuery := `
-			SELECT l.id, l.subject, l.topic, l.date
-			FROM lessons l
-			WHERE l.teacher_id = ? AND l.group_name = ? AND EXISTS (
-				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
-			)
-			ORDER BY l.date`
-
-		lessonRows, err := db.Query(lessonQuery, teacherID, group)
-		if err != nil {
-			return err
-		}
-
 		type LessonInfo struct {
 			ID      int
 			Subject string
@@ -423,27 +343,30 @@ func ExportAttendanceByLesson(db *sql.DB, teacherID int, file *xlsx.File) error 
 			Date    string
 			DateFmt string
 		}
+
 		var lessons []LessonInfo
+		err = db.Raw(`
+			SELECT l.id, l.subject, l.topic, l.date
+			FROM lessons l
+			WHERE l.teacher_id = ? AND l.group_name = ? AND EXISTS (
+				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
+			)
+			ORDER BY l.date
+		`, teacherID, group).Scan(&lessons).Error
 
-		for lessonRows.Next() {
-			var lesson LessonInfo
-			err := lessonRows.Scan(&lesson.ID, &lesson.Subject, &lesson.Topic, &lesson.Date)
-			if err != nil {
-				lessonRows.Close()
-				return err
-			}
-
-			// Format the date
-			date, err := time.Parse("2006-01-02", lesson.Date)
-			if err == nil {
-				lesson.DateFmt = date.Format("02.01.2006")
-			} else {
-				lesson.DateFmt = lesson.Date
-			}
-
-			lessons = append(lessons, lesson)
+		if err != nil {
+			return err
 		}
-		lessonRows.Close()
+
+		// Format dates
+		for i := range lessons {
+			date, err := time.Parse("2006-01-02", lessons[i].Date)
+			if err == nil {
+				lessons[i].DateFmt = date.Format("02.01.2006")
+			} else {
+				lessons[i].DateFmt = lessons[i].Date
+			}
+		}
 
 		if len(lessons) == 0 {
 			// No lessons with attendance for this group
@@ -462,38 +385,35 @@ func ExportAttendanceByLesson(db *sql.DB, teacherID int, file *xlsx.File) error 
 		}
 
 		// Get all students in this group
-		studentQuery := `
+		var students []struct {
+			ID         int
+			StudentFIO string
+		}
+
+		err = db.Raw(`
 			SELECT id, student_fio
 			FROM students
 			WHERE teacher_id = ? AND group_name = ?
-			ORDER BY student_fio`
+			ORDER BY student_fio
+		`, teacherID, group).Scan(&students).Error
 
-		studentRows, err := db.Query(studentQuery, teacherID, group)
 		if err != nil {
 			return err
 		}
 
 		// For each student, create a row with attendance for each lesson
-		for studentRows.Next() {
-			var studentID int
-			var studentFIO string
-			if err := studentRows.Scan(&studentID, &studentFIO); err != nil {
-				studentRows.Close()
-				return err
-			}
-
+		for _, student := range students {
 			row := sheet.AddRow()
-			row.AddCell().SetString(studentFIO)
+			row.AddCell().SetString(student.StudentFIO)
 
 			// Add attendance for each lesson
 			for _, lesson := range lessons {
 				var attended int
-				attendanceQuery := `
-					SELECT IFNULL(attended, 0)
+				err := db.Raw(`
+					SELECT COALESCE(attended, 0)
 					FROM attendance
-					WHERE lesson_id = ? AND student_id = ?`
-
-				err := db.QueryRow(attendanceQuery, lesson.ID, studentID).Scan(&attended)
+					WHERE lesson_id = ? AND student_id = ?
+				`, lesson.ID, student.ID).Scan(&attended).Error
 
 				attendanceCell := row.AddCell()
 				if err == nil && attended == 1 {
@@ -503,7 +423,6 @@ func ExportAttendanceByLesson(db *sql.DB, teacherID int, file *xlsx.File) error 
 				}
 			}
 		}
-		studentRows.Close()
 	}
 
 	return nil

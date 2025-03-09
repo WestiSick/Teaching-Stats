@@ -1,25 +1,26 @@
 package handlers
 
 import (
-	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/app/dashboard/utils"
 	"TeacherJournal/config"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // AuthHandler handles authentication-related routes
 type AuthHandler struct {
-	DB   *sql.DB
+	DB   *gorm.DB
 	Tmpl *template.Template
 }
 
 // NewAuthHandler creates a new AuthHandler
-func NewAuthHandler(database *sql.DB, tmpl *template.Template) *AuthHandler {
+func NewAuthHandler(database *gorm.DB, tmpl *template.Template) *AuthHandler {
 	return &AuthHandler{
 		DB:   database,
 		Tmpl: tmpl,
@@ -35,9 +36,9 @@ func (h *AuthHandler) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		User db2.UserInfo
+		User db.UserInfo
 	}{
-		User: db2.UserInfo{},
+		User: db.UserInfo{},
 	}
 	renderTemplate(w, h.Tmpl, "index.html", data)
 }
@@ -46,9 +47,9 @@ func (h *AuthHandler) IndexHandler(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		data := struct {
-			User db2.UserInfo
+			User db.UserInfo
 		}{
-			User: db2.UserInfo{},
+			User: db.UserInfo{},
 		}
 		renderTemplate(w, h.Tmpl, "register.html", data)
 		return
@@ -73,30 +74,36 @@ func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db2.ExecuteQuery(h.DB,
-		"INSERT INTO users (fio, login, password, role) VALUES (?, ?, ?, ?)",
-		fio, login, hashedPassword, role)
-	if err != nil {
+	// Create new user
+	user := models.User{
+		FIO:      fio,
+		Login:    login,
+		Password: string(hashedPassword),
+		Role:     role,
+	}
+
+	result := h.DB.Create(&user)
+	if result.Error != nil {
 		http.Error(w, "Registration error", http.StatusBadRequest)
 		return
 	}
 
-	userID, _ := result.LastInsertId()
-	db2.LogAction(h.DB, int(userID), "Registration", fmt.Sprintf("New user registered: %s (%s)", fio, login))
+	// Add log entry
+	db.LogAction(h.DB, user.ID, "Registration", fmt.Sprintf("New user registered: %s (%s)", fio, login))
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 // SubscriptionHandler displays the subscription page for free users
 func (h *AuthHandler) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	data := struct {
-		User db2.UserInfo
+		User db.UserInfo
 	}{
 		User: userInfo,
 	}
@@ -107,9 +114,9 @@ func (h *AuthHandler) SubscriptionHandler(w http.ResponseWriter, r *http.Request
 func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		data := struct {
-			User db2.UserInfo
+			User db.UserInfo
 		}{
-			User: db2.UserInfo{},
+			User: db.UserInfo{},
 		}
 		renderTemplate(w, h.Tmpl, "login.html", data)
 		return
@@ -120,14 +127,11 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	// Validate login credentials
-	var user struct {
-		ID       int
-		FIO      string
-		Password string
-	}
+	var user models.User
+	err := h.DB.Model(&models.User{}).
+		Where("login = ?", login).
+		First(&user).Error
 
-	err := h.DB.QueryRow("SELECT id, fio, password FROM users WHERE login = ?", login).
-		Scan(&user.ID, &user.FIO, &user.Password)
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
 		http.Error(w, "Invalid login or password", http.StatusUnauthorized)
 		return
@@ -138,7 +142,7 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["userID"] = user.ID
 	session.Save(r, w)
 
-	db2.LogAction(h.DB, user.ID, "Authentication", fmt.Sprintf("User %s (%s) logged in", user.FIO, login))
+	db.LogAction(h.DB, user.ID, "Authentication", fmt.Sprintf("User %s (%s) logged in", user.FIO, login))
 
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }

@@ -1,21 +1,23 @@
 package handlers
 
 import (
-	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
-	"database/sql"
 	"html/template"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
 // DashboardHandler handles dashboard-related routes
 type DashboardHandler struct {
-	DB   *sql.DB
+	DB   *gorm.DB
 	Tmpl *template.Template
 }
 
 // NewDashboardHandler creates a new DashboardHandler
-func NewDashboardHandler(database *sql.DB, tmpl *template.Template) *DashboardHandler {
+func NewDashboardHandler(database *gorm.DB, tmpl *template.Template) *DashboardHandler {
 	return &DashboardHandler{
 		DB:   database,
 		Tmpl: tmpl,
@@ -24,48 +26,57 @@ func NewDashboardHandler(database *sql.DB, tmpl *template.Template) *DashboardHa
 
 // DashboardHandler handles the dashboard page
 func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	// Get lesson statistics
-	var totalLessons, totalHours sql.NullInt64
-	err = h.DB.QueryRow(
-		"SELECT COUNT(*) as total_lessons, SUM(hours) as total_hours FROM lessons WHERE teacher_id = ?",
-		userInfo.ID).Scan(&totalLessons, &totalHours)
+	var totalLessons int64
+	var totalHours int64
 
+	// Check if any lessons exist
 	lessonsExist := true
-	if err != nil {
-		if err == sql.ErrNoRows {
-			totalLessons = sql.NullInt64{Int64: 0, Valid: true}
-			totalHours = sql.NullInt64{Int64: 0, Valid: true}
-			lessonsExist = false
-		} else {
-			HandleError(w, err, "Error retrieving statistics", http.StatusInternalServerError)
-			return
-		}
+
+	// Count total lessons
+	h.DB.Model(&models.Lesson{}).
+		Where("teacher_id = ?", userInfo.ID).
+		Count(&totalLessons)
+
+	// Sum total hours
+	h.DB.Model(&models.Lesson{}).
+		Where("teacher_id = ?", userInfo.ID).
+		Select("COALESCE(SUM(hours), 0) as total_hours").
+		Pluck("total_hours", &totalHours)
+
+	// If no lessons found
+	if totalLessons == 0 {
+		lessonsExist = false
 	}
 
 	// Get subject statistics
 	subjects := make(map[string]int)
-	rows, err := h.DB.Query("SELECT subject, COUNT(*) as count FROM lessons WHERE teacher_id = ? GROUP BY subject", userInfo.ID)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var subject string
-			var count int
-			rows.Scan(&subject, &count)
-			subjects[subject] = count
-		}
-	} else if err != sql.ErrNoRows {
-		HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
-		return
+
+	// Get subject counts
+	var subjectCounts []struct {
+		Subject string
+		Count   int
+	}
+
+	h.DB.Model(&models.Lesson{}).
+		Select("subject, COUNT(*) as count").
+		Where("teacher_id = ?", userInfo.ID).
+		Group("subject").
+		Find(&subjectCounts)
+
+	// Convert to map
+	for _, sc := range subjectCounts {
+		subjects[sc.Subject] = sc.Count
 	}
 
 	// Get groups
-	groups, err := db2.GetTeacherGroups(h.DB, userInfo.ID)
+	groups, err := db.GetTeacherGroups(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
@@ -73,7 +84,7 @@ func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Reque
 
 	// Render dashboard template
 	data := struct {
-		User         db2.UserInfo
+		User         db.UserInfo
 		TotalLessons int
 		TotalHours   int
 		Subjects     map[string]int
@@ -81,8 +92,8 @@ func (h *DashboardHandler) DashboardHandler(w http.ResponseWriter, r *http.Reque
 		HasLessons   bool
 	}{
 		User:         userInfo,
-		TotalLessons: int(totalLessons.Int64),
-		TotalHours:   int(totalHours.Int64),
+		TotalLessons: int(totalLessons),
+		TotalHours:   int(totalHours),
 		Subjects:     subjects,
 		Groups:       groups,
 		HasLessons:   lessonsExist,

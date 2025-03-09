@@ -1,20 +1,21 @@
 package handlers
 
 import (
-	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/app/dashboard/utils"
-	"database/sql"
 	"net/http"
 	"strconv"
+
+	"gorm.io/gorm"
 )
 
 // APIHandler handles API-related routes
 type APIHandler struct {
-	DB *sql.DB
+	DB *gorm.DB
 }
 
 // NewAPIHandler creates a new APIHandler
-func NewAPIHandler(database *sql.DB) *APIHandler {
+func NewAPIHandler(database *gorm.DB) *APIHandler {
 	return &APIHandler{
 		DB: database,
 	}
@@ -35,26 +36,23 @@ func (h *APIHandler) APILessonsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get lessons for this subject
-	rows, err := h.DB.Query(
-		"SELECT id, date, group_name FROM lessons WHERE teacher_id = ? AND subject = ? ORDER BY date",
-		teacherID, subject)
-	if err != nil {
-		HandleError(w, err, "Error retrieving lessons", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	// Process lessons
 	type LessonAPIData struct {
 		ID        int    `json:"id"`
 		Date      string `json:"date"`
 		GroupName string `json:"group_name"`
 	}
+
 	var lessons []LessonAPIData
-	for rows.Next() {
-		var l LessonAPIData
-		rows.Scan(&l.ID, &l.Date, &l.GroupName)
-		lessons = append(lessons, l)
+
+	err = h.DB.Model(&models.Lesson{}).
+		Select("id, date, group_name").
+		Where("teacher_id = ? AND subject = ?", teacherID, subject).
+		Order("date").
+		Find(&lessons).Error
+
+	if err != nil {
+		HandleError(w, err, "Error retrieving lessons", http.StatusInternalServerError)
+		return
 	}
 
 	utils.RespondJSON(w, lessons)
@@ -76,28 +74,33 @@ func (h *APIHandler) APIStudentsHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Get group for this lesson
 	var groupName string
-	err = h.DB.QueryRow("SELECT group_name FROM lessons WHERE id = ? AND teacher_id = ?",
-		lessonID, teacherID).Scan(&groupName)
+	err = h.DB.Model(&models.Lesson{}).
+		Select("group_name").
+		Where("id = ? AND teacher_id = ?", lessonID, teacherID).
+		Pluck("group_name", &groupName).Error
+
 	if err != nil {
 		http.Error(w, "Lesson not found", http.StatusBadRequest)
 		return
 	}
 
 	// Get students in this group
-	students, err := db.GetStudentsInGroup(h.DB, teacherID, groupName)
+	type StudentAPIData struct {
+		ID  int    `json:"id"`
+		FIO string `json:"fio"`
+	}
+
+	var students []StudentAPIData
+
+	err = h.DB.Model(&models.Student{}).
+		Select("id, student_fio as fio").
+		Where("teacher_id = ? AND group_name = ?", teacherID, groupName).
+		Find(&students).Error
+
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
-	type StudentAPIData struct {
-		ID  int    `json:"id"`
-		FIO string `json:"fio"`
-	}
-	var apiStudents []StudentAPIData
-	for _, s := range students {
-		apiStudents = append(apiStudents, StudentAPIData{ID: s.ID, FIO: s.FIO})
-	}
-
-	utils.RespondJSON(w, apiStudents)
+	utils.RespondJSON(w, students)
 }

@@ -1,26 +1,28 @@
 package handlers
 
 import (
-	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
 	"bufio"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 // GroupHandler handles group-related routes
 type GroupHandler struct {
-	DB   *sql.DB
+	DB   *gorm.DB
 	Tmpl *template.Template
 }
 
 // NewGroupHandler creates a new GroupHandler
-func NewGroupHandler(database *sql.DB, tmpl *template.Template) *GroupHandler {
+func NewGroupHandler(database *gorm.DB, tmpl *template.Template) *GroupHandler {
 	return &GroupHandler{
 		DB:   database,
 		Tmpl: tmpl,
@@ -29,7 +31,7 @@ func NewGroupHandler(database *sql.DB, tmpl *template.Template) *GroupHandler {
 
 // GroupsHandler handles viewing and managing groups
 func (h *GroupHandler) GroupsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -44,35 +46,26 @@ func (h *GroupHandler) GroupsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Transaction for deleting group data
-		tx, err := h.DB.Begin()
+		err := h.DB.Transaction(func(tx *gorm.DB) error {
+			// Delete lessons for this group
+			if err := tx.Where("teacher_id = ? AND group_name = ?", userInfo.ID, groupName).Delete(&models.Lesson{}).Error; err != nil {
+				return err
+			}
+
+			// Delete students for this group
+			if err := tx.Where("teacher_id = ? AND group_name = ?", userInfo.ID, groupName).Delete(&models.Student{}).Error; err != nil {
+				return err
+			}
+
+			return nil
+		})
+
 		if err != nil {
-			HandleError(w, err, "Error starting transaction", http.StatusInternalServerError)
+			HandleError(w, err, "Error deleting group data", http.StatusInternalServerError)
 			return
 		}
 
-		// Delete lessons for this group
-		_, err = tx.Exec("DELETE FROM lessons WHERE teacher_id = ? AND group_name = ?", userInfo.ID, groupName)
-		if err != nil {
-			tx.Rollback()
-			HandleError(w, err, "Error deleting group lessons", http.StatusInternalServerError)
-			return
-		}
-
-		// Delete students for this group
-		_, err = tx.Exec("DELETE FROM students WHERE teacher_id = ? AND group_name = ?", userInfo.ID, groupName)
-		if err != nil {
-			tx.Rollback()
-			HandleError(w, err, "Error deleting group students", http.StatusInternalServerError)
-			return
-		}
-
-		// Commit transaction
-		if err := tx.Commit(); err != nil {
-			HandleError(w, err, "Error committing transaction", http.StatusInternalServerError)
-			return
-		}
-
-		db2.LogAction(h.DB, userInfo.ID, "Delete Group",
+		db.LogAction(h.DB, userInfo.ID, "Delete Group",
 			fmt.Sprintf("Deleted group %s with all lessons and students", groupName))
 
 		http.Redirect(w, r, "/groups", http.StatusSeeOther)
@@ -80,15 +73,15 @@ func (h *GroupHandler) GroupsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get groups for this teacher
-	groups, err := db2.GetGroupsByTeacher(h.DB, userInfo.ID)
+	groups, err := db.GetGroupsByTeacher(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User   db2.UserInfo
-		Groups []db2.GroupData
+		User   db.UserInfo
+		Groups []db.GroupData
 	}{
 		User:   userInfo,
 		Groups: groups,
@@ -98,7 +91,7 @@ func (h *GroupHandler) GroupsHandler(w http.ResponseWriter, r *http.Request) {
 
 // EditGroupHandler handles editing a group
 func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -126,10 +119,14 @@ func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) 
 			for scanner.Scan() {
 				studentFIO := strings.TrimSpace(scanner.Text())
 				if studentFIO != "" {
-					_, err := db2.ExecuteQuery(h.DB,
-						"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-						userInfo.ID, groupName, studentFIO)
-					if err == nil {
+					// Insert new student
+					student := models.Student{
+						TeacherID:  userInfo.ID,
+						GroupName:  groupName,
+						StudentFIO: studentFIO,
+					}
+
+					if err := h.DB.Create(&student).Error; err == nil {
 						studentsAdded++
 					}
 				}
@@ -139,50 +136,50 @@ func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Upload Student List",
+			db.LogAction(h.DB, userInfo.ID, "Upload Student List",
 				fmt.Sprintf("Uploaded list of %d students to group %s", studentsAdded, groupName))
 
 		case "delete":
 			// Delete student
-			studentID := r.FormValue("student_id")
-			_, err := db2.ExecuteQuery(h.DB, "DELETE FROM students WHERE id = ? AND teacher_id = ?", studentID, userInfo.ID)
-			if err != nil {
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
+
+			if err := h.DB.Where("id = ? AND teacher_id = ?", studentID, userInfo.ID).Delete(&models.Student{}).Error; err != nil {
 				HandleError(w, err, "Error deleting student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Delete Student",
-				fmt.Sprintf("Deleted student from group %s (ID: %s)", groupName, studentID))
+			db.LogAction(h.DB, userInfo.ID, "Delete Student",
+				fmt.Sprintf("Deleted student from group %s (ID: %d)", groupName, studentID))
 
 		case "update":
 			// Update student name
-			studentID := r.FormValue("student_id")
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
 			newFIO := r.FormValue("new_fio")
-			_, err := db2.ExecuteQuery(h.DB,
-				"UPDATE students SET student_fio = ? WHERE id = ? AND teacher_id = ?",
-				newFIO, studentID, userInfo.ID)
-			if err != nil {
+
+			if err := h.DB.Model(&models.Student{}).
+				Where("id = ? AND teacher_id = ?", studentID, userInfo.ID).
+				Update("student_fio", newFIO).Error; err != nil {
 				HandleError(w, err, "Error updating name", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Update Student Name",
-				fmt.Sprintf("Updated student ID %s in group %s to %s", studentID, groupName, newFIO))
+			db.LogAction(h.DB, userInfo.ID, "Update Student Name",
+				fmt.Sprintf("Updated student ID %d in group %s to %s", studentID, groupName, newFIO))
 
 		case "move":
 			// Move student to another group
-			studentID := r.FormValue("student_id")
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
 			newGroup := r.FormValue("new_group")
-			_, err := db2.ExecuteQuery(h.DB,
-				"UPDATE students SET group_name = ? WHERE id = ? AND teacher_id = ?",
-				newGroup, studentID, userInfo.ID)
-			if err != nil {
+
+			if err := h.DB.Model(&models.Student{}).
+				Where("id = ? AND teacher_id = ?", studentID, userInfo.ID).
+				Update("group_name", newGroup).Error; err != nil {
 				HandleError(w, err, "Error moving student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Move Student",
-				fmt.Sprintf("Moved student ID %s from group %s to %s", studentID, groupName, newGroup))
+			db.LogAction(h.DB, userInfo.ID, "Move Student",
+				fmt.Sprintf("Moved student ID %d from group %s to %s", studentID, groupName, newGroup))
 
 		case "add_student":
 			// Add new student
@@ -192,15 +189,19 @@ func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 
-			_, err := db2.ExecuteQuery(h.DB,
-				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-				userInfo.ID, groupName, studentFIO)
-			if err != nil {
+			// Create new student
+			student := models.Student{
+				TeacherID:  userInfo.ID,
+				GroupName:  groupName,
+				StudentFIO: studentFIO,
+			}
+
+			if err := h.DB.Create(&student).Error; err != nil {
 				HandleError(w, err, "Error adding student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Add Student",
+			db.LogAction(h.DB, userInfo.ID, "Add Student",
 				fmt.Sprintf("Added student %s to group %s", studentFIO, groupName))
 		}
 
@@ -209,23 +210,23 @@ func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Get students in this group
-	students, err := db2.GetStudentsInGroup(h.DB, userInfo.ID, groupName)
+	students, err := db.GetStudentsInGroup(h.DB, userInfo.ID, groupName)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
 	// Get all groups for move operation
-	groups, err := db2.GetTeacherGroups(h.DB, userInfo.ID)
+	groups, err := db.GetTeacherGroups(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User      db2.UserInfo
+		User      db.UserInfo
 		GroupName string
-		Students  []db2.StudentData
+		Students  []db.StudentData
 		Groups    []string
 	}{
 		User:      userInfo,
@@ -238,7 +239,7 @@ func (h *GroupHandler) EditGroupHandler(w http.ResponseWriter, r *http.Request) 
 
 // AddGroupHandler handles adding a new group
 func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -246,7 +247,7 @@ func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		data := struct {
-			User db2.UserInfo
+			User db.UserInfo
 		}{
 			User: userInfo,
 		}
@@ -262,20 +263,18 @@ func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if group already exists
-	var exists int
-	err = h.DB.QueryRow(`
+	var count int64
+	h.DB.Raw(`
 		SELECT COUNT(*) 
 		FROM (
 			SELECT group_name FROM lessons WHERE teacher_id = ? 
 			UNION 
 			SELECT group_name FROM students WHERE teacher_id = ?
-		) WHERE group_name = ?`,
-		userInfo.ID, userInfo.ID, groupName).Scan(&exists)
-	if err != nil {
-		HandleError(w, err, "Error checking group", http.StatusInternalServerError)
-		return
-	}
-	if exists > 0 {
+		) AS combined_groups
+		WHERE group_name = ?`,
+		userInfo.ID, userInfo.ID, groupName).Count(&count)
+
+	if count > 0 {
 		http.Error(w, "Group with this name already exists", http.StatusBadRequest)
 		return
 	}
@@ -289,10 +288,13 @@ func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 		for scanner.Scan() {
 			studentFIO := strings.TrimSpace(scanner.Text())
 			if studentFIO != "" {
-				_, err := db2.ExecuteQuery(h.DB,
-					"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-					userInfo.ID, groupName, studentFIO)
-				if err == nil {
+				student := models.Student{
+					TeacherID:  userInfo.ID,
+					GroupName:  groupName,
+					StudentFIO: studentFIO,
+				}
+
+				if err := h.DB.Create(&student).Error; err == nil {
 					studentsAdded = true
 				}
 			}
@@ -310,10 +312,13 @@ func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	for _, studentFIO := range studentFIOs {
 		studentFIO = strings.TrimSpace(studentFIO)
 		if studentFIO != "" {
-			_, err := db2.ExecuteQuery(h.DB,
-				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-				userInfo.ID, groupName, studentFIO)
-			if err == nil {
+			student := models.Student{
+				TeacherID:  userInfo.ID,
+				GroupName:  groupName,
+				StudentFIO: studentFIO,
+			}
+
+			if err := h.DB.Create(&student).Error; err == nil {
 				studentCount++
 				studentsAdded = true
 			}
@@ -325,7 +330,7 @@ func (h *GroupHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	if studentsAdded {
 		logMessage += fmt.Sprintf(" with added students (from file: %v, manually: %d)", file != nil, studentCount)
 	}
-	db2.LogAction(h.DB, userInfo.ID, "Create Group", logMessage)
+	db.LogAction(h.DB, userInfo.ID, "Create Group", logMessage)
 
 	http.Redirect(w, r, "/groups", http.StatusSeeOther)
 }

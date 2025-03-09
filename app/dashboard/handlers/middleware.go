@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
-	"database/sql"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
 // AuthMiddleware verifies user authentication
@@ -20,7 +22,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // AdminMiddleware verifies admin role
-func AdminMiddleware(database *sql.DB, next http.HandlerFunc) http.HandlerFunc {
+func AdminMiddleware(database *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := config.Store.Get(r, config.SessionName)
 		userID, ok := session.Values["userID"]
@@ -29,18 +31,23 @@ func AdminMiddleware(database *sql.DB, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		var role string
-		err := database.QueryRow("SELECT role FROM users WHERE id = ?", userID).Scan(&role)
-		if err != nil || role != "admin" {
+		var user models.User
+		err := database.Model(&models.User{}).
+			Select("role").
+			Where("id = ?", userID).
+			First(&user).Error
+
+		if err != nil || user.Role != "admin" {
 			http.Error(w, "Access denied", http.StatusForbidden)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	}
 }
 
 // SubscriberMiddleware verifies the user has a paid subscription (not "free" role)
-func SubscriberMiddleware(database *sql.DB, next http.HandlerFunc) http.HandlerFunc {
+func SubscriberMiddleware(database *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := config.Store.Get(r, config.SessionName)
 		userID, ok := session.Values["userID"]
@@ -49,12 +56,17 @@ func SubscriberMiddleware(database *sql.DB, next http.HandlerFunc) http.HandlerF
 			return
 		}
 
-		var role string
-		err := database.QueryRow("SELECT role FROM users WHERE id = ?", userID).Scan(&role)
-		if err != nil || role == "free" {
+		var user models.User
+		err := database.Model(&models.User{}).
+			Select("role").
+			Where("id = ?", userID).
+			First(&user).Error
+
+		if err != nil || user.Role == "free" {
 			http.Redirect(w, r, "/subscription", http.StatusSeeOther)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	}
 }

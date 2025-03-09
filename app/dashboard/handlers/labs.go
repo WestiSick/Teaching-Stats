@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -11,16 +11,17 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
+	"gorm.io/gorm"
 )
 
 // LabHandler handles lab-related routes
 type LabHandler struct {
-	DB   *sql.DB
+	DB   *gorm.DB
 	Tmpl *template.Template
 }
 
 // NewLabHandler creates a new LabHandler
-func NewLabHandler(database *sql.DB, tmpl *template.Template) *LabHandler {
+func NewLabHandler(database *gorm.DB, tmpl *template.Template) *LabHandler {
 	return &LabHandler{
 		DB:   database,
 		Tmpl: tmpl,
@@ -29,21 +30,21 @@ func NewLabHandler(database *sql.DB, tmpl *template.Template) *LabHandler {
 
 // GroupLabsHandler shows all groups by subject with Lab Submissions buttons
 func (h *LabHandler) GroupLabsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	// Get subjects for this teacher
-	subjects, err := db2.GetTeacherSubjects(h.DB, userInfo.ID)
+	subjects, err := db.GetTeacherSubjects(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 		return
 	}
 
 	// Get groups for this teacher
-	groups, err := db2.GetGroupsByTeacher(h.DB, userInfo.ID)
+	groups, err := db.GetGroupsByTeacher(h.DB, userInfo.ID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
@@ -52,7 +53,7 @@ func (h *LabHandler) GroupLabsHandler(w http.ResponseWriter, r *http.Request) {
 	// Group the groups by subject
 	type SubjectGroups struct {
 		Subject string
-		Groups  []db2.GroupData
+		Groups  []db.GroupData
 	}
 
 	var subjectGroupsList []SubjectGroups
@@ -63,34 +64,25 @@ func (h *LabHandler) GroupLabsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// For this subject, find all groups that have lessons in this subject
-		rows, err := h.DB.Query(
-			"SELECT DISTINCT group_name FROM lessons WHERE teacher_id = ? AND subject = ? ORDER BY group_name",
-			userInfo.ID, subject)
-		if err != nil {
-			HandleError(w, err, "Error retrieving groups for subject", http.StatusInternalServerError)
-			return
-		}
+		var groupNames []string
+		h.DB.Model(&models.Lesson{}).
+			Distinct("group_name").
+			Where("teacher_id = ? AND subject = ?", userInfo.ID, subject).
+			Order("group_name").
+			Pluck("group_name", &groupNames)
 
 		// Map group names to group data
-		groupMap := make(map[string]db2.GroupData)
+		groupMap := make(map[string]db.GroupData)
 		for _, g := range groups {
 			groupMap[g.Name] = g
 		}
 
-		for rows.Next() {
-			var groupName string
-			if err := rows.Scan(&groupName); err != nil {
-				rows.Close()
-				HandleError(w, err, "Error scanning group name", http.StatusInternalServerError)
-				return
-			}
-
+		for _, groupName := range groupNames {
 			// If we have this group in our map, add it to the subject's groups
 			if group, ok := groupMap[groupName]; ok {
 				sg.Groups = append(sg.Groups, group)
 			}
 		}
-		rows.Close()
 
 		if len(sg.Groups) > 0 {
 			subjectGroupsList = append(subjectGroupsList, sg)
@@ -98,7 +90,7 @@ func (h *LabHandler) GroupLabsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		User          db2.UserInfo
+		User          db.UserInfo
 		SubjectGroups []SubjectGroups
 	}{
 		User:          userInfo,
@@ -110,7 +102,7 @@ func (h *LabHandler) GroupLabsHandler(w http.ResponseWriter, r *http.Request) {
 
 // LabGradesHandler shows and manages lab grades for a specific group and subject
 func (h *LabHandler) LabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -137,19 +129,19 @@ func (h *LabHandler) LabGradesHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			settings := db2.LabSettings{
+			settings := db.LabSettings{
 				TeacherID: userInfo.ID,
 				GroupName: groupName,
 				Subject:   subject,
 				TotalLabs: totalLabs,
 			}
 
-			if err := db2.SaveLabSettings(h.DB, settings); err != nil {
+			if err := db.SaveLabSettings(h.DB, settings); err != nil {
 				HandleError(w, err, "Error saving lab settings", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Update Lab Settings",
+			db.LogAction(h.DB, userInfo.ID, "Update Lab Settings",
 				fmt.Sprintf("Updated lab settings for %s, %s: %d labs", subject, groupName, totalLabs))
 
 		case "update_grades":
@@ -180,13 +172,13 @@ func (h *LabHandler) LabGradesHandler(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Save the grade
-				if err := db2.SaveLabGrade(h.DB, userInfo.ID, studentID, subject, labNumber, grade); err != nil {
+				if err := db.SaveLabGrade(h.DB, userInfo.ID, studentID, subject, labNumber, grade); err != nil {
 					HandleError(w, err, "Error saving grade", http.StatusInternalServerError)
 					return
 				}
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Update Lab Grades",
+			db.LogAction(h.DB, userInfo.ID, "Update Lab Grades",
 				fmt.Sprintf("Updated lab grades for %s, %s", subject, groupName))
 		}
 
@@ -196,15 +188,15 @@ func (h *LabHandler) LabGradesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get lab summary for the group
-	summary, err := db2.GetGroupLabSummary(h.DB, userInfo.ID, groupName, subject)
+	summary, err := db.GetGroupLabSummary(h.DB, userInfo.ID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab summary", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User    db2.UserInfo
-		Summary db2.GroupLabSummary
+		User    db.UserInfo
+		Summary db.GroupLabSummary
 	}{
 		User:    userInfo,
 		Summary: summary,
@@ -215,7 +207,7 @@ func (h *LabHandler) LabGradesHandler(w http.ResponseWriter, r *http.Request) {
 
 // ExportLabGradesHandler exports lab grades for a specific group and subject to Excel
 func (h *LabHandler) ExportLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -226,7 +218,7 @@ func (h *LabHandler) ExportLabGradesHandler(w http.ResponseWriter, r *http.Reque
 	groupName := vars["group"]
 
 	// Get lab summary for the group
-	summary, err := db2.GetGroupLabSummary(h.DB, userInfo.ID, groupName, subject)
+	summary, err := db.GetGroupLabSummary(h.DB, userInfo.ID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab summary", http.StatusInternalServerError)
 		return
@@ -275,7 +267,7 @@ func (h *LabHandler) ExportLabGradesHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Log the export action
-	db2.LogAction(h.DB, userInfo.ID, "Export Lab Grades",
+	db.LogAction(h.DB, userInfo.ID, "Export Lab Grades",
 		fmt.Sprintf("Exported lab grades for subject %s, group %s", subject, groupName))
 
 	// Set headers for file download
