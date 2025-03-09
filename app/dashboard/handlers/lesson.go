@@ -147,7 +147,7 @@ func (h *LessonHandler) SubjectLessonsHandler(w http.ResponseWriter, r *http.Req
 		formattedDate := utils.FormatDate(lesson.Date)
 		db.LogAction(h.DB, userInfo.ID, "Delete Lesson",
 			fmt.Sprintf("Deleted lesson ID %s: %s, %s, %s, %d hours, %s, type: %s",
-				lessonID, subject, lesson.Group, lesson.Topic, lesson.Hours, formattedDate, lesson.Type))
+				lessonID, subject, lesson.GroupName, lesson.Topic, lesson.Hours, formattedDate, lesson.Type))
 
 		http.Redirect(w, r, fmt.Sprintf("/lessons/subject?subject=%s", subject), http.StatusSeeOther)
 		return

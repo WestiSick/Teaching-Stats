@@ -8,13 +8,13 @@ import (
 
 // LessonData stores information about a lesson
 type LessonData struct {
-	ID      int
-	Group   string
-	Subject string
-	Topic   string
-	Hours   int
-	Date    string
-	Type    string
+	ID        int
+	GroupName string // Changed from Group to GroupName
+	Subject   string
+	Topic     string
+	Hours     int
+	Date      string
+	Type      string
 }
 
 // GetLessonsBySubject retrieves lessons for a specific teacher and subject
@@ -22,7 +22,7 @@ func GetLessonsBySubject(db *gorm.DB, teacherID int, subject string) ([]LessonDa
 	var lessons []LessonData
 
 	err := db.Model(&models.Lesson{}).
-		Select("id, group_name as `group`, subject, topic, hours, date, type").
+		Select("id, group_name as \"group_name\", subject, topic, hours, date, type").
 		Where("teacher_id = ? AND subject = ?", teacherID, subject).
 		Order("date").
 		Find(&lessons).Error
@@ -35,7 +35,7 @@ func GetLessonByID(db *gorm.DB, lessonID int, teacherID int) (LessonData, error)
 	var lesson LessonData
 
 	err := db.Model(&models.Lesson{}).
-		Select("id, group_name as `group`, subject, topic, hours, date, type").
+		Select("id, group_name as \"group_name\", subject, topic, hours, date, type").
 		Where("id = ? AND teacher_id = ?", lessonID, teacherID).
 		First(&lesson).Error
 

@@ -109,7 +109,7 @@
     <h1>Редактировать пару</h1>
     <form method="POST">
         <label>Группа:
-            <input type="text" name="group" value="{{.Lesson.Group}}" list="groupList" required>
+            <input type="text" name="group" value="{{.Lesson.GroupName}}" list="groupList" required>
             <datalist id="groupList">
                 {{range .Groups}}
                 <option value="{{.}}">

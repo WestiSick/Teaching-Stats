@@ -42,10 +42,11 @@ func GetAttendanceForLesson(db *gorm.DB, lessonID int, teacherID int) ([]Student
 	// Get all students in the group with their attendance status
 	var studentsAttendance []StudentAttendance
 
+	// Note the use of "attendances" table name instead of "attendance"
 	err = db.Raw(`
 		SELECT s.id, s.student_fio as fio, COALESCE(a.attended, 0) as attended
 		FROM students s
-		LEFT JOIN attendance a ON s.id = a.student_id AND a.lesson_id = ?
+		LEFT JOIN attendances a ON s.id = a.student_id AND a.lesson_id = ?
 		WHERE s.teacher_id = ? AND s.group_name = ?
 		ORDER BY s.student_fio
 	`, lessonID, teacherID, groupName).Scan(&studentsAttendance).Error
@@ -62,12 +63,13 @@ func GetAttendanceForLesson(db *gorm.DB, lessonID int, teacherID int) ([]Student
 func GetTeacherAttendanceRecords(db *gorm.DB, teacherID int) ([]AttendanceData, error) {
 	var attendances []AttendanceData
 
+	// Note the use of "attendances" table name instead of "attendance"
 	err := db.Raw(`
 		SELECT l.id as lesson_id, l.date, l.subject, l.group_name, 
 			(SELECT COUNT(*) FROM students s WHERE s.teacher_id = ? AND s.group_name = l.group_name) as total_students,
-			(SELECT COUNT(*) FROM attendance a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students
+			(SELECT COUNT(*) FROM attendances a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students
 		FROM lessons l
-		WHERE l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendance a WHERE a.lesson_id = l.id)
+		WHERE l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendances a WHERE a.lesson_id = l.id)
 		ORDER BY l.date DESC
 	`, teacherID, teacherID).Scan(&attendances).Error
 
@@ -89,7 +91,7 @@ func SaveAttendance(db *gorm.DB, lessonID int, teacherID int, attendedStudentIDs
 
 	// Start transaction
 	return db.Transaction(func(tx *gorm.DB) error {
-		// Delete existing attendance records
+		// Delete existing attendance records - note the table name "attendances"
 		if err := tx.Where("lesson_id = ?", lessonID).Delete(&models.Attendance{}).Error; err != nil {
 			return err
 		}

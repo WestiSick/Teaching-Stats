@@ -1,29 +1,31 @@
 package handlers
 
 import (
-	db2 "TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/db"
+	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/app/dashboard/utils"
 	"TeacherJournal/config"
 	"bufio"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
+	"gorm.io/gorm"
 )
 
 // AdminHandler handles admin-related routes
 type AdminHandler struct {
-	DB   *sql.DB
+	DB   *gorm.DB
 	Tmpl *template.Template
 }
 
 // NewAdminHandler creates a new AdminHandler
-func NewAdminHandler(database *sql.DB, tmpl *template.Template) *AdminHandler {
+func NewAdminHandler(database *gorm.DB, tmpl *template.Template) *AdminHandler {
 	return &AdminHandler{
 		DB:   database,
 		Tmpl: tmpl,
@@ -32,7 +34,7 @@ func NewAdminHandler(database *sql.DB, tmpl *template.Template) *AdminHandler {
 
 // AdminDashboardHandler handles the admin dashboard
 func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -46,66 +48,80 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 	sortBy := r.URL.Query().Get("sort_by")
 
 	// Build query for teacher statistics
-	query := `
-		SELECT u.id, u.fio, COUNT(l.id) as lessons, SUM(l.hours) as hours
-		FROM users u
-		LEFT JOIN lessons l ON u.id = l.teacher_id
-	`
-	var args []interface{}
+	teacherQuery := h.DB.Model(&models.User{}).
+		Select("users.id, users.fio, COUNT(lessons.id) as lessons, COALESCE(SUM(lessons.hours), 0) as hours").
+		Joins("LEFT JOIN lessons ON users.id = lessons.teacher_id")
+
 	if teacherIDFilter != "" {
-		query += " WHERE u.id = ?"
-		args = append(args, teacherIDFilter)
+		teacherQuery = teacherQuery.Where("users.id = ?", teacherIDFilter)
 	}
-	query += " GROUP BY u.id, u.fio"
+
+	teacherQuery = teacherQuery.Group("users.id, users.fio")
 
 	// Apply sorting
-	if sortBy == "fio" || sortBy == "lessons" || sortBy == "hours" {
-		query += " ORDER BY " + sortBy
+	if sortBy == "fio" {
+		teacherQuery = teacherQuery.Order("users.fio")
+	} else if sortBy == "lessons" {
+		teacherQuery = teacherQuery.Order("lessons DESC")
+	} else if sortBy == "hours" {
+		teacherQuery = teacherQuery.Order("hours DESC")
 	} else {
-		query += " ORDER BY u.fio"
+		teacherQuery = teacherQuery.Order("users.fio")
 	}
 
 	// Execute query
-	rows, err := h.DB.Query(query, args...)
-	if err != nil {
+	var teacherStats []struct {
+		ID      int
+		FIO     string
+		Lessons int
+		Hours   int
+	}
+	if err := teacherQuery.Find(&teacherStats).Error; err != nil {
 		HandleError(w, err, "Error retrieving statistics", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
 	// Process teacher statistics
-	var teachers []db2.TeacherStats
-	for rows.Next() {
-		var t db2.TeacherStats
-		rows.Scan(&t.ID, &t.FIO, &t.Lessons, &t.Hours)
-		t.Subjects = make(map[string]int)
+	var teachers []db.TeacherStats
+	for _, t := range teacherStats {
+		teacher := db.TeacherStats{
+			ID:       t.ID,
+			FIO:      t.FIO,
+			Lessons:  t.Lessons,
+			Hours:    t.Hours,
+			Subjects: make(map[string]int),
+		}
 
 		// Get subject details for each teacher
-		subjQuery := "SELECT subject, COUNT(*) FROM lessons WHERE teacher_id = ?"
-		subjArgs := []interface{}{t.ID}
+		var subjectCounts []struct {
+			Subject string
+			Count   int
+		}
+
+		subjectQuery := h.DB.Model(&models.Lesson{}).
+			Select("subject, COUNT(*) as count").
+			Where("teacher_id = ?", t.ID)
 
 		if subjectFilter != "" {
-			subjQuery += " AND subject = ?"
-			subjArgs = append(subjArgs, subjectFilter)
+			subjectQuery = subjectQuery.Where("subject = ?", subjectFilter)
 		}
-		if startDate != "" && endDate != "" {
-			subjQuery += " AND date BETWEEN ? AND ?"
-			subjArgs = append(subjArgs, startDate, endDate)
-		}
-		subjQuery += " GROUP BY subject"
 
-		subjRows, err := h.DB.Query(subjQuery, subjArgs...)
-		if err != nil {
+		if startDate != "" && endDate != "" {
+			subjectQuery = subjectQuery.Where("date BETWEEN ? AND ?", startDate, endDate)
+		}
+
+		subjectQuery = subjectQuery.Group("subject")
+
+		if err := subjectQuery.Find(&subjectCounts).Error; err != nil {
+			// Just continue if we can't get subject data
 			continue
 		}
-		for subjRows.Next() {
-			var subject string
-			var count int
-			subjRows.Scan(&subject, &count)
-			t.Subjects[subject] = count
+
+		for _, sc := range subjectCounts {
+			teacher.Subjects[sc.Subject] = sc.Count
 		}
-		subjRows.Close()
-		teachers = append(teachers, t)
+
+		teachers = append(teachers, teacher)
 	}
 
 	// Handle Excel export request
@@ -116,58 +132,55 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 		header.WriteSlice(&[]string{"Name", "Subject", "Group", "Topic", "Hours", "Type", "Date"}, -1)
 
 		// Build export query
-		exportQuery := `
-			SELECT u.fio, l.subject, l.group_name, l.topic, l.hours, l.type, l.date
-			FROM users u
-			JOIN lessons l ON u.id = l.teacher_id
-		`
-		exportArgs := []interface{}{}
-		whereAdded := false
+		exportQuery := h.DB.Model(&models.Lesson{}).
+			Select("users.fio, lessons.subject, lessons.group_name, lessons.topic, lessons.hours, lessons.type, lessons.date").
+			Joins("JOIN users ON users.id = lessons.teacher_id")
 
 		if teacherIDFilter != "" {
-			exportQuery += " WHERE u.id = ?"
-			exportArgs = append(exportArgs, teacherIDFilter)
-			whereAdded = true
+			exportQuery = exportQuery.Where("users.id = ?", teacherIDFilter)
 		}
+
 		if subjectFilter != "" {
-			if !whereAdded {
-				exportQuery += " WHERE"
-				whereAdded = true
-			} else {
-				exportQuery += " AND"
-			}
-			exportQuery += " l.subject = ?"
-			exportArgs = append(exportArgs, subjectFilter)
+			exportQuery = exportQuery.Where("lessons.subject = ?", subjectFilter)
 		}
+
 		if startDate != "" && endDate != "" {
-			if !whereAdded {
-				exportQuery += " WHERE"
-			} else {
-				exportQuery += " AND"
-			}
-			exportQuery += " l.date BETWEEN ? AND ?"
-			exportArgs = append(exportArgs, startDate, endDate)
+			exportQuery = exportQuery.Where("lessons.date BETWEEN ? AND ?", startDate, endDate)
 		}
-		exportQuery += " ORDER BY u.fio, l.date"
+
+		exportQuery = exportQuery.Order("users.fio, lessons.date")
 
 		// Execute export query
-		rows, err := h.DB.Query(exportQuery, exportArgs...)
-		if err != nil {
+		type ExportData struct {
+			FIO       string
+			Subject   string
+			GroupName string
+			Topic     string
+			Hours     int
+			Type      string
+			Date      string
+		}
+
+		var exportData []ExportData
+		if err := exportQuery.Find(&exportData).Error; err != nil {
 			HandleError(w, err, "Error exporting data", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
 
 		// Populate Excel file
-		for rows.Next() {
-			var fio, subject, group, topic, lessonType, dateStr string
-			var hours int
-			rows.Scan(&fio, &subject, &group, &topic, &hours, &lessonType, &dateStr)
-
-			formattedDate := utils.FormatDate(dateStr)
+		for _, data := range exportData {
+			formattedDate := utils.FormatDate(data.Date)
 
 			row := sheet.AddRow()
-			row.WriteSlice(&[]interface{}{fio, subject, group, topic, hours, lessonType, formattedDate}, -1)
+			row.WriteSlice(&[]interface{}{
+				data.FIO,
+				data.Subject,
+				data.GroupName,
+				data.Topic,
+				data.Hours,
+				data.Type,
+				formattedDate,
+			}, -1)
 		}
 
 		// Send file to user
@@ -177,44 +190,31 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get teachers for filter dropdown
-	teacherRows, err := h.DB.Query("SELECT id, fio FROM users ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
-		return
-	}
-	defer teacherRows.Close()
-
 	var teacherList []struct {
 		ID  int
 		FIO string
 	}
-	for teacherRows.Next() {
-		var t struct {
-			ID  int
-			FIO string
-		}
-		teacherRows.Scan(&t.ID, &t.FIO)
-		teacherList = append(teacherList, t)
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio").
+		Order("fio").
+		Find(&teacherList).Error; err != nil {
+		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
+		return
 	}
 
 	// Get subjects for filter dropdown
-	subjectRows, err := h.DB.Query("SELECT DISTINCT subject FROM lessons ORDER BY subject")
-	if err != nil {
+	var subjectList []string
+	if err := h.DB.Model(&models.Lesson{}).
+		Distinct("subject").
+		Order("subject").
+		Pluck("subject", &subjectList).Error; err != nil {
 		HandleError(w, err, "Error retrieving subject list", http.StatusInternalServerError)
 		return
 	}
-	defer subjectRows.Close()
-
-	var subjectList []string
-	for subjectRows.Next() {
-		var subject string
-		subjectRows.Scan(&subject)
-		subjectList = append(subjectList, subject)
-	}
 
 	data := struct {
-		User        db2.UserInfo
-		Teachers    []db2.TeacherStats
+		User        db.UserInfo
+		Teachers    []db.TeacherStats
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -251,7 +251,7 @@ func (h *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 
 // AdminUsersHandler handles user management (admin)
 func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -266,57 +266,64 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 		case "delete":
 			// Get user name for logging
 			var fio string
-			h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", userID).Scan(&fio)
-
-			// Delete user data
-			tx, err := h.DB.Begin()
-			if err != nil {
-				HandleError(w, err, "Error starting transaction", http.StatusInternalServerError)
+			if err := h.DB.Model(&models.User{}).
+				Where("id = ?", userID).
+				Pluck("fio", &fio).Error; err != nil {
+				HandleError(w, err, "Error getting user info", http.StatusInternalServerError)
 				return
 			}
 
-			// Delete lessons first (foreign key constraint)
-			_, err = tx.Exec("DELETE FROM lessons WHERE teacher_id = ?", userID)
-			if err != nil {
-				tx.Rollback()
-				HandleError(w, err, "Error deleting user lessons", http.StatusInternalServerError)
-				return
-			}
+			// Delete user data using transaction
+			err := h.DB.Transaction(func(tx *gorm.DB) error {
+				// Delete lessons first (foreign key constraint)
+				if err := tx.Where("teacher_id = ?", userID).Delete(&models.Lesson{}).Error; err != nil {
+					return err
+				}
 
-			// Delete user
-			_, err = tx.Exec("DELETE FROM users WHERE id = ?", userID)
+				// Delete students
+				if err := tx.Where("teacher_id = ?", userID).Delete(&models.Student{}).Error; err != nil {
+					return err
+				}
+
+				// Delete user
+				if err := tx.Where("id = ?", userID).Delete(&models.User{}).Error; err != nil {
+					return err
+				}
+
+				return nil
+			})
+
 			if err != nil {
-				tx.Rollback()
 				HandleError(w, err, "Error deleting user", http.StatusInternalServerError)
 				return
 			}
 
-			err = tx.Commit()
-			if err != nil {
-				HandleError(w, err, "Error committing transaction", http.StatusInternalServerError)
-				return
-			}
-
-			db2.LogAction(h.DB, userInfo.ID, "Delete User", fmt.Sprintf("Deleted user: %s (ID: %s)", fio, userID))
+			db.LogAction(h.DB, userInfo.ID, "Delete User", fmt.Sprintf("Deleted user: %s (ID: %s)", fio, userID))
 
 		case "update_role":
 			// Update user role
 			newRole := r.FormValue("role")
-			if newRole != "teacher" && newRole != "admin" {
+			if newRole != "teacher" && newRole != "admin" && newRole != "free" {
 				http.Error(w, "Invalid role", http.StatusBadRequest)
 				return
 			}
 
 			var fio string
-			h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", userID).Scan(&fio)
+			if err := h.DB.Model(&models.User{}).
+				Where("id = ?", userID).
+				Pluck("fio", &fio).Error; err != nil {
+				HandleError(w, err, "Error getting user info", http.StatusInternalServerError)
+				return
+			}
 
-			_, err := db2.ExecuteQuery(h.DB, "UPDATE users SET role = ? WHERE id = ?", newRole, userID)
-			if err != nil {
+			if err := h.DB.Model(&models.User{}).
+				Where("id = ?", userID).
+				Update("role", newRole).Error; err != nil {
 				HandleError(w, err, "Error updating role", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Change Role",
+			db.LogAction(h.DB, userInfo.ID, "Change Role",
 				fmt.Sprintf("Changed role of user %s (ID: %s) to %s", fio, userID, newRole))
 		}
 
@@ -325,30 +332,29 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get user list
-	rows, err := h.DB.Query("SELECT id, fio, login, role FROM users ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving user list", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	// Process users
-	type UserData struct {
+	var users []struct {
 		ID    int
 		FIO   string
 		Login string
 		Role  string
 	}
-	var users []UserData
-	for rows.Next() {
-		var u UserData
-		rows.Scan(&u.ID, &u.FIO, &u.Login, &u.Role)
-		users = append(users, u)
+
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio, login, role").
+		Order("fio").
+		Find(&users).Error; err != nil {
+		HandleError(w, err, "Error retrieving user list", http.StatusInternalServerError)
+		return
 	}
 
 	data := struct {
-		User  db2.UserInfo
-		Users []UserData
+		User  db.UserInfo
+		Users []struct {
+			ID    int
+			FIO   string
+			Login string
+			Role  string
+		}
 	}{
 		User:  userInfo,
 		Users: users,
@@ -358,7 +364,7 @@ func (h *AdminHandler) AdminUsersHandler(w http.ResponseWriter, r *http.Request)
 
 // AdminLogsHandler handles viewing system logs (admin)
 func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -380,51 +386,48 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 	const entriesPerPage = 10
 	offset := (page - 1) * entriesPerPage
 
-	// Build the base query with WHERE clause if user filter is specified
-	countQuery := "SELECT COUNT(*) FROM logs l"
-	logsQuery := `
-		SELECT l.id, u.fio, l.action, l.details, l.timestamp
-		FROM logs l
-		JOIN users u ON l.user_id = u.id
-	`
+	// Build the base query
+	logsQuery := h.DB.Model(&models.Log{}).
+		Select("logs.id, users.fio, logs.action, logs.details, logs.timestamp").
+		Joins("JOIN users ON logs.user_id = users.id")
 
-	var args []interface{}
+	// Add user filter if specified
 	if userIDFilter != "" {
-		countQuery += " WHERE l.user_id = ?"
-		logsQuery += " WHERE l.user_id = ?"
-		args = append(args, userIDFilter)
+		logsQuery = logsQuery.Where("logs.user_id = ?", userIDFilter)
 	}
-
-	// Append ordering and limit
-	logsQuery += " ORDER BY l.timestamp DESC LIMIT ? OFFSET ?"
 
 	// Get total count for pagination
-	var totalEntries int
+	var totalEntries int64
+	countQuery := h.DB.Model(&models.Log{})
 	if userIDFilter != "" {
-		err = h.DB.QueryRow(countQuery, userIDFilter).Scan(&totalEntries)
-	} else {
-		err = h.DB.QueryRow(countQuery).Scan(&totalEntries)
+		countQuery = countQuery.Where("user_id = ?", userIDFilter)
 	}
 
-	if err != nil {
+	if err := countQuery.Count(&totalEntries).Error; err != nil {
 		HandleError(w, err, "Error retrieving log count", http.StatusInternalServerError)
 		return
 	}
 
-	totalPages := (totalEntries + entriesPerPage - 1) / entriesPerPage // Ceiling division
+	totalPages := (int(totalEntries) + entriesPerPage - 1) / entriesPerPage // Ceiling division
 
-	// Add pagination parameters to args
-	args = append(args, entriesPerPage, offset)
+	// Execute query with pagination
+	var logs []struct {
+		ID        int
+		FIO       string
+		Action    string
+		Details   string
+		Timestamp time.Time
+	}
 
-	// Get system logs with pagination and filtering
-	rows, err := h.DB.Query(logsQuery, args...)
-	if err != nil {
+	if err := logsQuery.Order("logs.timestamp DESC").
+		Limit(entriesPerPage).
+		Offset(offset).
+		Find(&logs).Error; err != nil {
 		HandleError(w, err, "Error retrieving logs", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	// Process logs
+	// Format timestamps to strings
 	type LogEntry struct {
 		ID        int
 		UserFIO   string
@@ -432,36 +435,39 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 		Details   string
 		Timestamp string
 	}
-	var logs []LogEntry
-	for rows.Next() {
-		var l LogEntry
-		rows.Scan(&l.ID, &l.UserFIO, &l.Action, &l.Details, &l.Timestamp)
-		logs = append(logs, l)
+
+	var formattedLogs []LogEntry
+	for _, l := range logs {
+		formattedLogs = append(formattedLogs, LogEntry{
+			ID:        l.ID,
+			UserFIO:   l.FIO,
+			Action:    l.Action,
+			Details:   l.Details,
+			Timestamp: l.Timestamp.Format("2006-01-02 15:04:05"),
+		})
 	}
 
 	// Get all users for the dropdown
-	userRows, err := h.DB.Query("SELECT id, fio FROM users ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving user list", http.StatusInternalServerError)
-		return
-	}
-	defer userRows.Close()
-
-	type UserOption struct {
+	var userList []struct {
 		ID  int
 		FIO string
 	}
-	var userList []UserOption
-	for userRows.Next() {
-		var u UserOption
-		userRows.Scan(&u.ID, &u.FIO)
-		userList = append(userList, u)
+
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio").
+		Order("fio").
+		Find(&userList).Error; err != nil {
+		HandleError(w, err, "Error retrieving user list", http.StatusInternalServerError)
+		return
 	}
 
 	data := struct {
-		User           db2.UserInfo
-		Logs           []LogEntry
-		UserList       []UserOption
+		User     db.UserInfo
+		Logs     []LogEntry
+		UserList []struct {
+			ID  int
+			FIO string
+		}
 		SelectedUserID string
 		Pagination     struct {
 			CurrentPage int
@@ -473,7 +479,7 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}{
 		User:           userInfo,
-		Logs:           logs,
+		Logs:           formattedLogs,
 		UserList:       userList,
 		SelectedUserID: userIDFilter,
 		Pagination: struct {
@@ -497,31 +503,25 @@ func (h *AdminHandler) AdminLogsHandler(w http.ResponseWriter, r *http.Request) 
 
 // AdminTeacherGroupsHandler handles admin management of teacher groups
 func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	// Get all teachers for dropdown
-	teacherRows, err := h.DB.Query("SELECT id, fio FROM users WHERE role = 'teacher' ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
-		return
-	}
-	defer teacherRows.Close()
-
 	var teacherList []struct {
 		ID  int
 		FIO string
 	}
-	for teacherRows.Next() {
-		var t struct {
-			ID  int
-			FIO string
-		}
-		teacherRows.Scan(&t.ID, &t.FIO)
-		teacherList = append(teacherList, t)
+
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio").
+		Where("role = ?", "teacher").
+		Order("fio").
+		Find(&teacherList).Error; err != nil {
+		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
+		return
 	}
 
 	// Check if a teacher is selected
@@ -549,32 +549,22 @@ func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.
 		}
 
 		// Get teacher info
-		err = h.DB.QueryRow("SELECT id, fio FROM users WHERE id = ?", teacherIDInt).
-			Scan(&selectedTeacher.ID, &selectedTeacher.FIO)
-		if err != nil {
+		if err := h.DB.Model(&models.User{}).
+			Select("id, fio").
+			Where("id = ?", teacherIDInt).
+			First(&selectedTeacher).Error; err != nil {
 			http.Error(w, "Teacher not found", http.StatusNotFound)
 			return
 		}
 
 		// Get groups for this teacher
-		groupRows, err := h.DB.Query(`
-			SELECT DISTINCT group_name 
-			FROM (
-				SELECT group_name FROM lessons WHERE teacher_id = ? 
-				UNION 
-				SELECT group_name FROM students WHERE teacher_id = ?
-			) ORDER BY group_name`,
-			teacherIDInt, teacherIDInt)
+		groupNames, err := db.GetTeacherGroups(h.DB, teacherIDInt)
 		if err != nil {
 			HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 			return
 		}
-		defer groupRows.Close()
 
-		for groupRows.Next() {
-			var groupName string
-			groupRows.Scan(&groupName)
-
+		for _, groupName := range groupNames {
 			var group struct {
 				Name         string
 				StudentCount int
@@ -586,38 +576,37 @@ func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.
 			group.Name = groupName
 
 			// Count students in this group
-			err := h.DB.QueryRow("SELECT COUNT(*) FROM students WHERE teacher_id = ? AND group_name = ?",
-				teacherIDInt, groupName).Scan(&group.StudentCount)
-			if err != nil {
+			var count int64
+			if err := h.DB.Model(&models.Student{}).
+				Where("teacher_id = ? AND group_name = ?", teacherIDInt, groupName).
+				Count(&count).Error; err != nil {
 				HandleError(w, err, "Error counting students", http.StatusInternalServerError)
 				return
 			}
+			group.StudentCount = int(count)
 
 			// Get students in this group
-			studentRows, err := h.DB.Query(
-				"SELECT id, student_fio FROM students WHERE teacher_id = ? AND group_name = ? ORDER BY student_fio",
-				teacherIDInt, groupName)
-			if err != nil {
+			var students []struct {
+				ID  int
+				FIO string
+			}
+
+			if err := h.DB.Model(&models.Student{}).
+				Select("id, student_fio as fio").
+				Where("teacher_id = ? AND group_name = ?", teacherIDInt, groupName).
+				Order("student_fio").
+				Find(&students).Error; err != nil {
 				HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 				return
 			}
 
-			for studentRows.Next() {
-				var student struct {
-					ID  int
-					FIO string
-				}
-				studentRows.Scan(&student.ID, &student.FIO)
-				group.Students = append(group.Students, student)
-			}
-			studentRows.Close()
-
+			group.Students = students
 			groups = append(groups, group)
 		}
 	}
 
 	data := struct {
-		User        db2.UserInfo
+		User        db.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -647,7 +636,7 @@ func (h *AdminHandler) AdminTeacherGroupsHandler(w http.ResponseWriter, r *http.
 
 // AdminAddGroupHandler handles admin to add a group to a teacher
 func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -662,15 +651,16 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 
 	// Get teacher info
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		http.Error(w, "Teacher not found", http.StatusNotFound)
 		return
 	}
 
 	if r.Method == "GET" {
 		data := struct {
-			User       db2.UserInfo
+			User       db.UserInfo
 			TeacherID  int
 			TeacherFIO string
 		}{
@@ -690,20 +680,28 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Check if group already exists
-	var exists int
-	err = h.DB.QueryRow(`
-		SELECT COUNT(*) 
-		FROM (
-			SELECT group_name FROM lessons WHERE teacher_id = ? 
-			UNION 
-			SELECT group_name FROM students WHERE teacher_id = ?
-		) WHERE group_name = ?`,
-		teacherID, teacherID, groupName).Scan(&exists)
-	if err != nil {
-		HandleError(w, err, "Error checking group", http.StatusInternalServerError)
+	var groupExists bool
+	// Check in lessons table
+	var lessonCount int64
+	if err := h.DB.Model(&models.Lesson{}).
+		Where("teacher_id = ? AND group_name = ?", teacherID, groupName).
+		Count(&lessonCount).Error; err != nil {
+		HandleError(w, err, "Error checking group in lessons", http.StatusInternalServerError)
 		return
 	}
-	if exists > 0 {
+
+	// Check in students table
+	var studentCount int64
+	if err := h.DB.Model(&models.Student{}).
+		Where("teacher_id = ? AND group_name = ?", teacherID, groupName).
+		Count(&studentCount).Error; err != nil {
+		HandleError(w, err, "Error checking group in students", http.StatusInternalServerError)
+		return
+	}
+
+	groupExists = lessonCount > 0 || studentCount > 0
+
+	if groupExists {
 		http.Error(w, "Group with this name already exists for this teacher", http.StatusBadRequest)
 		return
 	}
@@ -717,10 +715,13 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 		for scanner.Scan() {
 			studentFIO := strings.TrimSpace(scanner.Text())
 			if studentFIO != "" {
-				_, err := db2.ExecuteQuery(h.DB,
-					"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-					teacherID, groupName, studentFIO)
-				if err == nil {
+				student := models.Student{
+					TeacherID:  teacherID,
+					GroupName:  groupName,
+					StudentFIO: studentFIO,
+				}
+
+				if err := h.DB.Create(&student).Error; err == nil {
 					studentsAdded = true
 				}
 			}
@@ -734,14 +735,17 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 	// Process manually entered students
 	r.ParseForm()
 	studentFIOs := r.Form["student_fio"]
-	studentCount := 0
+	studentCount = 0
 	for _, studentFIO := range studentFIOs {
 		studentFIO = strings.TrimSpace(studentFIO)
 		if studentFIO != "" {
-			_, err := db2.ExecuteQuery(h.DB,
-				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-				teacherID, groupName, studentFIO)
-			if err == nil {
+			student := models.Student{
+				TeacherID:  teacherID,
+				GroupName:  groupName,
+				StudentFIO: studentFIO,
+			}
+
+			if err := h.DB.Create(&student).Error; err == nil {
 				studentCount++
 				studentsAdded = true
 			}
@@ -753,14 +757,14 @@ func (h *AdminHandler) AdminAddGroupHandler(w http.ResponseWriter, r *http.Reque
 	if studentsAdded {
 		logMessage += fmt.Sprintf(" with added students (from file: %v, manually: %d)", file != nil, studentCount)
 	}
-	db2.LogAction(h.DB, userInfo.ID, "Admin Create Group", logMessage)
+	db.LogAction(h.DB, userInfo.ID, "Admin Create Group", logMessage)
 
 	http.Redirect(w, r, fmt.Sprintf("/admin/groups?teacher_id=%d", teacherID), http.StatusSeeOther)
 }
 
 // AdminEditGroupHandler handles admin to edit a teacher's group
 func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -776,8 +780,9 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 
 	// Get teacher info
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		http.Error(w, "Teacher not found", http.StatusNotFound)
 		return
 	}
@@ -807,10 +812,13 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 			for scanner.Scan() {
 				studentFIO := strings.TrimSpace(scanner.Text())
 				if studentFIO != "" {
-					_, err := db2.ExecuteQuery(h.DB,
-						"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-						teacherID, groupName, studentFIO)
-					if err == nil {
+					student := models.Student{
+						TeacherID:  teacherID,
+						GroupName:  groupName,
+						StudentFIO: studentFIO,
+					}
+
+					if err := h.DB.Create(&student).Error; err == nil {
 						studentsAdded++
 					}
 				}
@@ -820,50 +828,47 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Upload Student List",
+			db.LogAction(h.DB, userInfo.ID, "Admin Upload Student List",
 				fmt.Sprintf("Uploaded list of %d students to group %s for teacher ID %d", studentsAdded, groupName, teacherID))
 
 		case "delete":
 			// Delete student
-			studentID := r.FormValue("student_id")
-			_, err := db2.ExecuteQuery(h.DB, "DELETE FROM students WHERE id = ? AND teacher_id = ?", studentID, teacherID)
-			if err != nil {
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
+			if err := h.DB.Where("id = ? AND teacher_id = ?", studentID, teacherID).Delete(&models.Student{}).Error; err != nil {
 				HandleError(w, err, "Error deleting student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Delete Student",
-				fmt.Sprintf("Deleted student from group %s for teacher ID %d (Student ID: %s)", groupName, teacherID, studentID))
+			db.LogAction(h.DB, userInfo.ID, "Admin Delete Student",
+				fmt.Sprintf("Deleted student from group %s for teacher ID %d (Student ID: %s)", groupName, teacherID, r.FormValue("student_id")))
 
 		case "update":
 			// Update student name
-			studentID := r.FormValue("student_id")
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
 			newFIO := r.FormValue("new_fio")
-			_, err := db2.ExecuteQuery(h.DB,
-				"UPDATE students SET student_fio = ? WHERE id = ? AND teacher_id = ?",
-				newFIO, studentID, teacherID)
-			if err != nil {
+			if err := h.DB.Model(&models.Student{}).
+				Where("id = ? AND teacher_id = ?", studentID, teacherID).
+				Update("student_fio", newFIO).Error; err != nil {
 				HandleError(w, err, "Error updating name", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Update Student Name",
-				fmt.Sprintf("Updated student ID %s in group %s for teacher ID %d to %s", studentID, groupName, teacherID, newFIO))
+			db.LogAction(h.DB, userInfo.ID, "Admin Update Student Name",
+				fmt.Sprintf("Updated student ID %s in group %s for teacher ID %d to %s", r.FormValue("student_id"), groupName, teacherID, newFIO))
 
 		case "move":
 			// Move student to another group
-			studentID := r.FormValue("student_id")
+			studentID, _ := strconv.Atoi(r.FormValue("student_id"))
 			newGroup := r.FormValue("new_group")
-			_, err := db2.ExecuteQuery(h.DB,
-				"UPDATE students SET group_name = ? WHERE id = ? AND teacher_id = ?",
-				newGroup, studentID, teacherID)
-			if err != nil {
+			if err := h.DB.Model(&models.Student{}).
+				Where("id = ? AND teacher_id = ?", studentID, teacherID).
+				Update("group_name", newGroup).Error; err != nil {
 				HandleError(w, err, "Error moving student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Move Student",
-				fmt.Sprintf("Moved student ID %s from group %s to %s for teacher ID %d", studentID, groupName, newGroup, teacherID))
+			db.LogAction(h.DB, userInfo.ID, "Admin Move Student",
+				fmt.Sprintf("Moved student ID %s from group %s to %s for teacher ID %d", r.FormValue("student_id"), groupName, newGroup, teacherID))
 
 		case "add_student":
 			// Add new student
@@ -873,15 +878,18 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 				return
 			}
 
-			_, err := db2.ExecuteQuery(h.DB,
-				"INSERT INTO students (teacher_id, group_name, student_fio) VALUES (?, ?, ?)",
-				teacherID, groupName, studentFIO)
-			if err != nil {
+			student := models.Student{
+				TeacherID:  teacherID,
+				GroupName:  groupName,
+				StudentFIO: studentFIO,
+			}
+
+			if err := h.DB.Create(&student).Error; err != nil {
 				HandleError(w, err, "Error adding student", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Add Student",
+			db.LogAction(h.DB, userInfo.ID, "Admin Add Student",
 				fmt.Sprintf("Added student %s to group %s for teacher ID %d", studentFIO, groupName, teacherID))
 		}
 
@@ -890,39 +898,25 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get students in this group
-	students, err := db2.GetStudentsInGroup(h.DB, teacherID, groupName)
+	students, err := db.GetStudentsInGroup(h.DB, teacherID, groupName)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
 	// Get all groups for move operation
-	groupRows, err := h.DB.Query(`
-		SELECT DISTINCT group_name 
-		FROM (
-			SELECT group_name FROM lessons WHERE teacher_id = ? 
-			UNION 
-			SELECT group_name FROM students WHERE teacher_id = ?
-		) ORDER BY group_name`, teacherID, teacherID)
+	groups, err := db.GetTeacherGroups(h.DB, teacherID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 		return
 	}
-	defer groupRows.Close()
-
-	var groups []string
-	for groupRows.Next() {
-		var g string
-		groupRows.Scan(&g)
-		groups = append(groups, g)
-	}
 
 	data := struct {
-		User       db2.UserInfo
+		User       db.UserInfo
 		TeacherID  int
 		TeacherFIO string
 		GroupName  string
-		Students   []db2.StudentData
+		Students   []db.StudentData
 		Groups     []string
 	}{
 		User:       userInfo,
@@ -937,7 +931,7 @@ func (h *AdminHandler) AdminEditGroupHandler(w http.ResponseWriter, r *http.Requ
 
 // AdminAttendanceHandler handles viewing and managing attendance from admin panel
 func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -951,15 +945,13 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		// Delete attendance records
-		_, err := db2.ExecuteQuery(h.DB,
-			"DELETE FROM attendance WHERE lesson_id = ?", attendanceID)
-		if err != nil {
+		// Delete attendance records - make sure to use "attendances" (plural) table name
+		if err := h.DB.Where("lesson_id = ?", attendanceID).Delete(&models.Attendance{}).Error; err != nil {
 			HandleError(w, err, "Error deleting attendance", http.StatusInternalServerError)
 			return
 		}
 
-		db2.LogAction(h.DB, userInfo.ID, "Admin Delete Attendance",
+		db.LogAction(h.DB, userInfo.ID, "Admin Delete Attendance",
 			fmt.Sprintf("Deleted attendance records for lesson ID %s", attendanceID))
 
 		http.Redirect(w, r, "/admin/attendance", http.StatusSeeOther)
@@ -972,29 +964,21 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 	subjectParam := r.URL.Query().Get("subject")
 
 	// Get all teachers for dropdown
-	teacherRows, err := h.DB.Query("SELECT id, fio FROM users ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
-		return
-	}
-	defer teacherRows.Close()
-
 	var teacherList []struct {
 		ID  int
 		FIO string
 	}
-	for teacherRows.Next() {
-		var t struct {
-			ID  int
-			FIO string
-		}
-		teacherRows.Scan(&t.ID, &t.FIO)
-		teacherList = append(teacherList, t)
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio").
+		Order("fio").
+		Find(&teacherList).Error; err != nil {
+		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
+		return
 	}
 
 	// Initialize template data
 	data := struct {
-		User        db2.UserInfo
+		User        db.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -1004,7 +988,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		SelectedSubject   string
 		Groups            []string
 		Subjects          []string
-		AttendanceData    []db2.AttendanceData
+		AttendanceData    []db.AttendanceData
 	}{
 		User:              userInfo,
 		TeacherList:       teacherList,
@@ -1022,7 +1006,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		// Get groups for this teacher
-		groups, err := db2.GetTeacherGroups(h.DB, teacherID)
+		groups, err := db.GetTeacherGroups(h.DB, teacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
 			return
@@ -1030,58 +1014,47 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 		data.Groups = groups
 
 		// Get subjects for this teacher
-		subjects, err := db2.GetTeacherSubjects(h.DB, teacherID)
+		subjects, err := db.GetTeacherSubjects(h.DB, teacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
 		}
 		data.Subjects = subjects
 
-		// Build query for attendance data
-		query := `
-			SELECT l.id, l.date, l.subject, l.group_name, 
-				(SELECT COUNT(*) FROM students s WHERE s.group_name = l.group_name AND s.teacher_id = l.teacher_id) as total_students,
-				(SELECT COUNT(*) FROM attendance a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students
-			FROM lessons l
-			WHERE l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendance a WHERE a.lesson_id = l.id)
-		`
-		args := []interface{}{teacherID}
+		// Build query for attendance data - use "attendances" (plural) table name
+		query := h.DB.Table("lessons l").
+			Select(`l.id as lesson_id, 
+                    l.date, 
+                    l.subject, 
+                    l.group_name, 
+                    (SELECT COUNT(*) FROM students s WHERE s.group_name = l.group_name AND s.teacher_id = l.teacher_id) as total_students,
+                    (SELECT COUNT(*) FROM attendances a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students`).
+			Where("l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendances a WHERE a.lesson_id = l.id)", teacherID)
 
 		// Apply group filter if provided
 		if groupParam != "" {
-			query += " AND l.group_name = ?"
-			args = append(args, groupParam)
+			query = query.Where("l.group_name = ?", groupParam)
 		}
 
 		// Apply subject filter if provided
 		if subjectParam != "" {
-			query += " AND l.subject = ?"
-			args = append(args, subjectParam)
+			query = query.Where("l.subject = ?", subjectParam)
 		}
 
-		query += " ORDER BY l.date DESC"
+		query = query.Order("l.date DESC")
 
 		// Execute query
-		rows, err := h.DB.Query(query, args...)
-		if err != nil {
+		var attendances []db.AttendanceData
+		if err := query.Find(&attendances).Error; err != nil {
 			HandleError(w, err, "Error retrieving attendance list", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
 
-		// Process attendance records
-		var attendances []db2.AttendanceData
-		for rows.Next() {
-			var a db2.AttendanceData
-			var dateStr string
-			err := rows.Scan(&a.LessonID, &dateStr, &a.Subject, &a.GroupName, &a.TotalStudents, &a.AttendedStudents)
-			if err != nil {
-				HandleError(w, err, "Error processing attendance data", http.StatusInternalServerError)
-				return
-			}
-			a.Date = utils.FormatDate(dateStr)
-			attendances = append(attendances, a)
+		// Format dates
+		for i := range attendances {
+			attendances[i].Date = utils.FormatDate(attendances[i].Date)
 		}
+
 		data.AttendanceData = attendances
 	}
 
@@ -1091,7 +1064,7 @@ func (h *AdminHandler) AdminAttendanceHandler(w http.ResponseWriter, r *http.Req
 
 // AdminEditAttendanceHandler handles admin to edit attendance
 func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1108,7 +1081,7 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 	var lesson struct {
 		ID         int
 		TeacherID  int
-		Group      string
+		GroupName  string // Changed from Group to GroupName
 		Subject    string
 		Topic      string
 		Date       string
@@ -1116,14 +1089,14 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 		TeacherFIO string
 	}
 
-	err = h.DB.QueryRow(`
-		SELECT l.id, l.teacher_id, l.group_name, l.subject, l.topic, l.date, l.type, u.fio
-		FROM lessons l
-		JOIN users u ON l.teacher_id = u.id
-		WHERE l.id = ?`,
-		lessonID).Scan(&lesson.ID, &lesson.TeacherID, &lesson.Group, &lesson.Subject, &lesson.Topic, &lesson.Date, &lesson.Type, &lesson.TeacherFIO)
+	err = h.DB.Table("lessons l").
+		Select("l.id, l.teacher_id, l.group_name, l.subject, l.topic, l.date, l.type, u.fio as teacher_fio").
+		Joins("JOIN users u ON l.teacher_id = u.id").
+		Where("l.id = ?", lessonID).
+		First(&lesson).Error
+
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == gorm.ErrRecordNotFound {
 			http.Error(w, "Lesson not found", http.StatusNotFound)
 		} else {
 			HandleError(w, err, "Error retrieving lesson", http.StatusInternalServerError)
@@ -1153,14 +1126,14 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 		}
 
 		// Save attendance
-		err = db2.SaveAttendance(h.DB, lessonID, lesson.TeacherID, attendedIDs)
+		err = db.SaveAttendance(h.DB, lessonID, lesson.TeacherID, attendedIDs)
 		if err != nil {
 			HandleError(w, err, "Error updating attendance", http.StatusInternalServerError)
 			return
 		}
 
-		db2.LogAction(h.DB, userInfo.ID, "Admin Edit Attendance",
-			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.Group))
+		db.LogAction(h.DB, userInfo.ID, "Admin Edit Attendance",
+			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.GroupName)) // Changed from lesson.Group
 
 		http.Redirect(w, r, "/admin/attendance?teacher_id="+strconv.Itoa(lesson.TeacherID), http.StatusSeeOther)
 		return
@@ -1168,41 +1141,41 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 
 	// For GET requests, display the form
 	// Get student attendance records
-	students, err := db2.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
+	students, err := db.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User   db2.UserInfo
+		User   db.UserInfo
 		Lesson struct {
-			ID      int
-			Group   string
-			Subject string
-			Topic   string
-			Date    string
-			Type    string
+			ID        int
+			GroupName string // Changed from Group to GroupName
+			Subject   string
+			Topic     string
+			Date      string
+			Type      string
 		}
 		TeacherID  int
 		TeacherFIO string
-		Students   []db2.StudentAttendance
+		Students   []db.StudentAttendance
 	}{
 		User: userInfo,
 		Lesson: struct {
-			ID      int
-			Group   string
-			Subject string
-			Topic   string
-			Date    string
-			Type    string
+			ID        int
+			GroupName string // Changed from Group to GroupName
+			Subject   string
+			Topic     string
+			Date      string
+			Type      string
 		}{
-			ID:      lesson.ID,
-			Group:   lesson.Group,
-			Subject: lesson.Subject,
-			Topic:   lesson.Topic,
-			Date:    lesson.Date,
-			Type:    lesson.Type,
+			ID:        lesson.ID,
+			GroupName: lesson.GroupName, // Changed from lesson.Group
+			Subject:   lesson.Subject,
+			Topic:     lesson.Topic,
+			Date:      lesson.Date,
+			Type:      lesson.Type,
 		},
 		TeacherID:  lesson.TeacherID,
 		TeacherFIO: lesson.TeacherFIO,
@@ -1213,7 +1186,7 @@ func (h *AdminHandler) AdminEditAttendanceHandler(w http.ResponseWriter, r *http
 
 // AdminViewAttendanceHandler handles viewing attendance details
 func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1230,7 +1203,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 	var lesson struct {
 		ID         int
 		TeacherID  int
-		Group      string
+		GroupName  string // Changed from Group to GroupName
 		Subject    string
 		Topic      string
 		Date       string
@@ -1238,14 +1211,14 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 		TeacherFIO string
 	}
 
-	err = h.DB.QueryRow(`
-		SELECT l.id, l.teacher_id, l.group_name, l.subject, l.topic, l.date, l.type, u.fio
-		FROM lessons l
-		JOIN users u ON l.teacher_id = u.id
-		WHERE l.id = ?`,
-		lessonID).Scan(&lesson.ID, &lesson.TeacherID, &lesson.Group, &lesson.Subject, &lesson.Topic, &lesson.Date, &lesson.Type, &lesson.TeacherFIO)
+	err = h.DB.Table("lessons l").
+		Select("l.id, l.teacher_id, l.group_name, l.subject, l.topic, l.date, l.type, u.fio as teacher_fio").
+		Joins("JOIN users u ON l.teacher_id = u.id").
+		Where("l.id = ?", lessonID).
+		First(&lesson).Error
+
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == gorm.ErrRecordNotFound {
 			http.Error(w, "Lesson not found", http.StatusNotFound)
 		} else {
 			HandleError(w, err, "Error retrieving lesson", http.StatusInternalServerError)
@@ -1257,7 +1230,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 	lesson.Date = utils.FormatDate(lesson.Date)
 
 	// Get student attendance records
-	students, err := db2.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
+	students, err := db.GetAttendanceForLesson(h.DB, lessonID, lesson.TeacherID)
 	if err != nil {
 		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
 		return
@@ -1279,37 +1252,37 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 	}
 
 	data := struct {
-		User   db2.UserInfo
+		User   db.UserInfo
 		Lesson struct {
-			ID      int
-			Group   string
-			Subject string
-			Topic   string
-			Date    string
-			Type    string
+			ID        int
+			GroupName string // Changed from Group to GroupName
+			Subject   string
+			Topic     string
+			Date      string
+			Type      string
 		}
 		TeacherID         int
 		TeacherFIO        string
-		Students          []db2.StudentAttendance
+		Students          []db.StudentAttendance
 		TotalStudents     int
 		PresentStudents   int
 		AttendancePercent float64
 	}{
 		User: userInfo,
 		Lesson: struct {
-			ID      int
-			Group   string
-			Subject string
-			Topic   string
-			Date    string
-			Type    string
+			ID        int
+			GroupName string // Changed from Group to GroupName
+			Subject   string
+			Topic     string
+			Date      string
+			Type      string
 		}{
-			ID:      lesson.ID,
-			Group:   lesson.Group,
-			Subject: lesson.Subject,
-			Topic:   lesson.Topic,
-			Date:    lesson.Date,
-			Type:    lesson.Type,
+			ID:        lesson.ID,
+			GroupName: lesson.GroupName, // Changed from lesson.Group
+			Subject:   lesson.Subject,
+			Topic:     lesson.Topic,
+			Date:      lesson.Date,
+			Type:      lesson.Type,
 		},
 		TeacherID:         lesson.TeacherID,
 		TeacherFIO:        lesson.TeacherFIO,
@@ -1324,7 +1297,7 @@ func (h *AdminHandler) AdminViewAttendanceHandler(w http.ResponseWriter, r *http
 
 // AdminExportAttendanceHandler handles exporting attendance data
 func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1348,8 +1321,9 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 
 	// Get teacher name
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		http.Error(w, "Teacher not found", http.StatusNotFound)
 		return
 	}
@@ -1362,55 +1336,56 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 	header := sheet.AddRow()
 	header.WriteSlice(&[]string{"Дата", "Предмет", "Группа", "Тема", "Студент", "Присутствие"}, -1)
 
-	// Build query for attendance data
-	query := `
-		SELECT l.date, l.subject, l.group_name, l.topic, s.student_fio, a.attended
-		FROM lessons l
-		JOIN attendance a ON l.id = a.lesson_id
-		JOIN students s ON a.student_id = s.id
-		WHERE l.teacher_id = ?
-	`
-	args := []interface{}{teacherID}
+	// Build query for attendance data - use "attendances" (plural) table name
+	query := h.DB.Table("lessons l").
+		Select("l.date, l.subject, l.group_name, l.topic, s.student_fio, a.attended").
+		Joins("JOIN attendances a ON l.id = a.lesson_id").
+		Joins("JOIN students s ON a.student_id = s.id").
+		Where("l.teacher_id = ?", teacherID)
 
 	// Apply filters
 	if groupParam != "" {
-		query += " AND l.group_name = ?"
-		args = append(args, groupParam)
+		query = query.Where("l.group_name = ?", groupParam)
 	}
 	if subjectParam != "" {
-		query += " AND l.subject = ?"
-		args = append(args, subjectParam)
+		query = query.Where("l.subject = ?", subjectParam)
 	}
 
-	query += " ORDER BY l.date DESC, l.group_name, s.student_fio"
+	query = query.Order("l.date DESC, l.group_name, s.student_fio")
 
 	// Execute query
-	rows, err := h.DB.Query(query, args...)
-	if err != nil {
+	type AttendanceExportData struct {
+		Date       string
+		Subject    string
+		GroupName  string
+		Topic      string
+		StudentFIO string
+		Attended   int
+	}
+
+	var attendanceData []AttendanceExportData
+	if err := query.Find(&attendanceData).Error; err != nil {
 		HandleError(w, err, "Error retrieving attendance data", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
 	// Add data rows
-	for rows.Next() {
-		var dateStr, subject, group, topic, studentFIO string
-		var attended int
-
-		err := rows.Scan(&dateStr, &subject, &group, &topic, &studentFIO, &attended)
-		if err != nil {
-			HandleError(w, err, "Error processing attendance data", http.StatusInternalServerError)
-			return
-		}
-
-		formattedDate := utils.FormatDate(dateStr)
+	for _, data := range attendanceData {
+		formattedDate := utils.FormatDate(data.Date)
 		attendanceStatus := "Отсутствовал"
-		if attended == 1 {
+		if data.Attended == 1 {
 			attendanceStatus = "Присутствовал"
 		}
 
 		dataRow := sheet.AddRow()
-		dataRow.WriteSlice(&[]interface{}{formattedDate, subject, group, topic, studentFIO, attendanceStatus}, -1)
+		dataRow.WriteSlice(&[]interface{}{
+			formattedDate,
+			data.Subject,
+			data.GroupName,
+			data.Topic,
+			data.StudentFIO,
+			attendanceStatus,
+		}, -1)
 	}
 
 	// Create summary sheet
@@ -1418,66 +1393,60 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 	summaryHeader := summarySheet.AddRow()
 	summaryHeader.WriteSlice(&[]string{"Дата", "Предмет", "Группа", "Тема", "Всего студентов", "Присутствовало", "Процент посещаемости"}, -1)
 
-	// Get summary data
-	summaryQuery := `
-		SELECT l.date, l.subject, l.group_name, l.topic, 
+	// Get summary data - use "attendances" (plural) table name
+	summaryQuery := h.DB.Table("lessons l").
+		Select(`l.date, l.subject, l.group_name, l.topic, 
 			(SELECT COUNT(*) FROM students s WHERE s.group_name = l.group_name AND s.teacher_id = l.teacher_id) as total_students,
-			(SELECT COUNT(*) FROM attendance a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students
-		FROM lessons l
-		WHERE l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendance a WHERE a.lesson_id = l.id)
-	`
-	summaryArgs := []interface{}{teacherID}
+			(SELECT COUNT(*) FROM attendances a WHERE a.lesson_id = l.id AND a.attended = 1) as attended_students`).
+		Where("l.teacher_id = ? AND EXISTS (SELECT 1 FROM attendances a WHERE a.lesson_id = l.id)", teacherID)
 
 	// Apply filters
 	if groupParam != "" {
-		summaryQuery += " AND l.group_name = ?"
-		summaryArgs = append(summaryArgs, groupParam)
+		summaryQuery = summaryQuery.Where("l.group_name = ?", groupParam)
 	}
 	if subjectParam != "" {
-		summaryQuery += " AND l.subject = ?"
-		summaryArgs = append(summaryArgs, subjectParam)
+		summaryQuery = summaryQuery.Where("l.subject = ?", subjectParam)
 	}
 
-	summaryQuery += " ORDER BY l.date DESC"
+	summaryQuery = summaryQuery.Order("l.date DESC")
 
 	// Execute summary query
-	summaryRows, err := h.DB.Query(summaryQuery, summaryArgs...)
-	if err != nil {
+	type SummaryData struct {
+		Date             string
+		Subject          string
+		GroupName        string
+		Topic            string
+		TotalStudents    int
+		AttendedStudents int
+	}
+
+	var summaryData []SummaryData
+	if err := summaryQuery.Find(&summaryData).Error; err != nil {
 		HandleError(w, err, "Error retrieving summary data", http.StatusInternalServerError)
 		return
 	}
-	defer summaryRows.Close()
 
 	// Add summary rows
-	for summaryRows.Next() {
-		var dateStr, subject, group, topic string
-		var totalStudents, attendedStudents int
-
-		err := summaryRows.Scan(&dateStr, &subject, &group, &topic, &totalStudents, &attendedStudents)
-		if err != nil {
-			HandleError(w, err, "Error processing summary data", http.StatusInternalServerError)
-			return
-		}
-
-		formattedDate := utils.FormatDate(dateStr)
+	for _, data := range summaryData {
+		formattedDate := utils.FormatDate(data.Date)
 		attendancePercent := 0.0
-		if totalStudents > 0 {
-			attendancePercent = float64(attendedStudents) / float64(totalStudents) * 100
+		if data.TotalStudents > 0 {
+			attendancePercent = float64(data.AttendedStudents) / float64(data.TotalStudents) * 100
 		}
 
 		summaryRow := summarySheet.AddRow()
 		summaryRow.WriteSlice(&[]interface{}{
 			formattedDate,
-			subject,
-			group,
-			topic,
-			totalStudents,
-			attendedStudents,
+			data.Subject,
+			data.GroupName,
+			data.Topic,
+			data.TotalStudents,
+			data.AttendedStudents,
 			fmt.Sprintf("%.1f%%", attendancePercent),
 		}, -1)
 	}
 
-	db2.LogAction(h.DB, userInfo.ID, "Admin Export Attendance",
+	db.LogAction(h.DB, userInfo.ID, "Admin Export Attendance",
 		fmt.Sprintf("Exported attendance data for teacher %s (ID: %d)", teacherFIO, teacherID))
 
 	// Send file to user
@@ -1488,31 +1457,24 @@ func (h *AdminHandler) AdminExportAttendanceHandler(w http.ResponseWriter, r *ht
 
 // AdminLabsHandler handles admin management of lab grades
 func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	// Get all teachers for dropdown
-	teacherRows, err := h.DB.Query("SELECT id, fio FROM users WHERE role = 'teacher' ORDER BY fio")
-	if err != nil {
-		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
-		return
-	}
-	defer teacherRows.Close()
-
 	var teacherList []struct {
 		ID  int
 		FIO string
 	}
-	for teacherRows.Next() {
-		var t struct {
-			ID  int
-			FIO string
-		}
-		teacherRows.Scan(&t.ID, &t.FIO)
-		teacherList = append(teacherList, t)
+	if err := h.DB.Model(&models.User{}).
+		Select("id, fio").
+		Where("role = ?", "teacher").
+		Order("fio").
+		Find(&teacherList).Error; err != nil {
+		HandleError(w, err, "Error retrieving teacher list", http.StatusInternalServerError)
+		return
 	}
 
 	// Check if a teacher is selected
@@ -1524,7 +1486,7 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Initialize template data
 	data := struct {
-		User        db2.UserInfo
+		User        db.UserInfo
 		TeacherList []struct {
 			ID  int
 			FIO string
@@ -1548,14 +1510,15 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 	// If a teacher is selected, get their subject-group data
 	if selectedTeacherID > 0 {
 		// Get teacher info
-		err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", selectedTeacherID).Scan(&data.TeacherFIO)
-		if err != nil {
+		if err := h.DB.Model(&models.User{}).
+			Where("id = ?", selectedTeacherID).
+			Pluck("fio", &data.TeacherFIO).Error; err != nil {
 			HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
 			return
 		}
 
 		// Get subjects for this teacher
-		subjects, err := db2.GetTeacherSubjects(h.DB, selectedTeacherID)
+		subjects, err := db.GetTeacherSubjects(h.DB, selectedTeacherID)
 		if err != nil {
 			HandleError(w, err, "Error retrieving subjects", http.StatusInternalServerError)
 			return
@@ -1575,42 +1538,36 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 			}
 
 			// Get groups for this subject
-			rows, err := h.DB.Query(`
-				SELECT DISTINCT group_name 
-				FROM lessons 
-				WHERE teacher_id = ? AND subject = ? 
-				ORDER BY group_name`,
-				selectedTeacherID, subject)
-			if err != nil {
-				HandleError(w, err, "Error retrieving groups", http.StatusInternalServerError)
-				return
+			var groupNames []string
+			if err := h.DB.Model(&models.Lesson{}).
+				Where("teacher_id = ? AND subject = ?", selectedTeacherID, subject).
+				Distinct("group_name").
+				Order("group_name").
+				Pluck("group_name", &groupNames).Error; err != nil {
+				// Just continue if we can't get group data
+				continue
 			}
 
-			for rows.Next() {
-				var groupName string
-				rows.Scan(&groupName)
-
+			for _, groupName := range groupNames {
 				// Get lab settings and summary
-				var totalLabs int
-				var groupAverage float64
+				var totalLabs int = 5        // Default if not set
+				var groupAverage float64 = 0 // Default if not set or error
 
 				// Try to get settings if they exist
-				err := h.DB.QueryRow(`
-					SELECT total_labs 
-					FROM lab_settings 
-					WHERE teacher_id = ? AND subject = ? AND group_name = ?`,
-					selectedTeacherID, subject, groupName).Scan(&totalLabs)
-				if err != nil {
-					totalLabs = 5 // Default if not set
+				var labSettings models.LabSettings
+				if err := h.DB.Where("teacher_id = ? AND subject = ? AND group_name = ?",
+					selectedTeacherID, subject, groupName).First(&labSettings).Error; err == nil {
+					totalLabs = labSettings.TotalLabs
 				}
 
 				// Get average grade
-				err = h.DB.QueryRow(`
-					SELECT AVG(grade) 
-					FROM lab_grades lg
-					JOIN students s ON lg.student_id = s.id
-					WHERE lg.teacher_id = ? AND lg.subject = ? AND s.group_name = ?`,
-					selectedTeacherID, subject, groupName).Scan(&groupAverage)
+				err := h.DB.Model(&models.LabGrade{}).
+					Select("AVG(grade)").
+					Joins("JOIN students s ON lab_grades.student_id = s.id").
+					Where("lab_grades.teacher_id = ? AND lab_grades.subject = ? AND s.group_name = ?",
+						selectedTeacherID, subject, groupName).
+					Scan(&groupAverage).Error
+
 				if err != nil || groupAverage == 0 {
 					groupAverage = 0 // Default if not set or error
 				}
@@ -1625,7 +1582,6 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 					GroupAverage: groupAverage,
 				})
 			}
-			rows.Close()
 
 			if len(sg.Groups) > 0 {
 				data.SubjectGroups = append(data.SubjectGroups, sg)
@@ -1638,7 +1594,7 @@ func (h *AdminHandler) AdminLabsHandler(w http.ResponseWriter, r *http.Request) 
 
 // AdminViewLabGradesHandler handles viewing lab grades for a specific teacher, subject, and group
 func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1655,24 +1611,25 @@ func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.
 
 	// Get teacher name
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
 		return
 	}
 
 	// Get lab summary
-	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User       db2.UserInfo
+		User       db.UserInfo
 		TeacherID  int
 		TeacherFIO string
-		Summary    db2.GroupLabSummary
+		Summary    db.GroupLabSummary
 	}{
 		User:       userInfo,
 		TeacherID:  teacherID,
@@ -1685,7 +1642,7 @@ func (h *AdminHandler) AdminViewLabGradesHandler(w http.ResponseWriter, r *http.
 
 // AdminEditLabGradesHandler handles editing lab grades for a specific teacher, subject, and group
 func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1702,8 +1659,9 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 
 	// Get teacher name
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
 		return
 	}
@@ -1725,19 +1683,19 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 				return
 			}
 
-			settings := db2.LabSettings{
+			settings := db.LabSettings{
 				TeacherID: teacherID,
 				GroupName: groupName,
 				Subject:   subject,
 				TotalLabs: totalLabs,
 			}
 
-			if err := db2.SaveLabSettings(h.DB, settings); err != nil {
+			if err := db.SaveLabSettings(h.DB, settings); err != nil {
 				HandleError(w, err, "Error saving lab settings", http.StatusInternalServerError)
 				return
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Update Lab Settings",
+			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Settings",
 				fmt.Sprintf("Updated lab settings for teacher ID %d, %s, %s: %d labs",
 					teacherID, subject, groupName, totalLabs))
 
@@ -1768,13 +1726,13 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 				}
 
 				// Save the grade - note we're using the teacher's ID, not the admin's
-				if err := db2.SaveLabGrade(h.DB, teacherID, studentID, subject, labNumber, grade); err != nil {
+				if err := db.SaveLabGrade(h.DB, teacherID, studentID, subject, labNumber, grade); err != nil {
 					HandleError(w, err, "Error saving grade", http.StatusInternalServerError)
 					return
 				}
 			}
 
-			db2.LogAction(h.DB, userInfo.ID, "Admin Update Lab Grades",
+			db.LogAction(h.DB, userInfo.ID, "Admin Update Lab Grades",
 				fmt.Sprintf("Updated lab grades for teacher ID %d, %s, %s",
 					teacherID, subject, groupName))
 		}
@@ -1786,17 +1744,17 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 	}
 
 	// Get lab summary
-	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
-		User       db2.UserInfo
+		User       db.UserInfo
 		TeacherID  int
 		TeacherFIO string
-		Summary    db2.GroupLabSummary
+		Summary    db.GroupLabSummary
 	}{
 		User:       userInfo,
 		TeacherID:  teacherID,
@@ -1809,7 +1767,7 @@ func (h *AdminHandler) AdminEditLabGradesHandler(w http.ResponseWriter, r *http.
 
 // AdminExportLabGradesHandler exports lab grades to Excel
 func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := db2.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -1826,14 +1784,15 @@ func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *htt
 
 	// Get teacher name
 	var teacherFIO string
-	err = h.DB.QueryRow("SELECT fio FROM users WHERE id = ?", teacherID).Scan(&teacherFIO)
-	if err != nil {
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", teacherID).
+		Pluck("fio", &teacherFIO).Error; err != nil {
 		HandleError(w, err, "Error retrieving teacher info", http.StatusInternalServerError)
 		return
 	}
 
 	// Get lab summary
-	summary, err := db2.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
+	summary, err := db.GetGroupLabSummary(h.DB, teacherID, groupName, subject)
 	if err != nil {
 		HandleError(w, err, "Error retrieving lab grades", http.StatusInternalServerError)
 		return
@@ -1896,7 +1855,7 @@ func (h *AdminHandler) AdminExportLabGradesHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Log the export action
-	db2.LogAction(h.DB, userInfo.ID, "Admin Export Lab Grades",
+	db.LogAction(h.DB, userInfo.ID, "Admin Export Lab Grades",
 		fmt.Sprintf("Exported lab grades for teacher %s (ID: %d), subject %s, group %s",
 			teacherFIO, teacherID, subject, groupName))
 

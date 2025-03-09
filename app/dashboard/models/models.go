@@ -45,6 +45,11 @@ type Attendance struct {
 	Attended  int     `gorm:"not null;default:0"`
 }
 
+// TableName overrides the table name to "attendances"
+func (Attendance) TableName() string {
+	return "attendances"
+}
+
 // Log represents a system log entry
 type Log struct {
 	ID        int       `gorm:"primaryKey"`

@@ -85,7 +85,7 @@ func (h *AttendanceHandler) EditAttendanceHandler(w http.ResponseWriter, r *http
 		}
 
 		db.LogAction(h.DB, userInfo.ID, "Edit Attendance",
-			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.Group))
+			fmt.Sprintf("Updated attendance for lesson ID %d, group %s", lessonID, lesson.GroupName))
 
 		http.Redirect(w, r, "/attendance", http.StatusSeeOther)
 		return
@@ -224,9 +224,13 @@ func (h *AttendanceHandler) AddAttendanceHandler(w http.ResponseWriter, r *http.
 
 	// Get group name for logging
 	var groupName string
-	h.DB.Model(&models.Lesson{}).
+	err = h.DB.Model(&models.Lesson{}).
 		Where("id = ?", lessonID).
-		Pluck("group_name", &groupName)
+		Pluck("group_name", &groupName).Error
+	if err != nil {
+		// Just log the error but continue
+		fmt.Printf("Error getting group name: %v\n", err)
+	}
 
 	db.LogAction(h.DB, userInfo.ID, "Create Attendance",
 		fmt.Sprintf("Added attendance for lesson ID %d, group %s", lessonID, groupName))
