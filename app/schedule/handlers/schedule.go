@@ -124,6 +124,11 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 		year := dayBlock[3]
 		scheduleTable := dayBlock[5]
 
+		// Если в этот день нет пар, пропускаем этот день
+		if strings.Contains(scheduleTable, "Нет пар") {
+			continue
+		}
+
 		// Получаем числовой месяц
 		var month string
 		switch monthRussian {
@@ -157,16 +162,6 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 
 		// Форматируем дату в виде ДД.ММ.ГГГГ
 		formattedDate := fmt.Sprintf("%s.%s.%s", day, month, year)
-
-		// Проверяем, есть ли "Нет пар" в расписании этого дня
-		if strings.Contains(scheduleTable, "Нет пар") {
-			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
-<div class="date-line">Дата: %s</div>
-<div class="no-classes">Нет пар</div>
-</div>`, formattedDate))
-			itemCount++
-			continue
-		}
 
 		// Ищем все классы (лекции, лабы и т.д.) в расписании этого дня
 		// Обратите внимание на структуру td с width:75px и width:auto
