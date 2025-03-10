@@ -1,15 +1,25 @@
 package config
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/gorilla/sessions"
 )
 
 // Application constants
 const (
-	CookieStoreKey     = "super-secret-key"
-	SessionName        = "session-name"
-	DBConnectionString = "postgres://postgres:vadimvadimvadim13@127.0.0.1:5432/teacher?sslmode=disable"
+	CookieStoreKey = "super-secret-key"
+	SessionName    = "session-name"
 )
+
+// Get DB connection string from environment or use default
+var DBConnectionString = getEnv("DB_CONNECTION_STRING", fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+	getEnv("DB_USER", "postgres"),
+	getEnv("DB_PASSWORD", "vadimvadimvadim13"),
+	getEnv("DB_HOST", "localhost"),
+	getEnv("DB_PORT", "5432"),
+	getEnv("DB_NAME", "teacher")))
 
 // Store is the global store for sessions (shared with Teaching Stats)
 var Store = sessions.NewCookieStore([]byte(CookieStoreKey))
@@ -31,3 +41,12 @@ const AttachmentStoragePath = "./attachments"
 
 // MaxFileSize defines the maximum size for uploaded files (5MB)
 const MaxFileSize = 5 * 1024 * 1024
+
+// Helper function to get environment variables with defaults
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
