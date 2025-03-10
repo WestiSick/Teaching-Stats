@@ -131,6 +131,30 @@
             border-radius: 5px;
             color: #721c24;
         }
+        .support-ticket {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            color: #0c5460;
+        }
+        .btn-tickets {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #fd7e14;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        .btn-tickets:hover {
+            background-color: #e06c0c;
+            text-decoration: none;
+        }
         .logout-btn {
             display: inline-block;
             padding: 10px 20px;
@@ -145,6 +169,13 @@
         .logout-btn:hover {
             background-color: #c82333;
         }
+        .button-group {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
         @media (max-width: 768px) {
             .subscription-plans {
                 flex-direction: column;
@@ -158,6 +189,13 @@
             }
             .subtitle {
                 font-size: 16px;
+            }
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            .btn-tickets, .logout-btn {
+                margin-top: 10px;
             }
         }
     </style>
@@ -199,7 +237,14 @@
         <p><strong>Важно:</strong> Оплата подписки временно недоступна. Пожалуйста, попробуйте позже или свяжитесь с администратором системы.</p>
     </div>
 
-    <a href="/logout" class="logout-btn">Выйти</a>
+    <div class="support-ticket">
+        <p><strong>Есть вопросы?</strong> Создайте тикет в нашей системе поддержки, и мы вам обязательно поможем!</p>
+        <a href="/tickets" class="btn-tickets">Перейти в тикеты</a>
+    </div>
+
+    <div class="button-group">
+        <a href="/logout" class="logout-btn">Выйти</a>
+    </div>
 </div>
 
 <div class="user-info">

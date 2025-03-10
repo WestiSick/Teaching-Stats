@@ -140,7 +140,7 @@ func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error 
 	err := db.Raw(`
 		SELECT DISTINCT l.subject
 		FROM lessons l
-		JOIN attendance a ON l.id = a.lesson_id
+		JOIN attendances a ON l.id = a.lesson_id
 		WHERE l.teacher_id = ?
 		ORDER BY l.subject
 	`, teacherID).Scan(&subjects).Error
@@ -171,7 +171,7 @@ func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error 
 			SELECT l.id, l.date, l.group_name as 'group', l.topic
 			FROM lessons l
 			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
-				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
+				SELECT 1 FROM attendances a WHERE a.lesson_id = l.id
 			)
 			ORDER BY l.date
 		`, teacherID, subject).Scan(&lessons).Error
@@ -227,7 +227,7 @@ func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error 
 			SELECT DISTINCT l.group_name
 			FROM lessons l
 			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
-				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
+				SELECT 1 FROM attendances a WHERE a.lesson_id = l.id
 			)
 			ORDER BY l.group_name
 		`, teacherID, subject).Scan(&groups).Error
@@ -284,7 +284,7 @@ func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error 
 							var attendanceValue int
 							err := db.Raw(`
 								SELECT COALESCE(attended, 0)
-								FROM attendance
+								FROM attendances
 								WHERE lesson_id = ? AND student_id = ?
 							`, lesson.ID, student.ID).Scan(&attendanceValue).Error
 
@@ -320,7 +320,7 @@ func ExportAttendanceByLesson(db *gorm.DB, teacherID int, file *xlsx.File) error
 	err := db.Raw(`
 		SELECT DISTINCT l.group_name
 		FROM lessons l
-		JOIN attendance a ON l.id = a.lesson_id
+		JOIN attendances a ON l.id = a.lesson_id
 		WHERE l.teacher_id = ?
 		ORDER BY l.group_name
 	`, teacherID).Scan(&groups).Error
@@ -351,7 +351,7 @@ func ExportAttendanceByLesson(db *gorm.DB, teacherID int, file *xlsx.File) error
 			SELECT l.id, l.subject, l.topic, l.date
 			FROM lessons l
 			WHERE l.teacher_id = ? AND l.group_name = ? AND EXISTS (
-				SELECT 1 FROM attendance a WHERE a.lesson_id = l.id
+				SELECT 1 FROM attendances a WHERE a.lesson_id = l.id
 			)
 			ORDER BY l.date
 		`, teacherID, group).Scan(&lessons).Error
@@ -413,7 +413,7 @@ func ExportAttendanceByLesson(db *gorm.DB, teacherID int, file *xlsx.File) error
 				var attended int
 				err := db.Raw(`
 					SELECT COALESCE(attended, 0)
-					FROM attendance
+					FROM attendances
 					WHERE lesson_id = ? AND student_id = ?
 				`, lesson.ID, student.ID).Scan(&attended).Error
 
