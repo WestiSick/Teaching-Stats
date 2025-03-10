@@ -199,32 +199,47 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 				classTypeFull = classType + "." // Если не найдено, оставляем как есть
 			}
 
-			// Группа
+			// Ищем все группы (например, ИС1-227-ОТ)
+			// Для лекций может быть несколько групп
 			groupRegex := regexp.MustCompile(`(ИС\d+-\d+-[А-Я]{2})`)
-			groupMatch := groupRegex.FindStringSubmatch(classContent)
+			groupMatches := groupRegex.FindAllStringSubmatch(classContent, -1)
 
-			group := ""
-			if len(groupMatch) >= 2 {
-				group = groupMatch[1]
+			groups := []string{}
+			for _, match := range groupMatches {
+				if len(match) >= 2 {
+					groups = append(groups, match[1])
+				}
 			}
 
-			// Подгруппа
+			// Преобразуем список групп в строку
+			groupsStr := "Нет информации"
+			if len(groups) > 0 {
+				groupsStr = strings.Join(groups, ", ")
+			}
+
+			// Ищем подгруппу (например, 1 п.г. или 2 п.г.)
+			// Обычно подгруппы есть только для лабораторных и практических занятий
 			subgroupRegex := regexp.MustCompile(`(\d+)\s+п\.г\.`)
 			subgroupMatch := subgroupRegex.FindStringSubmatch(classContent)
 
-			subgroup := ""
+			subgroup := "Вся группа"
 			if len(subgroupMatch) >= 2 {
 				subgroup = fmt.Sprintf("%s п.г.", subgroupMatch[1])
 			}
 
-			// Формируем элемент расписания с типом занятия
+			// Для лекций обычно не указывается подгруппа
+			if classType == "лек" && len(subgroupMatch) == 0 {
+				subgroup = "Поток"
+			}
+
+			// Формируем элемент расписания
 			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
 <div class="date-line">Дата: %s</div>
 <div class="type-line">Тип: %s</div>
 <div class="subject-line">Предмет: %s</div>
 <div class="group-line">Группа: %s</div>
 <div class="subgroup-line">Подгруппа: %s</div>
-</div>`, formattedDate, classTypeFull, subjectName, group, subgroup))
+</div>`, formattedDate, classTypeFull, subjectName, groupsStr, subgroup))
 
 			itemCount++
 		}
