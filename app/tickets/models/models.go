@@ -12,7 +12,7 @@ type Ticket struct {
 	Status       string    `gorm:"not null;default:'New';type:varchar(50)"`    // New, Open, InProgress, Resolved, Closed
 	Priority     string    `gorm:"not null;default:'Medium';type:varchar(50)"` // Low, Medium, High, Critical
 	Category     string    `gorm:"not null;type:varchar(100)"`                 // Technical, Administrative, Account, Feature, Bug, Other
-	CreatedBy    int       `gorm:"column:created_by;not null"`                 // UserID from main app
+	CreatedBy    int       `gorm:"column:creator_id;not null"`                 // UserID from main app
 	AssignedTo   *int      `gorm:"column:assigned_to"`                         // UserID from main app, can be null
 	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`

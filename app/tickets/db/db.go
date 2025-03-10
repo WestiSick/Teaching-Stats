@@ -243,7 +243,7 @@ func GetUserTickets(db *gorm.DB, userID int, status string, role string) ([]mode
 
 	// For regular users, only show their own tickets
 	if role != "admin" {
-		query = query.Where("created_by = ?", userID)
+		query = query.Where("creator_id = ?", userID)
 	} else {
 		// For admins, show all tickets or tickets assigned to them
 		if status == "assigned" {

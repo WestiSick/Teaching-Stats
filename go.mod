@@ -5,7 +5,6 @@ go 1.24
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.4.0
-	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/tealeg/xlsx v1.0.5
 	golang.org/x/crypto v0.36.0
 )

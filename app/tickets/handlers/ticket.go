@@ -99,7 +99,7 @@ func (h *TicketHandler) TicketDashboardHandler(w http.ResponseWriter, r *http.Re
 
 	// Format tickets for display
 	for _, ticket := range tickets {
-		createdByName := userNames[ticket.CreatorID]
+		createdByName := userNames[ticket.CreatedBy]
 		var assignedToName string
 		if ticket.AssignedTo != nil {
 			assignedToName = userNames[*ticket.AssignedTo]
@@ -252,6 +252,13 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 		userIDs = append(userIDs, *ticket.AssignedTo)
 	}
 
+	// Get comments for this ticket (including internal ones if admin)
+	comments, err := dbTicket.GetTicketComments(h.DB, ticketID, userInfo.Role == "admin")
+	if err != nil {
+		utils.HandleError(w, err, "Error retrieving comments", http.StatusInternalServerError)
+		return
+	}
+
 	// Get attachments
 	attachments, err := dbTicket.GetTicketAttachments(h.DB, ticketID)
 	if err != nil {
@@ -259,13 +266,7 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get users for comments and ticket
-	var userIDs []int
-	userIDs = append(userIDs, ticket.CreatorID)
-	if ticket.AssignedTo != nil {
-		userIDs = append(userIDs, *ticket.AssignedTo)
-	}
-
+	// Add comment user IDs to the list
 	for _, comment := range comments {
 		userIDs = append(userIDs, comment.UserID)
 	}
@@ -383,7 +384,7 @@ func (h *TicketHandler) ViewTicketHandler(w http.ResponseWriter, r *http.Request
 	}{
 		User:              userInfo,
 		Ticket:            ticket,
-		TicketCreator:     userNames[ticket.CreatorID],
+		TicketCreator:     userNames[ticket.CreatedBy],
 		TicketAssignee:    ticketAssignee,
 		AssignedToID:      assignedToID,
 		Comments:          commentsDisplay,
@@ -425,7 +426,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Verify permissions
-	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID {
+	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID {
 		http.Error(w, "You don't have permission to update this ticket", http.StatusForbidden)
 		return
 	}
@@ -439,7 +440,7 @@ func (h *TicketHandler) UpdateTicketHandler(w http.ResponseWriter, r *http.Reque
 	updates := make(map[string]interface{})
 
 	// Users can update some fields
-	if userInfo.Role == "admin" || ticket.CreatorID == userInfo.ID {
+	if userInfo.Role == "admin" || ticket.CreatedBy == userInfo.ID {
 		// Regular users can only update certain fields
 		if r.FormValue("title") != "" && r.FormValue("title") != ticket.Title {
 			updates["title"] = r.FormValue("title")
@@ -518,7 +519,7 @@ func (h *TicketHandler) AddCommentHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Check if user has access
-	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
+	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
 		http.Error(w, "You don't have permission to comment on this ticket", http.StatusForbidden)
 		return
 	}
@@ -610,7 +611,7 @@ func (h *TicketHandler) DownloadAttachmentHandler(w http.ResponseWriter, r *http
 	}
 
 	// Check if user has access to the ticket
-	if userInfo.Role != "admin" && ticket.CreatorID != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
+	if userInfo.Role != "admin" && ticket.CreatedBy != userInfo.ID && (ticket.AssignedTo == nil || *ticket.AssignedTo != userInfo.ID) {
 		http.Error(w, "You don't have permission to download this attachment", http.StatusForbidden)
 		return
 	}
