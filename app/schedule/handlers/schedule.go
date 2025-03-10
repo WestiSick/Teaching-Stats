@@ -2,16 +2,32 @@ package handlers
 
 import (
 	"TeacherJournal/app/schedule/models"
-	"TeacherJournal/app/schedule/utils"
 	"fmt"
+	"html"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// templateDir хранит путь к директории шаблонов
+var templateDir string
+
+// Карта соответствия сокращений типов занятий их полным названиям
+var classTypeMap = map[string]string{
+	"пр":  "Практика",
+	"лек": "Лекция",
+	"лаб": "Лабораторная работа",
+}
+
+// InitTemplates инициализирует путь к директории шаблонов
+func InitTemplates(templatesPath string) {
+	templateDir = templatesPath
+}
 
 // ScheduleHandler обрабатывает запросы для страницы расписания
 func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
@@ -50,21 +66,30 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		data.Date = date
 		data.HasResults = true
 
-		// Получаем и обрабатываем расписание
-		scheduleResp, err := fetchSchedule(teacher, date)
+		// Выполняем запрос напрямую
+		debugInfo, htmlContent, err := fetchDirectSchedule(teacher, date)
 		if err != nil {
 			http.Error(w, "Error fetching schedule: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		data.Schedule = template.HTML(scheduleResp.HTML)
-		data.DebugInfo = template.HTML(scheduleResp.DebugInfo)
-		data.ResponseSize = scheduleResp.Size
-		data.MatchCount = scheduleResp.MatchesCount
+		// Декодируем HTML-сущности
+		decodedHTML := html.UnescapeString(htmlContent)
+
+		// Парсим расписание из HTML
+		processedHTML, itemCount := parseScheduleHTMLWithEntities(decodedHTML)
+
+		// Добавляем информацию для отладки
+		debugInfo += fmt.Sprintf("\nExtracted %d schedule items\n", itemCount)
+
+		data.Schedule = template.HTML(processedHTML)
+		data.DebugInfo = template.HTML(debugInfo)
+		data.ResponseSize = len(htmlContent)
+		data.MatchCount = itemCount
 	}
 
 	// Определяем путь к шаблону
-	tmplPath := filepath.Join("templates", "schedule.html")
+	tmplPath := filepath.Join(templateDir, "schedule.html")
 
 	// Парсим и выполняем шаблон
 	tmpl, err := template.ParseFiles(tmplPath)
@@ -80,55 +105,200 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// fetchSchedule получает расписание с API и обрабатывает даты
-func fetchSchedule(teacher, date string) (models.ScheduleResponse, error) {
-	var response models.ScheduleResponse
-	var debugInfo strings.Builder
+// parseScheduleHTMLWithEntities извлекает расписание из HTML-ответа API с учетом HTML-сущностей
+func parseScheduleHTMLWithEntities(html string) (string, int) {
+	var result strings.Builder
+	itemCount := 0
+
+	// Регулярное выражение для поиска блоков дней (учитываем структуру с маржином)
+	dayBlockRegex := regexp.MustCompile(`(?s)<div[^>]*margin-bottom: 25px[^>]*>\s*<div>\s*<strong>(\d+) ([а-яА-Я]+) (\d{4})</strong>\s*</div>\s*<div>\s*([а-яА-Я]+)\s*</div>\s*<table>(.*?)</table>\s*</div>`)
+	dayBlocks := dayBlockRegex.FindAllStringSubmatch(html, -1)
+
+	for _, dayBlock := range dayBlocks {
+		if len(dayBlock) < 6 {
+			continue
+		}
+
+		day := dayBlock[1]
+		monthRussian := strings.ToLower(dayBlock[2])
+		year := dayBlock[3]
+		scheduleTable := dayBlock[5]
+
+		// Получаем числовой месяц
+		var month string
+		switch monthRussian {
+		case "января":
+			month = "01"
+		case "февраля":
+			month = "02"
+		case "марта":
+			month = "03"
+		case "апреля":
+			month = "04"
+		case "мая":
+			month = "05"
+		case "июня":
+			month = "06"
+		case "июля":
+			month = "07"
+		case "августа":
+			month = "08"
+		case "сентября":
+			month = "09"
+		case "октября":
+			month = "10"
+		case "ноября":
+			month = "11"
+		case "декабря":
+			month = "12"
+		default:
+			continue
+		}
+
+		// Форматируем дату в виде ДД.ММ.ГГГГ
+		formattedDate := fmt.Sprintf("%s.%s.%s", day, month, year)
+
+		// Проверяем, есть ли "Нет пар" в расписании этого дня
+		if strings.Contains(scheduleTable, "Нет пар") {
+			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
+<div class="date-line">Дата: %s</div>
+<div class="no-classes">Нет пар</div>
+</div>`, formattedDate))
+			itemCount++
+			continue
+		}
+
+		// Ищем все классы (лекции, лабы и т.д.) в расписании этого дня
+		// Обратите внимание на структуру td с width:75px и width:auto
+		classRegex := regexp.MustCompile(`(?s)<tr>\s*<td[^>]*>(\d+:\d+-\d+:\d+)</td>\s*<td[^>]*>(.*?)</td>\s*</tr>`)
+		classes := classRegex.FindAllStringSubmatch(scheduleTable, -1)
+
+		for _, class := range classes {
+			if len(class) < 3 {
+				continue
+			}
+
+			// Получаем детали занятия
+			classContent := class[2]
+
+			// Ищем тип и название предмета (лаб., пр., лек.)
+			// Используем более точное сопоставление для извлечения предмета
+			subjectRegex := regexp.MustCompile(`(лаб|пр|лек)\.\s+([^<\r\n]+)`)
+			subjectMatch := subjectRegex.FindStringSubmatch(classContent)
+
+			if len(subjectMatch) < 3 {
+				continue
+			}
+
+			classType := subjectMatch[1]
+			subjectName := strings.TrimSpace(subjectMatch[2])
+
+			// Получаем полное название типа занятия
+			classTypeFull, ok := classTypeMap[classType]
+			if !ok {
+				classTypeFull = classType + "." // Если не найдено, оставляем как есть
+			}
+
+			// Группа
+			groupRegex := regexp.MustCompile(`(ИС\d+-\d+-[А-Я]{2})`)
+			groupMatch := groupRegex.FindStringSubmatch(classContent)
+
+			group := ""
+			if len(groupMatch) >= 2 {
+				group = groupMatch[1]
+			}
+
+			// Подгруппа
+			subgroupRegex := regexp.MustCompile(`(\d+)\s+п\.г\.`)
+			subgroupMatch := subgroupRegex.FindStringSubmatch(classContent)
+
+			subgroup := ""
+			if len(subgroupMatch) >= 2 {
+				subgroup = fmt.Sprintf("%s п.г.", subgroupMatch[1])
+			}
+
+			// Формируем элемент расписания с типом занятия
+			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
+<div class="date-line">Дата: %s</div>
+<div class="type-line">Тип: %s</div>
+<div class="subject-line">Предмет: %s</div>
+<div class="group-line">Группа: %s</div>
+<div class="subgroup-line">Подгруппа: %s</div>
+</div>`, formattedDate, classTypeFull, subjectName, group, subgroup))
+
+			itemCount++
+		}
+	}
+
+	// Если ничего не нашли, выводим сообщение
+	if itemCount == 0 {
+		result.WriteString("<div class='no-data'>Не найдено предметов для отображения</div>")
+	}
+
+	return result.String(), itemCount
+}
+
+// fetchDirectSchedule выполняет прямой запрос к API и возвращает отладочную информацию и HTML-контент
+func fetchDirectSchedule(teacher, date string) (string, string, error) {
+	var debugBuilder strings.Builder
 
 	// URL-кодируем имя преподавателя
 	encodedTeacher := url.QueryEscape(teacher)
 
 	// URL API
 	apiURL := fmt.Sprintf("https://apivgltu2.ru/schedule?teacher=%s&date=%s", encodedTeacher, date)
-	debugInfo.WriteString(fmt.Sprintf("Fetching URL: %s\n", apiURL))
+	debugBuilder.WriteString(fmt.Sprintf("Fetching URL: %s\n", apiURL))
 
-	// Выполняем HTTP-запрос
-	resp, err := http.Get(apiURL)
+	// Создаем HTTP-клиент с настройками
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	// Создаем запрос
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return response, fmt.Errorf("error making API request: %w", err)
+		return debugBuilder.String(), "", fmt.Errorf("error creating request: %w", err)
+	}
+
+	// Добавляем заголовки
+	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+	req.Header.Add("Accept-Language", "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+	// Выполняем запрос
+	resp, err := client.Do(req)
+	if err != nil {
+		return debugBuilder.String(), "", fmt.Errorf("error making API request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	debugInfo.WriteString(fmt.Sprintf("Response status: %s\n", resp.Status))
+	// Журналируем статус ответа
+	debugBuilder.WriteString(fmt.Sprintf("Response status: %s\n", resp.Status))
+
+	// Журналируем заголовки ответа
+	debugBuilder.WriteString("Response headers:\n")
+	for key, values := range resp.Header {
+		for _, value := range values {
+			debugBuilder.WriteString(fmt.Sprintf("  %s: %s\n", key, value))
+		}
+	}
 
 	// Читаем тело ответа
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return response, fmt.Errorf("error reading response: %w", err)
+		return debugBuilder.String(), "", fmt.Errorf("error reading response: %w", err)
 	}
 
 	// Конвертируем в строку
 	content := string(body)
-	debugInfo.WriteString(fmt.Sprintf("Response length: %d bytes\n", len(content)))
+	debugBuilder.WriteString(fmt.Sprintf("\nResponse length: %d bytes\n", len(content)))
 
 	// Показываем превью содержимого
 	preview := content
 	if len(preview) > 200 {
 		preview = preview[:200] + "..."
 	}
-	debugInfo.WriteString(fmt.Sprintf("Content preview: %s\n\n", preview))
+	debugBuilder.WriteString(fmt.Sprintf("\nContent preview:\n%s\n", preview))
 
-	// Обрабатываем даты
-	processedContent, matches, dateDebugInfo := utils.ProcessDates(content)
-
-	// Добавляем отладочную информацию о датах
-	debugInfo.WriteString(dateDebugInfo)
-
-	// Формируем объект ответа
-	response.HTML = processedContent
-	response.DebugInfo = debugInfo.String()
-	response.Size = len(processedContent)
-	response.MatchesCount = len(matches)
-
-	return response, nil
+	return debugBuilder.String(), content, nil
 }
