@@ -237,7 +237,7 @@ func AddTicketComment(db *gorm.DB, comment *models.TicketComment) error {
 }
 
 // GetUserTickets retrieves tickets created by or assigned to a user
-func GetUserTickets(db *gorm.DB, userID int, status string, role string) ([]models.Ticket, error) {
+func GetUserTickets(db *gorm.DB, userID int, status string, role string, sortBy string) ([]models.Ticket, error) {
 	var tickets []models.Ticket
 	query := db.Model(&models.Ticket{})
 
@@ -256,8 +256,23 @@ func GetUserTickets(db *gorm.DB, userID int, status string, role string) ([]mode
 		query = query.Where("status = ?", status)
 	}
 
-	// Order by last activity, most recent first
-	result := query.Order("last_activity DESC").Find(&tickets)
+	// Apply sorting based on the sortBy parameter
+	switch sortBy {
+	case "status_asc":
+		query = query.Order("status ASC")
+	case "status_desc":
+		query = query.Order("status DESC")
+	case "assignee_asc":
+		query = query.Order("assigned_to ASC NULLS FIRST")
+	case "assignee_desc":
+		query = query.Order("assigned_to DESC NULLS LAST")
+	default:
+		// Default sorting by last activity, most recent first
+		query = query.Order("last_activity DESC")
+	}
+
+	// Execute the query
+	result := query.Find(&tickets)
 	return tickets, result.Error
 }
 

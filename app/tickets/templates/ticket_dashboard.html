@@ -67,17 +67,20 @@
         }
         .filter-form {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
+            gap: 10px;
         }
         .filter-form label {
-            margin-right: 10px;
-            font-size: 16px;
+            margin-right: 5px;
+            font-size: 14px;
         }
         .filter-form select {
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 14px;
+            background-color: white;
         }
         table {
             width: 100%;
@@ -191,6 +194,13 @@
             }
             .filter-form {
                 margin-top: 10px;
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .filter-form select {
+                width: 100%;
+                margin-bottom: 10px;
             }
             h1, .create-btn, .nav-btn {
                 font-size: 14px;
@@ -210,16 +220,31 @@
         <a href="/tickets/create" class="create-btn">Создать новый тикет</a>
 
         <form class="filter-form" method="GET">
-            <label for="status-filter">Статус:</label>
-            <select id="status-filter" name="status" onchange="this.form.submit()">
-                <option value="all" {{if eq .Status "all"}}selected{{end}}>Все тикеты</option>
-                {{if eq .User.Role "admin"}}
-                <option value="assigned" {{if eq .Status "assigned"}}selected{{end}}>Назначенные мне</option>
-                {{end}}
-                {{range .StatusOptions}}
-                <option value="{{.}}" {{if eq $.Status .}}selected{{end}}>{{.}}</option>
-                {{end}}
-            </select>
+            <div>
+                <label for="status-filter">Статус:</label>
+                <select id="status-filter" name="status" onchange="this.form.submit()">
+                    <option value="all" {{if eq .Status "all"}}selected{{end}}>Все тикеты</option>
+                    {{if eq .User.Role "admin"}}
+                    <option value="assigned" {{if eq .Status "assigned"}}selected{{end}}>Назначенные мне</option>
+                    {{end}}
+                    {{range .StatusOptions}}
+                    <option value="{{.}}" {{if eq $.Status .}}selected{{end}}>{{.}}</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <div>
+                <label for="sort-filter">Сортировка:</label>
+                <select id="sort-filter" name="sort" onchange="this.form.submit()">
+                    <option value="activity_desc" {{if eq .SortBy "activity_desc"}}selected{{end}}>По последней активности</option>
+                    <option value="status_asc" {{if eq .SortBy "status_asc"}}selected{{end}}>По статусу (A-Z)</option>
+                    <option value="status_desc" {{if eq .SortBy "status_desc"}}selected{{end}}>По статусу (Z-A)</option>
+                    {{if eq .User.Role "admin"}}
+                    <option value="assignee_asc" {{if eq .SortBy "assignee_asc"}}selected{{end}}>По исполнителю (A-Z)</option>
+                    <option value="assignee_desc" {{if eq .SortBy "assignee_desc"}}selected{{end}}>По исполнителю (Z-A)</option>
+                    {{end}}
+                </select>
+            </div>
         </form>
     </div>
 

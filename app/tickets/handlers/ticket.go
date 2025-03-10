@@ -52,8 +52,14 @@ func (h *TicketHandler) TicketDashboardHandler(w http.ResponseWriter, r *http.Re
 		status = "all"
 	}
 
-	// Get tickets based on user role
-	tickets, err := dbTicket.GetUserTickets(h.DB, userInfo.ID, status, userInfo.Role)
+	// Get sorting parameter
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy == "" {
+		sortBy = "activity_desc" // Default sort
+	}
+
+	// Get tickets based on user role and sort parameter
+	tickets, err := dbTicket.GetUserTickets(h.DB, userInfo.ID, status, userInfo.Role, sortBy)
 	if err != nil {
 		utils.HandleError(w, err, "Error retrieving tickets", http.StatusInternalServerError)
 		return
@@ -127,11 +133,13 @@ func (h *TicketHandler) TicketDashboardHandler(w http.ResponseWriter, r *http.Re
 		Tickets       []TicketDisplay
 		Status        string
 		StatusOptions []string
+		SortBy        string // Add this field to pass sorting parameter to template
 	}{
 		User:          userInfo,
 		Tickets:       ticketsDisplay,
 		Status:        status,
 		StatusOptions: config.TicketStatusValues,
+		SortBy:        sortBy, // Pass sort parameter to template
 	}
 
 	renderTemplate(w, h.Tmpl, "ticket_dashboard.html", data)
