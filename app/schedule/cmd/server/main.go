@@ -48,6 +48,6 @@ func main() {
 	http.HandleFunc("/", handlers.ScheduleHandler)
 
 	// Запуск сервера
-	fmt.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Println("Server started at http://localhost:8091")
+	log.Fatal(http.ListenAndServe(":8091", nil))
 }
