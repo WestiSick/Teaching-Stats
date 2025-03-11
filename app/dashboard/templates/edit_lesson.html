@@ -2,104 +2,151 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Редактировать пару - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Сброс стилей */
+        /* Reset styles */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
+
         body {
             font-family: 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            color: #333;
+            color: rgba(243, 244, 246, 1);
+            padding: 2rem 1rem;
             position: relative;
         }
+
         .container {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            padding: 40px;
+            background-color: rgba(17, 24, 39, 1);
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
             width: 100%;
             max-width: 500px;
         }
+
         .user-info {
             position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            color: #333;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(26, 32, 44, 0.9);
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: rgba(243, 244, 246, 1);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
         }
+
         h1 {
             text-align: center;
-            margin-bottom: 20px;
-            color: #444;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: rgba(243, 244, 246, 1);
+            font-weight: 700;
         }
+
         form {
             display: flex;
             flex-direction: column;
+            gap: 1.25rem;
         }
+
         label {
-            margin-bottom: 15px;
-            font-size: 16px;
-            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            font-size: 0.875rem;
+            color: rgba(156, 163, 175, 1);
         }
+
         input[type="text"],
         input[type="number"],
         input[type="date"],
         select {
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid rgba(55, 65, 81, 1);
+            background-color: rgba(17, 24, 39, 1);
+            color: rgba(243, 244, 246, 1);
+            font-size: 0.875rem;
             width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
         }
-        button {
-            padding: 12px;
-            background-color: #007BFF;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            color: #fff;
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        select:focus {
+            border-color: rgba(167, 139, 250, 1);
+            outline: none;
+        }
+
+        /* Styling for date picker */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
             cursor: pointer;
-            transition: background-color 0.3s;
-            margin-top: 10px;
         }
+
+        button {
+            padding: 0.75rem 1.25rem;
+            background-color: rgba(167, 139, 250, 1);
+            color: rgba(17, 24, 39, 1);
+            border: none;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+
         button:hover {
-            background-color: #0056b3;
+            background-color: rgba(139, 92, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
         }
-        a.back-link {
+
+        .back-link {
             display: block;
+            margin-top: 1.5rem;
             text-align: center;
-            margin-top: 20px;
+            font-size: 0.875rem;
+            color: rgba(167, 139, 250, 1);
             text-decoration: none;
-            color: #007BFF;
-            font-size: 16px;
+            transition: color 0.3s;
         }
-        a.back-link:hover {
+
+        .back-link:hover {
+            color: rgba(139, 92, 246, 1);
             text-decoration: underline;
         }
+
         @media (max-width: 480px) {
+            .container {
+                padding: 1.5rem;
+            }
+
             h1 {
-                font-size: 24px;
+                font-size: 1.25rem;
             }
-            label, input, select, button, a.back-link {
-                font-size: 14px;
-            }
-            .user-info {
-                font-size: 12px;
-                padding: 8px 12px;
+
+            input[type="text"],
+            input[type="number"],
+            input[type="date"],
+            select,
+            button {
+                font-size: 0.875rem;
+                padding: 0.625rem;
             }
         }
     </style>
@@ -108,7 +155,8 @@
 <div class="container">
     <h1>Редактировать пару</h1>
     <form method="POST">
-        <label>Группа:
+        <label>
+            Группа:
             <input type="text" name="group" value="{{.Lesson.GroupName}}" list="groupList" required>
             <datalist id="groupList">
                 {{range .Groups}}
@@ -116,7 +164,9 @@
                     {{end}}
             </datalist>
         </label>
-        <label>Предмет:
+
+        <label>
+            Предмет:
             <input type="text" name="subject" value="{{.Lesson.Subject}}" list="subjectList" required>
             <datalist id="subjectList">
                 {{range .Subjects}}
@@ -124,26 +174,37 @@
                     {{end}}
             </datalist>
         </label>
-        <label>Тема:
+
+        <label>
+            Тема:
             <input type="text" name="topic" value="{{.Lesson.Topic}}" required>
         </label>
-        <label>Часы:
+
+        <label>
+            Часы:
             <input name="hours" type="number" value="{{.Lesson.Hours}}" required>
         </label>
-        <label>Дата:
+
+        <label>
+            Дата:
             <input name="date" type="date" value="{{.Lesson.Date}}" required>
         </label>
-        <label>Тип занятия:
+
+        <label>
+            Тип занятия:
             <select name="type" required>
                 <option value="Лекция" {{if eq .Lesson.Type "Лекция"}}selected{{end}}>Лекция</option>
                 <option value="Лабораторная работа" {{if eq .Lesson.Type "Лабораторная работа"}}selected{{end}}>Лабораторная работа</option>
                 <option value="Практика" {{if eq .Lesson.Type "Практика"}}selected{{end}}>Практика</option>
             </select>
         </label>
+
         <button type="submit">Сохранить</button>
     </form>
+
     <a class="back-link" href="/dashboard">Назад</a>
 </div>
+
 <div class="user-info">
     {{if .User.ID}}
     ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}

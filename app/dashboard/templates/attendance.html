@@ -2,157 +2,243 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Список посещений - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* Сброс стилей */
+    /* Reset styles */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
+
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       min-height: 100vh;
-      color: #333;
+      color: rgba(243, 244, 246, 1);
+      padding: 2rem 1rem;
       position: relative;
     }
+
     .container {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      padding: 40px;
+      background-color: rgba(17, 24, 39, 1);
+      border-radius: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      padding: 2rem;
       width: 100%;
       max-width: 800px;
-      margin: 20px;
     }
+
     .user-info {
       position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-      color: #333;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(26, 32, 44, 0.9);
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      color: rgba(243, 244, 246, 1);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
     }
+
     h1 {
-      margin-bottom: 20px;
       text-align: center;
-      color: #444;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: rgba(243, 244, 246, 1);
+      font-weight: 700;
     }
+
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: rgba(209, 213, 219, 1);
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* Table styles */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    table th, table td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: left;
-      vertical-align: middle;
-      font-size: 16px;
-    }
-    table th {
-      background-color: #f2f2f2;
-    }
-    a {
-      color: #007BFF;
-      text-decoration: none;
-      font-size: 16px;
-      margin-right: 10px;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .delete-btn {
-      background-color: #ff4444;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 14px;
-      border-radius: 5px;
-      transition: background-color 0.3s;
-    }
-    .delete-btn:hover {
-      background-color: #cc0000;
-    }
-    .edit-btn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 14px;
-      border-radius: 5px;
-      transition: background-color 0.3s;
-      text-decoration: none;
-      display: inline-block;
-      margin-right: 5px;
-    }
-    .edit-btn:hover {
-      background-color: #388E3C;
-    }
-    .action-links {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .action-links a {
-      display: inline-block;
-      margin: 0 10px;
-      font-size: 16px;
+      font-size: 0.875rem;
     }
 
-    /* Export section styling */
+    table th {
+      background-color: rgba(26, 32, 44, 1);
+      color: rgba(156, 163, 175, 1);
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 500;
+      border: 1px solid rgba(55, 65, 81, 1);
+    }
+
+    table td {
+      padding: 0.75rem;
+      border: 1px solid rgba(55, 65, 81, 1);
+      color: rgba(243, 244, 246, 1);
+    }
+
+    table tr:hover {
+      background-color: rgba(26, 32, 44, 0.5);
+    }
+
+    /* Action elements */
+    a {
+      color: rgba(167, 139, 250, 1);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.3s;
+    }
+
+    a:hover {
+      color: rgba(139, 92, 246, 1);
+      text-decoration: underline;
+    }
+
+    .edit-btn {
+      display: inline-block;
+      padding: 0.375rem 0.625rem;
+      background-color: rgba(52, 211, 153, 1);
+      color: rgba(17, 24, 39, 1);
+      border: none;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      margin-right: 0.375rem;
+      font-weight: 500;
+    }
+
+    .edit-btn:hover {
+      background-color: rgba(16, 185, 129, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(16, 185, 129, 0.3);
+      text-decoration: none;
+    }
+
+    .delete-btn {
+      background-color: rgba(239, 68, 68, 1);
+      color: white;
+      border: none;
+      padding: 0.375rem 0.625rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+    }
+
+    .delete-btn:hover {
+      background-color: rgba(220, 38, 38, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(220, 38, 38, 0.3);
+    }
+
+    /* Export section */
     .export-section {
-      margin-top: 30px;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border-radius: 8px;
-      border: 1px solid #ddd;
+      background-color: rgba(26, 32, 44, 1);
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      margin: 1.5rem 0;
+      border: 1px solid rgba(55, 65, 81, 1);
     }
-    .export-section h3 {
-      margin-bottom: 15px;
-      color: #444;
-      text-align: center;
-    }
+
     .export-options {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 15px;
-    }
-    .export-btn {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-      text-decoration: none;
-      display: inline-block;
-    }
-    .export-btn:hover {
-      background-color: #0056b3;
+      gap: 1rem;
+      margin-top: 1rem;
     }
 
-    @media (max-width: 480px) {
-      h1, .action-links a, a, .delete-btn, .edit-btn, table th, table td {
-        font-size: 14px;
+    .export-btn {
+      display: inline-block;
+      padding: 0.625rem 1rem;
+      background-color: rgba(59, 130, 246, 1);
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .export-btn:hover {
+      background-color: rgba(37, 99, 235, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(37, 99, 235, 0.3);
+      text-decoration: none;
+    }
+
+    /* Action links */
+    .action-links {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .action-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .action-links a:hover {
+      color: rgba(139, 92, 246, 1);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1.5rem;
       }
-      .user-info {
-        font-size: 12px;
-        padding: 8px 12px;
+
+      h1 {
+        font-size: 1.25rem;
       }
+
+      h3 {
+        font-size: 0.875rem;
+      }
+
+      table th,
+      table td {
+        padding: 0.5rem;
+        font-size: 0.75rem;
+      }
+
       .export-options {
         flex-direction: column;
+      }
+
+      .export-btn {
+        width: 100%;
+        text-align: center;
+      }
+
+      .action-links {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .action-links a {
+        text-align: center;
       }
     }
   </style>
@@ -160,32 +246,39 @@
 <body>
 <div class="container">
   <h1>Список посещений</h1>
-  <table>
-    <tr>
-      <th>Дата пары</th>
-      <th>Предмет</th>
-      <th>Группа</th>
-      <th>Всего студентов</th>
-      <th>Присутствовало</th>
-      <th>Действия</th>
-    </tr>
-    {{range .Attendances}}
-    <tr>
-      <td>{{.Date}}</td>
-      <td>{{.Subject}}</td>
-      <td>{{.GroupName}}</td>
-      <td>{{.TotalStudents}}</td>
-      <td>{{.AttendedStudents}}</td>
-      <td>
-        <a href="/attendance/edit/{{.LessonID}}" class="edit-btn">Редактировать</a>
-        <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить посещаемость для пары от {{.Date}}?');">
-          <input type="hidden" name="attendance_id" value="{{.LessonID}}">
-          <button type="submit" class="delete-btn">Удалить</button>
-        </form>
-      </td>
-    </tr>
-    {{end}}
-  </table>
+
+  <div class="table-container">
+    <table>
+      <thead>
+      <tr>
+        <th>Дата пары</th>
+        <th>Предмет</th>
+        <th>Группа</th>
+        <th>Всего студентов</th>
+        <th>Присутствовало</th>
+        <th>Действия</th>
+      </tr>
+      </thead>
+      <tbody>
+      {{range .Attendances}}
+      <tr>
+        <td>{{.Date}}</td>
+        <td>{{.Subject}}</td>
+        <td>{{.GroupName}}</td>
+        <td>{{.TotalStudents}}</td>
+        <td>{{.AttendedStudents}}</td>
+        <td>
+          <a href="/attendance/edit/{{.LessonID}}" class="edit-btn">Редактировать</a>
+          <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить посещаемость для пары от {{.Date}}?');">
+            <input type="hidden" name="attendance_id" value="{{.LessonID}}">
+            <button type="submit" class="delete-btn">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
 
   <!-- Export section -->
   <div class="export-section">
@@ -201,6 +294,7 @@
     <a href="/dashboard">Назад</a>
   </div>
 </div>
+
 <div class="user-info">
   {{if .User.ID}}
   ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}

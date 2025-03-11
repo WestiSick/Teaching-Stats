@@ -2,156 +2,274 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Админ-панель - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* Сброс стилей */
+    /* Reset styles */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
+
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       display: flex;
       justify-content: center;
-      align-items: center;
       min-height: 100vh;
-      color: #333;
-      position: relative;
+      color: rgba(243, 244, 246, 1);
+      padding: 2rem 1rem;
     }
+
     .container {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      padding: 30px;
-      max-width: 1000px;
+      background-color: rgba(17, 24, 39, 1);
+      border-radius: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      padding: 2rem;
       width: 100%;
-      margin: 20px;
+      max-width: 1200px;
     }
-    .user-info {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-      color: #333;
-    }
+
     h1 {
       text-align: center;
-      margin-bottom: 20px;
-      color: #444;
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      color: rgba(243, 244, 246, 1);
+      font-weight: 700;
     }
-    form {
-      margin-bottom: 20px;
+
+    /* Форма фильтрации */
+    .filter-form {
+      background-color: rgba(26, 32, 44, 1);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
+      gap: 1rem;
+      align-items: flex-end;
     }
-    form label {
-      font-size: 16px;
-      margin-right: 15px;
-      margin-bottom: 10px;
+
+    .form-group {
+      flex: 1 1 200px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      color: rgba(156, 163, 175, 1);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(55, 65, 81, 1);
+      background-color: rgba(17, 24, 39, 1);
+      color: rgba(243, 244, 246, 1);
+      font-size: 0.875rem;
+    }
+
+    .form-group select:focus,
+    .form-group input:focus {
+      border-color: rgba(167, 139, 250, 1);
+      outline: none;
+    }
+
+    .form-actions {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      width: 100%;
     }
-    form select,
-    form input[type="date"] {
-      margin-top: 5px;
-      padding: 8px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    form button {
-      padding: 10px 20px;
-      background-color: #007BFF;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
+
+    .btn {
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: background-color 0.3s;
-      margin-right: 10px;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
-    form button:hover {
-      background-color: #0056b3;
-    }
-    form a.export-link {
-      display: inline-block;
-      padding: 10px 20px;
-      background-color: #28a745;
-      color: #fff;
-      border-radius: 5px;
+      transition: all 0.3s ease;
+      text-align: center;
       text-decoration: none;
-      transition: background-color 0.3s;
-      margin-bottom: 10px;
-      font-size: 16px;
+      font-size: 0.875rem;
+      border: none;
     }
-    form a.export-link:hover {
-      background-color: #1e7e34;
+
+    .btn-primary {
+      background-color: rgba(167, 139, 250, 1);
+      color: rgba(17, 24, 39, 1);
     }
+
+    .btn-primary:hover {
+      background-color: rgba(139, 92, 246, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-success {
+      background-color: rgba(52, 211, 153, 1);
+      color: rgba(17, 24, 39, 1);
+    }
+
+    .btn-success:hover {
+      background-color: rgba(16, 185, 129, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-danger {
+      background-color: rgba(239, 68, 68, 1);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: rgba(220, 38, 38, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(220, 38, 38, 0.3);
+    }
+
+    /* Таблица */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 2rem;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
+      font-size: 0.875rem;
     }
-    table th, table td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: left;
-      vertical-align: middle;
-    }
+
     table th {
-      background-color: #f2f2f2;
+      background-color: rgba(26, 32, 44, 1);
+      color: rgba(156, 163, 175, 1);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 500;
     }
+
+    table td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(55, 65, 81, 1);
+      color: rgba(243, 244, 246, 1);
+    }
+
+    table tr:hover {
+      background-color: rgba(26, 32, 44, 0.5);
+    }
+
     table ul {
       list-style-type: none;
       margin: 0;
       padding: 0;
     }
+
     table ul li {
-      font-size: 14px;
-      margin-bottom: 5px;
+      margin-bottom: 0.5rem;
     }
-    .link-group {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .btn {
-      display: inline-block;
-      padding: 12px 20px;
-      border-radius: 5px;
+
+    table a {
+      color: rgba(167, 139, 250, 1);
       text-decoration: none;
-      font-size: 16px;
-      transition: background-color 0.3s;
-      margin: 0 10px;
+      transition: color 0.3s;
+      display: inline-block;
+      margin-bottom: 0.5rem;
     }
-    .btn-admin {
-      background-color: #007BFF;
-      color: #fff;
+
+    table a:hover {
+      color: rgba(139, 92, 246, 1);
+      text-decoration: underline;
     }
-    .btn-admin:hover {
-      background-color: #0056b3;
+
+    /* Навигация */
+    .nav-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-top: 2rem;
     }
-    .btn-logout {
-      background-color: #dc3545;
-      color: #fff;
+
+    .nav-btn {
+      flex: 0 1 auto;
+      text-decoration: none;
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      text-align: center;
+      font-weight: 500;
+      transition: all 0.3s ease;
     }
-    .btn-logout:hover {
-      background-color: #c82333;
+
+    .nav-btn-admin {
+      background-color: rgba(55, 65, 81, 1);
+      color: rgba(243, 244, 246, 1);
     }
-    @media (max-width: 480px) {
-      h1 { font-size: 24px; }
-      form label, form select, form input[type="date"], form button, form a.export-link, .link-group a, .btn {
-        font-size: 14px;
+
+    .nav-btn-admin:hover {
+      background-color: rgba(75, 85, 99, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .nav-btn-logout {
+      background-color: rgba(239, 68, 68, 1);
+      color: white;
+    }
+
+    .nav-btn-logout:hover {
+      background-color: rgba(220, 38, 38, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(220, 38, 38, 0.3);
+    }
+
+    /* User info */
+    .user-info {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(26, 32, 44, 0.9);
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      color: rgba(243, 244, 246, 1);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex: 1 1 100%;
       }
-      table th, table td { font-size: 14px; }
+
+      .form-actions {
+        flex-direction: column;
+      }
+
+      .nav-buttons {
+        flex-direction: column;
+      }
+
+      .nav-btn {
+        width: 100%;
+      }
+
+      table {
+        font-size: 0.75rem;
+      }
+
+      table th, table td {
+        padding: 0.75rem 0.5rem;
+      }
+
+      .user-info {
+        width: calc(100% - 2rem);
+        right: 1rem;
+      }
     }
   </style>
 </head>
@@ -160,83 +278,98 @@
   <h1>Статистика всех преподавателей</h1>
 
   <!-- Форма фильтрации -->
-  <form method="GET">
-    <label>
-      Преподаватель:
-      <select name="teacher_id">
+  <form class="filter-form" method="GET">
+    <div class="form-group">
+      <label for="teacher_id">Преподаватель:</label>
+      <select name="teacher_id" id="teacher_id">
         <option value="">Все</option>
         {{range .TeacherList}}
         <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.Filter.TeacherID}}selected{{end}}>{{.FIO}}</option>
         {{end}}
       </select>
-    </label>
-    <label>
-      Предмет:
-      <select name="subject">
+    </div>
+
+    <div class="form-group">
+      <label for="subject">Предмет:</label>
+      <select name="subject" id="subject">
         <option value="">Все</option>
         {{range .SubjectList}}
         <option value="{{.}}" {{if eq . $.Filter.Subject}}selected{{end}}>{{.}}</option>
         {{end}}
       </select>
-    </label>
-    <label>
-      С даты:
-      <input type="date" name="start_date" value="{{.Filter.StartDate}}">
-    </label>
-    <label>
-      По дату:
-      <input type="date" name="end_date" value="{{.Filter.EndDate}}">
-    </label>
-    <label>
-      Сортировать:
-      <select name="sort_by">
+    </div>
+
+    <div class="form-group">
+      <label for="start_date">С даты:</label>
+      <input type="date" name="start_date" id="start_date" value="{{.Filter.StartDate}}">
+    </div>
+
+    <div class="form-group">
+      <label for="end_date">По дату:</label>
+      <input type="date" name="end_date" id="end_date" value="{{.Filter.EndDate}}">
+    </div>
+
+    <div class="form-group">
+      <label for="sort_by">Сортировать:</label>
+      <select name="sort_by" id="sort_by">
         <option value="fio" {{if eq .Filter.SortBy "fio"}}selected{{end}}>По ФИО</option>
         <option value="lessons" {{if eq .Filter.SortBy "lessons"}}selected{{end}}>По количеству пар</option>
         <option value="hours" {{if eq .Filter.SortBy "hours"}}selected{{end}}>По часам</option>
       </select>
-    </label>
-    <button type="submit">Применить</button>
-    <a class="export-link" href="/admin?export=true&teacher_id={{.Filter.TeacherID}}&subject={{.Filter.Subject}}&start_date={{.Filter.StartDate}}&end_date={{.Filter.EndDate}}&sort_by={{.Filter.SortBy}}">Выгрузить в Excel</a>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Применить</button>
+      <a class="btn btn-success" href="/admin?export=true&teacher_id={{.Filter.TeacherID}}&subject={{.Filter.Subject}}&start_date={{.Filter.StartDate}}&end_date={{.Filter.EndDate}}&sort_by={{.Filter.SortBy}}">Выгрузить в Excel</a>
+    </div>
   </form>
 
   <!-- Таблица статистики -->
-  <table>
-    <tr>
-      <th>ФИО</th>
-      <th>Общее количество пар</th>
-      <th>Общее количество часов</th>
-      <th>Пары по предметам</th>
-      <th>Действия</th>
-    </tr>
-    {{range .Teachers}}
-    <tr>
-      <td>{{.FIO}}</td>
-      <td>{{.Lessons}}</td>
-      <td>{{.Hours}}</td>
-      <td>
-        <ul>
-          {{range $subject, $count := .Subjects}}
-          <li>{{$subject}}: {{$count}}</li>
-          {{end}}
-        </ul>
-      </td>
-      <td>
-        <a href="/lessons/subject?subject={{range $subject, $_ := .Subjects}}{{$subject}}{{break}}{{end}}&teacher_id={{.ID}}">Посмотреть пары</a>
-        <a href="/admin/groups?teacher_id={{.ID}}">Управление группами</a>
-      </td>
-    </tr>
-    {{end}}
-  </table>
-  <div class="link-group">
-    <a class="btn btn-admin" href="/admin/groups">Управление группами</a>
-    <a class="btn btn-admin" href="/admin/attendance">Управление посещаемостью</a>
-    <a class="btn btn-admin" href="/admin/labs">Управление лабораторными</a>
-    <a class="btn btn-admin" href="/admin/users">Управление пользователями</a>
-    <a class="btn btn-admin" href="/admin/logs">Логи действий</a>
-    <a class="btn btn-admin" href="/tickets">Тикеты</a>
-    <a class="btn btn-logout" href="/logout">Выйти</a>
+  <div class="table-container">
+    <table>
+      <thead>
+      <tr>
+        <th>ФИО</th>
+        <th>Общее количество пар</th>
+        <th>Общее количество часов</th>
+        <th>Пары по предметам</th>
+        <th>Действия</th>
+      </tr>
+      </thead>
+      <tbody>
+      {{range .Teachers}}
+      <tr>
+        <td>{{.FIO}}</td>
+        <td>{{.Lessons}}</td>
+        <td>{{.Hours}}</td>
+        <td>
+          <ul>
+            {{range $subject, $count := .Subjects}}
+            <li>{{$subject}}: {{$count}}</li>
+            {{end}}
+          </ul>
+        </td>
+        <td>
+          <a href="/lessons/subject?subject={{range $subject, $_ := .Subjects}}{{$subject}}{{break}}{{end}}&teacher_id={{.ID}}">Посмотреть пары</a>
+          <a href="/admin/groups?teacher_id={{.ID}}">Управление группами</a>
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nav-buttons">
+    <a class="nav-btn nav-btn-admin" href="/admin/groups">Управление группами</a>
+    <a class="nav-btn nav-btn-admin" href="/admin/attendance">Управление посещаемостью</a>
+    <a class="nav-btn nav-btn-admin" href="/admin/labs">Управление лабораторными</a>
+    <a class="nav-btn nav-btn-admin" href="/admin/users">Управление пользователями</a>
+    <a class="nav-btn nav-btn-admin" href="/admin/logs">Логи действий</a>
+    <a class="nav-btn nav-btn-admin" href="/tickets">Тикеты</a>
+    <a class="nav-btn nav-btn-logout" href="/logout">Выйти</a>
   </div>
 </div>
+
 <div class="user-info">
   {{if .User.ID}}
   ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
