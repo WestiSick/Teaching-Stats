@@ -3,191 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Расписание</title>
+    <title>Расписание - Teaching Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .search-form {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="text"], input[type="date"] {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        /* Reset styles */
+        * {
             box-sizing: border-box;
-        }
-        button {
-            background-color: #0066cc;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #0052a3;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Стили для расписания */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: rgba(243, 244, 246, 1);
+            line-height: 1.5;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .container {
+            background-color: rgba(17, 24, 39, 1);
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: rgba(243, 244, 246, 1);
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin: 1.5rem 0 1rem;
+            color: rgba(209, 213, 219, 1);
+            font-weight: 500;
+        }
+
+        /* User info section */
+        .user-info {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(26, 32, 44, 0.9);
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: rgba(243, 244, 246, 1);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav-links a {
+            padding: 0.625rem 1rem;
+            background-color: rgba(55, 65, 81, 1);
+            color: rgba(243, 244, 246, 1);
+            border-radius: 0.375rem;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(75, 85, 99, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Search form */
+        .search-form {
+            background-color: rgba(26, 32, 44, 1);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(55, 65, 81, 1);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: rgba(156, 163, 175, 1);
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            border: 1px solid rgba(55, 65, 81, 1);
+            border-radius: 0.375rem;
+            background-color: rgba(17, 24, 39, 1);
+            color: rgba(243, 244, 246, 1);
+        }
+
+        input[type="text"]:focus,
+        input[type="date"]:focus {
+            border-color: rgba(167, 139, 250, 1);
+            outline: none;
+        }
+
+        /* Styling for date picker */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+
+        button {
+            padding: 0.75rem 1.25rem;
+            background-color: rgba(167, 139, 250, 1);
+            color: rgba(17, 24, 39, 1);
+            border: none;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: rgba(139, 92, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Schedule styles */
         .schedule {
-            margin-top: 20px;
+            margin-top: 1.5rem;
         }
 
         .schedule-item {
-            margin-bottom: 25px;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            background-color: white;
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            border: 1px solid rgba(55, 65, 81, 1);
+            border-radius: 0.5rem;
+            background-color: rgba(26, 32, 44, 1);
+            transition: transform 0.3s, box-shadow 0.3s;
         }
 
-        .date-line, .time-line, .type-line, .subject-line, .group-line, .subgroup-line {
-            margin-bottom: 8px;
-            padding: 5px 0;
+        .schedule-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .date-line,
+        .time-line,
+        .type-line,
+        .subject-line,
+        .group-line,
+        .subgroup-line {
+            margin-bottom: 0.5rem;
+            padding: 0.375rem 0;
         }
 
         .date-line {
-            font-weight: bold;
-            color: #333;
-            font-size: 18px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
+            font-weight: 600;
+            color: rgba(243, 244, 246, 1);
+            font-size: 1rem;
+            border-bottom: 1px solid rgba(55, 65, 81, 1);
+            padding-bottom: 0.5rem;
         }
 
         .time-line {
-            color: #2ecc71; /* зеленый цвет для времени */
-            font-weight: bold;
-            font-size: 16px;
+            color: rgba(52, 211, 153, 1);
+            font-weight: 600;
+            font-size: 0.875rem;
         }
 
         .type-line {
-            font-weight: bold;
-            color: #e67e22; /* оранжевый цвет для типа занятия */
+            font-weight: 500;
+            color: rgba(249, 115, 22, 1);
         }
 
         .subject-line {
-            color: #0066cc;
-            font-weight: bold;
+            color: rgba(167, 139, 250, 1);
+            font-weight: 500;
         }
 
-        .group-line, .subgroup-line {
-            color: #555;
+        .group-line,
+        .subgroup-line {
+            color: rgba(156, 163, 175, 1);
         }
 
         .no-classes {
-            color: #888;
+            color: rgba(156, 163, 175, 1);
             font-style: italic;
-            padding: 10px 0;
+            padding: 0.75rem 0;
         }
 
+        .no-results,
         .no-data {
-            padding: 30px;
+            padding: 2rem;
             text-align: center;
-            color: #888;
+            color: rgba(156, 163, 175, 1);
             font-style: italic;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            margin-top: 20px;
+            background-color: rgba(26, 32, 44, 1);
+            border-radius: 0.5rem;
+            margin-top: 1.5rem;
+            border: 1px solid rgba(55, 65, 81, 1);
         }
 
+        /* Links */
         a {
-            color: #0066cc;
+            color: rgba(167, 139, 250, 1);
             text-decoration: none;
+            transition: color 0.3s;
         }
 
         a:hover {
+            color: rgba(139, 92, 246, 1);
             text-decoration: underline;
         }
 
+        /* Debug section */
         .debug {
-            margin-top: 30px;
-            padding: 15px;
-            background-color: #f8f8f8;
-            border: 1px solid #ddd;
-            font-family: monospace;
-            font-size: 12px;
+            margin-top: 2rem;
+            padding:;
+            background-color: rgba(26, 32, 44, 1);
+            border: 1px solid rgba(55, 65, 81, 1);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.75rem;
             white-space: pre-wrap;
             overflow-x: auto;
             max-height: 400px;
             overflow-y: auto;
+            border-radius: 0.5rem;
+            padding: 1rem;
         }
 
         .stats {
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            color: rgba(167, 139, 250, 1);
         }
 
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        .nav-links {
-            text-align: right;
-        }
-
-        .nav-links a {
-            margin-left: 15px;
-            padding: 5px 10px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
-            text-decoration: none;
-        }
-
-        .nav-links a:hover {
-            background-color: #e5e5e5;
-        }
-
+        /* Add lesson form */
         .add-lesson-form {
-            margin-top: 15px;
+            margin-top: 1rem;
             text-align: right;
         }
 
         .add-lesson-btn {
-            background-color: #27ae60;
-            color: white;
-            padding: 8px 15px;
+            display: inline-block;
+            background-color: rgba(52, 211, 153, 1);
+            color: rgba(17, 24, 39, 1);
+            padding: 0.5rem 0.75rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.375rem;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: auto;
         }
 
         .add-lesson-btn:hover {
-            background-color: #219653;
+            background-color: rgba(16, 185, 129, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(16, 185, 129, 0.3);
         }
 
+        /* Success message */
         .success-message {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            border: 1px solid #c3e6cb;
+            background-color: rgba(16, 185, 129, 0.2);
+            color: rgba(52, 211, 153, 1);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1.5rem;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .nav-links a {
+                width: 100%;
+                text-align: center;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .search-form {
+                padding: 1rem;
+            }
+
+            .schedule-item {
+                padding: 1rem;
+            }
+
+            .user-info {
+                width: calc(100% - 2rem);
+                right: 1rem;
+            }
         }
     </style>
     <script>
@@ -234,55 +372,58 @@
     </script>
 </head>
 <body>
-<div class="user-info">
-    <div>
-        <strong>Пользователь:</strong> {{.User.FIO}} ({{.User.Role}})
-    </div>
+<div class="container">
     <div class="nav-links">
         <a href="/dashboard">Панель управления</a>
         <a href="/logout">Выйти</a>
     </div>
-</div>
 
-<h1>Расписание занятий</h1>
+    <h1>Расписание занятий</h1>
 
-<!-- Проверяем успешное добавление пары -->
-{{if .Success}}
-<div class="success-message">
-    Пара успешно добавлена в вашу систему! Вы можете просмотреть ее в разделе "Управление парами".
-</div>
-{{end}}
-
-<div class="search-form">
-    <form method="post">
-        <div class="form-group">
-            <label for="teacher">Фамилия и инициалы преподавателя:</label>
-            <input type="text" id="teacher" name="teacher" placeholder="Например: Буздин В.Э." value="{{.Teacher}}" required>
-        </div>
-        <div class="form-group">
-            <label for="date">Дата:</label>
-            <input type="date" id="date" name="date" value="{{.Date}}" required>
-        </div>
-        <button type="submit">Показать расписание</button>
-    </form>
-</div>
-
-{{if .HasResults}}
-<h2>Расписание для: {{.Teacher}} на {{.Date}}</h2>
-<div class="schedule">
-    {{.Schedule}}
-</div>
-
-<div class="debug">
-    <div class="stats">
-        Response size: {{.ResponseSize}} bytes | Date matches found: {{.MatchCount}}
+    <!-- Проверяем успешное добавление пары -->
+    {{if .Success}}
+    <div class="success-message">
+        Пара успешно добавлена в вашу систему! Вы можете просмотреть ее в разделе "Управление парами".
     </div>
-    {{.DebugInfo}}
+    {{end}}
+
+    <div class="search-form">
+        <form method="post">
+            <div class="form-group">
+                <label for="teacher">Фамилия и инициалы преподавателя:</label>
+                <input type="text" id="teacher" name="teacher" placeholder="Например: Буздин В.Э." value="{{.Teacher}}" required>
+            </div>
+            <div class="form-group">
+                <label for="date">Дата:</label>
+                <input type="date" id="date" name="date" value="{{.Date}}" required>
+            </div>
+            <button type="submit">Показать расписание</button>
+        </form>
+    </div>
+
+    {{if .HasResults}}
+    <h2>Расписание для: {{.Teacher}} на {{.Date}}</h2>
+    <div class="schedule">
+        {{.Schedule}}
+    </div>
+
+    <div class="debug">
+        <div class="stats">
+            Response size: {{.ResponseSize}} bytes | Date matches found: {{.MatchCount}}
+        </div>
+        {{.DebugInfo}}
+    </div>
+    {{else}}
+    <div class="no-results">
+        <p>Введите фамилию и инициалы преподавателя для просмотра расписания.</p>
+    </div>
+    {{end}}
 </div>
-{{else}}
-<div class="no-results">
-    <p>Введите фамилию и инициалы преподавателя для просмотра расписания.</p>
+
+<div class="user-info">
+    {{if .User.ID}}
+    ФИО: {{.User.FIO}} | Роль: {{.User.Role}} | ID: {{.User.ID}}
+    {{end}}
 </div>
-{{end}}
 </body>
 </html>
