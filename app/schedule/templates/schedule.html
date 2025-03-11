@@ -161,7 +161,59 @@
         .nav-links a:hover {
             background-color: #e5e5e5;
         }
+
+        .add-lesson-form {
+            margin-top: 15px;
+            text-align: right;
+        }
+
+        .add-lesson-btn {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-lesson-btn:hover {
+            background-color: #219653;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            border: 1px solid #c3e6cb;
+        }
     </style>
+    <script>
+        // Функция для подтверждения добавления пары
+        function confirmAddLesson(event) {
+            if (!confirm('Вы уверены, что хотите добавить эту пару в систему?')) {
+                event.preventDefault();
+            }
+        }
+
+        // При загрузке страницы добавляем обработчики событий
+        window.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('.add-lesson-form');
+            forms.forEach(form => {
+                form.addEventListener('submit', confirmAddLesson);
+            });
+
+            // Автоматически скрыть сообщение об успехе через 5 секунд
+            const successMessage = document.querySelector('.success-message');
+            if (successMessage) {
+                setTimeout(function() {
+                    successMessage.style.display = 'none';
+                }, 5000);
+            }
+        });
+    </script>
 </head>
 <body>
 <div class="user-info">
@@ -176,8 +228,15 @@
 
 <h1>Расписание занятий</h1>
 
+<!-- Проверяем успешное добавление пары -->
+{{if .Success}}
+<div class="success-message">
+    Пара успешно добавлена в вашу систему! Вы можете просмотреть ее в разделе "Управление парами".
+</div>
+{{end}}
+
 <div class="search-form">
-    <form method="post">
+    <form method="post" action="/">
         <div class="form-group">
             <label for="teacher">Фамилия и инициалы преподавателя:</label>
             <input type="text" id="teacher" name="teacher" placeholder="Например: Буздин В.Э." value="{{.Teacher}}" required>

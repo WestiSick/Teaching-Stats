@@ -30,7 +30,7 @@ echo -e "${GREEN}Контейнеры остановлены.${NC}"
 
 # Пересборка образов без использования кэша
 echo -e "${YELLOW}Пересобираем образы...${NC}"
-docker-compose build --no-cache dashboard tickets
+docker-compose build --no-cache dashboard tickets schedule
 echo -e "${GREEN}Образы пересобраны.${NC}"
 
 # Запуск контейнеров
@@ -46,4 +46,5 @@ echo -e "${GREEN}Обновление завершено!${NC}"
 echo -e "${YELLOW}Для просмотра логов используйте:${NC}"
 echo -e "  - docker-compose logs -f dashboard"
 echo -e "  - docker-compose logs -f tickets"
+echo -e "  - docker-compose logs -f schedule"
 echo -e "  - docker-compose logs -f nginx"

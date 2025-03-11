@@ -191,6 +191,50 @@ ENTRYPOINT ["./tickets"]
 EOF
 echo -e "${GREEN}Dockerfile.tickets создан.${NC}"
 
+# Создание Dockerfile для schedule
+echo -e "${YELLOW}Создание Dockerfile.schedule...${NC}"
+cat > Dockerfile.schedule << 'EOF'
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Install required packages
+RUN apk add --no-cache git
+
+# Copy go.mod and go.sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy the source code
+COPY . .
+
+# Build the schedule application
+RUN go build -o schedule ./app/schedule/cmd/server/main.go
+
+# Final stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Install CA certificates for HTTPS
+RUN apk --no-cache add ca-certificates
+
+# Copy binary from builder stage
+COPY --from=builder /app/schedule .
+
+# Copy templates and other necessary files
+COPY --from=builder /app/app/schedule/templates ./app/schedule/templates
+
+# Expose schedule port
+EXPOSE 8091
+
+# Set up the entrypoint
+ENTRYPOINT ["./schedule"]
+EOF
+echo -e "${GREEN}Dockerfile.schedule создан.${NC}"
+
 # Создание docker-compose.yml
 echo -e "${YELLOW}Создание docker-compose.yml...${NC}"
 cat > docker-compose.yml << 'EOF'
@@ -236,6 +280,24 @@ services:
     networks:
       - app-network
 
+  schedule:
+    build:
+      context: .
+      dockerfile: Dockerfile.schedule
+    container_name: teaching-stats-schedule
+    restart: always
+    depends_on:
+      - db
+      - dashboard
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=vadimvadimvadim13
+      - DB_NAME=teacher
+      - DB_PORT=5432
+    networks:
+      - app-network
+
   db:
     image: postgres:14-alpine
     container_name: teaching-stats-db
@@ -260,6 +322,7 @@ services:
     depends_on:
       - dashboard
       - tickets
+      - schedule
     networks:
       - app-network
 
@@ -314,6 +377,14 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /schedule {
+        proxy_pass http://schedule:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /attachments/ {
         proxy_pass http://dashboard:8080;
         proxy_set_header Host $host;
@@ -336,12 +407,215 @@ echo -e "${YELLOW}Создание директории для вложений.
 mkdir -p attachments
 echo -e "${GREEN}Директория attachments создана.${NC}"
 
+# Создание скрипта обновления для определенного сервиса
+echo -e "${YELLOW}Создание скрипта update-service.sh...${NC}"
+cat > update-service.sh << 'EOF'
+#!/bin/bash
+
+# Скрипт для обновления только выбранного сервиса Docker
+
+# Цвета для вывода
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Функция вывода справки
+show_help() {
+    echo "Использование: $0 [опции] [название_сервиса]"
+    echo ""
+    echo "Опции:"
+    echo "  -h, --help     Показать справку"
+    echo ""
+    echo "Сервисы:"
+    echo "  dashboard      Обновить только сервис dashboard"
+    echo "  tickets        Обновить только сервис tickets"
+    echo "  schedule       Обновить только сервис schedule"
+    echo "  all            Обновить все сервисы (по умолчанию)"
+    echo ""
+    echo "Примеры:"
+    echo "  $0 dashboard   Обновить только dashboard"
+    echo "  $0 tickets     Обновить только tickets"
+    echo "  $0 schedule    Обновить только schedule"
+    echo "  $0 all         Обновить все сервисы"
+    echo "  $0             Обновить все сервисы (аналогично 'all')"
+}
+
+# Парсинг аргументов
+SERVICE="all"
+
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+    show_help
+    exit 0
+elif [ ! -z "$1" ]; then
+    SERVICE="$1"
+fi
+
+# Проверка наличия Docker и Docker Compose
+if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo -e "${RED}Docker или Docker Compose не установлены. Пожалуйста, установите их перед продолжением.${NC}"
+    exit 1
+fi
+
+# Проверка наличия файла docker-compose.yml
+if [ ! -f "docker-compose.yml" ]; then
+    echo -e "${RED}Файл docker-compose.yml не найден в текущей директории.${NC}"
+    echo -e "${RED}Пожалуйста, убедитесь, что вы находитесь в корневой директории проекта.${NC}"
+    exit 1
+fi
+
+# Обновление всех сервисов
+if [ "$SERVICE" == "all" ]; then
+    echo -e "${YELLOW}Обновление всех сервисов...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнеры...${NC}"
+    docker-compose down
+    echo -e "${GREEN}Контейнеры остановлены.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образы...${NC}"
+    docker-compose build --no-cache dashboard tickets schedule
+    echo -e "${GREEN}Образы пересобраны.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленные контейнеры...${NC}"
+    docker-compose up -d
+    echo -e "${GREEN}Контейнеры запущены.${NC}"
+
+# Обновление только dashboard
+elif [ "$SERVICE" == "dashboard" ]; then
+    echo -e "${YELLOW}Обновление сервиса dashboard...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер dashboard...${NC}"
+    docker-compose stop dashboard
+    echo -e "${GREEN}Контейнер dashboard остановлен.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образ dashboard...${NC}"
+    docker-compose build --no-cache dashboard
+    echo -e "${GREEN}Образ dashboard пересобран.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер dashboard...${NC}"
+    docker-compose up -d dashboard
+    echo -e "${GREEN}Контейнер dashboard запущен.${NC}"
+
+# Обновление только tickets
+elif [ "$SERVICE" == "tickets" ]; then
+    echo -e "${YELLOW}Обновление сервиса tickets...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер tickets...${NC}"
+    docker-compose stop tickets
+    echo -e "${GREEN}Контейнер tickets остановлен.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образ tickets...${NC}"
+    docker-compose build --no-cache tickets
+    echo -e "${GREEN}Образ tickets пересобран.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер tickets...${NC}"
+    docker-compose up -d tickets
+    echo -e "${GREEN}Контейнер tickets запущен.${NC}"
+
+# Обновление только schedule
+elif [ "$SERVICE" == "schedule" ]; then
+    echo -e "${YELLOW}Обновление сервиса schedule...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер schedule...${NC}"
+    docker-compose stop schedule
+    echo -e "${GREEN}Контейнер schedule остановлен.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образ schedule...${NC}"
+    docker-compose build --no-cache schedule
+    echo -e "${GREEN}Образ schedule пересобран.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер schedule...${NC}"
+    docker-compose up -d schedule
+    echo -e "${GREEN}Контейнер schedule запущен.${NC}"
+
+else
+    echo -e "${RED}Неизвестный сервис: $SERVICE${NC}"
+    show_help
+    exit 1
+fi
+
+# Проверка статуса контейнеров
+echo -e "${YELLOW}Проверка статуса контейнеров:${NC}"
+docker-compose ps
+
+echo -e "${GREEN}Обновление завершено!${NC}"
+echo -e "${YELLOW}Для просмотра логов используйте:${NC}"
+echo -e "  - docker-compose logs -f dashboard"
+echo -e "  - docker-compose logs -f tickets"
+echo -e "  - docker-compose logs -f schedule"
+EOF
+chmod +x update-service.sh
+echo -e "${GREEN}Скрипт update-service.sh создан и сделан исполняемым.${NC}"
+
+# Создание скрипта для общего обновления
+echo -e "${YELLOW}Создание скрипта update-docker.sh...${NC}"
+cat > update-docker.sh << 'EOF'
+#!/bin/bash
+
+# Скрипт для обновления Docker-контейнеров после изменения кода
+
+# Цвета для вывода
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Обновление Docker-контейнеров для Teaching Stats...${NC}"
+
+# Проверка наличия Docker и Docker Compose
+if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo -e "${RED}Docker или Docker Compose не установлены. Пожалуйста, установите их перед продолжением.${NC}"
+    exit 1
+fi
+
+# Проверка наличия файла docker-compose.yml
+if [ ! -f "docker-compose.yml" ]; then
+    echo -e "${RED}Файл docker-compose.yml не найден в текущей директории.${NC}"
+    echo -e "${RED}Пожалуйста, убедитесь, что вы находитесь в корневой директории проекта.${NC}"
+    exit 1
+fi
+
+# Остановка контейнеров
+echo -e "${YELLOW}Останавливаем контейнеры...${NC}"
+docker-compose down
+echo -e "${GREEN}Контейнеры остановлены.${NC}"
+
+# Пересборка образов без использования кэша
+echo -e "${YELLOW}Пересобираем образы...${NC}"
+docker-compose build --no-cache dashboard tickets schedule
+echo -e "${GREEN}Образы пересобраны.${NC}"
+
+# Запуск контейнеров
+echo -e "${YELLOW}Запускаем обновленные контейнеры...${NC}"
+docker-compose up -d
+echo -e "${GREEN}Контейнеры запущены.${NC}"
+
+# Проверка статуса контейнеров
+echo -e "${YELLOW}Проверка статуса контейнеров:${NC}"
+docker-compose ps
+
+echo -e "${GREEN}Обновление завершено!${NC}"
+echo -e "${YELLOW}Для просмотра логов используйте:${NC}"
+echo -e "  - docker-compose logs -f dashboard"
+echo -e "  - docker-compose logs -f tickets"
+echo -e "  - docker-compose logs -f schedule"
+echo -e "  - docker-compose logs -f nginx"
+EOF
+chmod +x update-docker.sh
+echo -e "${GREEN}Скрипт update-docker.sh создан и сделан исполняемым.${NC}"
+
 echo -e "${YELLOW}Запуск Docker Compose...${NC}"
 docker-compose up -d
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Docker-окружение успешно настроено и запущено!${NC}"
     echo -e "${GREEN}Приложение доступно по адресу: http://localhost${NC}"
+    echo ""
+    echo -e "${YELLOW}Доступные сервисы:${NC}"
+    echo -e "  - Dashboard: http://localhost/"
+    echo -e "  - Tickets: http://localhost/tickets"
+    echo -e "  - Schedule: http://localhost/schedule"
+    echo -e "  - PGAdmin: http://localhost:5050"
     echo ""
     echo -e "${YELLOW}Для просмотра логов используйте:${NC} docker-compose logs -f"
     echo -e "${YELLOW}Для остановки контейнеров используйте:${NC} docker-compose down"

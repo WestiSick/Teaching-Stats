@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"TeacherJournal/app/dashboard/db"
-	"TeacherJournal/app/schedule/models"
+	"TeacherJournal/app/dashboard/models"
+	scheduleModels "TeacherJournal/app/schedule/models"
 	"TeacherJournal/config"
+	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -53,59 +56,114 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	// Получаем текущую дату
 	currentDate := time.Now().Format("2006-01-02")
 
+	// Проверяем параметр success в URL
+	successParam := r.URL.Query().Get("success")
+
 	// Инициализируем данные страницы
-	data := models.PageData{
+	data := scheduleModels.PageData{
 		HasResults:  false,
 		CurrentDate: currentDate,
-		Date:        currentDate, // По умолчанию используем текущую дату
-		User:        userInfo,    // Добавляем информацию о пользователе
+		Date:        currentDate,            // По умолчанию используем текущую дату
+		User:        userInfo,               // Добавляем информацию о пользователе
+		Success:     successParam == "true", // Устанавливаем флаг успеха
 	}
 
-	// Обрабатываем отправку формы
-	if r.Method == http.MethodPost {
-		// Парсим данные формы
-		err := r.ParseForm()
-		if err != nil {
-			http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
-			return
+	// Проверяем добавление пары
+	if r.Method == http.MethodPost && r.URL.Path == "/add-lesson" {
+		if err := handleAddLesson(w, r, userInfo); err != nil {
+			http.Error(w, fmt.Sprintf("Error adding lesson: %v", err), http.StatusInternalServerError)
 		}
+		return
+	}
 
-		// Получаем имя преподавателя и дату из формы
-		teacher := r.FormValue("teacher")
-		if teacher == "" {
-			http.Error(w, "Teacher name is required", http.StatusBadRequest)
-			return
-		}
+	// Обрабатываем отправку формы поиска расписания
+	if r.Method == http.MethodPost && r.URL.Path == "/" {
+		// Окружаем обработку формы в try-catch блок
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic in form processing: %v", r)
+					http.Error(w, "Internal server error while processing the form", http.StatusInternalServerError)
+				}
+			}()
 
-		date := r.FormValue("date")
-		if date == "" {
-			date = currentDate // Используем текущую дату, если не указана
-		}
+			// Парсим данные формы
+			if err := r.ParseForm(); err != nil {
+				log.Printf("Error parsing form: %v", err)
+				http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+				return
+			}
 
-		data.Teacher = teacher
-		data.Date = date
-		data.HasResults = true
+			// Получаем имя преподавателя и дату из формы
+			teacher := r.FormValue("teacher")
+			if teacher == "" {
+				http.Error(w, "Teacher name is required", http.StatusBadRequest)
+				return
+			}
 
-		// Выполняем запрос напрямую
-		debugInfo, htmlContent, err := fetchDirectSchedule(teacher, date)
-		if err != nil {
-			http.Error(w, "Error fetching schedule: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+			date := r.FormValue("date")
+			if date == "" {
+				date = currentDate // Используем текущую дату, если не указана
+			}
 
-		// Декодируем HTML-сущности
-		decodedHTML := html.UnescapeString(htmlContent)
+			data.Teacher = teacher
+			data.Date = date
+			data.HasResults = true
 
-		// Парсим расписание из HTML
-		processedHTML, itemCount := parseScheduleHTMLWithEntities(decodedHTML)
+			// Выполняем запрос напрямую
+			debugInfo, htmlContent, err := fetchDirectSchedule(teacher, date)
+			if err != nil {
+				log.Printf("Error fetching schedule: %v", err)
+				// Не возвращаем ошибку пользователю, а просто отображаем пустой результат
+				data.Schedule = template.HTML("<div class='no-data'>Не удалось получить расписание. Пожалуйста, проверьте правильность введенных данных или попробуйте позже.</div>")
+				data.DebugInfo = template.HTML(fmt.Sprintf("Error: %v", err))
+				data.ResponseSize = 0
+				data.MatchCount = 0
+				return
+			}
 
-		// Добавляем информацию для отладки
-		debugInfo += fmt.Sprintf("\nExtracted %d schedule items\n", itemCount)
+			// Декодируем HTML-сущности
+			decodedHTML := html.UnescapeString(htmlContent)
 
-		data.Schedule = template.HTML(processedHTML)
-		data.DebugInfo = template.HTML(debugInfo)
-		data.ResponseSize = len(htmlContent)
-		data.MatchCount = itemCount
+			// Парсим расписание из HTML
+			processedHTML, itemCount, scheduleItems := parseScheduleHTMLWithEntities(decodedHTML)
+
+			// Сохраняем расписание в сессии для добавления пар
+			// Используем try-catch блок для обработки возможных ошибок
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from panic in session handling: %v", r)
+					}
+				}()
+
+				session, err := config.Store.Get(r, "schedule-session")
+				if err != nil {
+					log.Printf("Error getting session: %v", err)
+					return
+				}
+
+				sessionData, err := json.Marshal(scheduleItems)
+				if err != nil {
+					log.Printf("Error serializing data: %v", err)
+					return
+				}
+
+				session.Values["scheduleItems"] = string(sessionData)
+
+				if err := session.Save(r, w); err != nil {
+					log.Printf("Error saving session: %v", err)
+				}
+			}()
+
+			// Добавляем информацию для отладки
+			debugInfo += fmt.Sprintf("\nExtracted %d schedule items\n", itemCount)
+
+			data.Schedule = template.HTML(processedHTML)
+			data.DebugInfo = template.HTML(debugInfo)
+			data.ResponseSize = len(htmlContent)
+			data.MatchCount = itemCount
+		}()
 	}
 
 	// Определяем путь к шаблону
@@ -118,21 +176,148 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, "Error rendering page: "+err.Error(), http.StatusInternalServerError)
-		return
+	// Оборачиваем выполнение шаблона в try-catch блок
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered from panic in template execution: %v", r)
+				http.Error(w, "Error rendering page", http.StatusInternalServerError)
+			}
+		}()
+
+		err = tmpl.Execute(w, data)
+		if err != nil {
+			log.Printf("Error rendering page: %v", err)
+			http.Error(w, "Error rendering page: "+err.Error(), http.StatusInternalServerError)
+		}
+	}()
+}
+
+// handleAddLesson обрабатывает добавление пары в систему
+func handleAddLesson(w http.ResponseWriter, r *http.Request, userInfo db.UserInfo) error {
+	// Окружаем в try-catch блок для отлова паник
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in handleAddLesson: %v", r)
+		}
+	}()
+
+	// Парсим форму
+	if err := r.ParseForm(); err != nil {
+		log.Printf("Error parsing form: %v", err)
+		http.Error(w, "Error parsing form", http.StatusBadRequest)
+		return err
 	}
+
+	// Получаем индекс пары из формы
+	indexStr := r.FormValue("lesson_index")
+	if indexStr == "" {
+		http.Error(w, "Lesson index is required", http.StatusBadRequest)
+		return fmt.Errorf("lesson index is required")
+	}
+
+	// Получаем сохраненные данные расписания из сессии
+	session, err := config.Store.Get(r, "schedule-session")
+	if err != nil {
+		log.Printf("Error getting session: %v", err)
+		http.Error(w, "Error getting session", http.StatusInternalServerError)
+		return fmt.Errorf("error getting session: %w", err)
+	}
+
+	scheduleItemsStr, ok := session.Values["scheduleItems"].(string)
+	if !ok || scheduleItemsStr == "" {
+		log.Printf("No schedule data available in session")
+		http.Error(w, "No schedule data available", http.StatusBadRequest)
+		return fmt.Errorf("no schedule data available")
+	}
+
+	// Десериализуем данные расписания
+	var scheduleItems []scheduleModels.ScheduleItem
+	if err := json.Unmarshal([]byte(scheduleItemsStr), &scheduleItems); err != nil {
+		log.Printf("Error parsing schedule data: %v", err)
+		http.Error(w, "Error parsing schedule data", http.StatusInternalServerError)
+		return fmt.Errorf("error parsing schedule data: %w", err)
+	}
+
+	// Проверяем корректность индекса
+	index := -1
+	for i, item := range scheduleItems {
+		if item.ID == indexStr {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		log.Printf("Invalid lesson index: %s", indexStr)
+		http.Error(w, "Invalid lesson index", http.StatusBadRequest)
+		return fmt.Errorf("invalid lesson index: %s", indexStr)
+	}
+
+	// Получаем данные о паре
+	lessonItem := scheduleItems[index]
+
+	// Формируем имя группы с подгруппой
+	groupName := lessonItem.Group
+	if lessonItem.Subgroup != "Вся группа" && lessonItem.Subgroup != "Поток" {
+		groupName = fmt.Sprintf("%s %s", groupName, lessonItem.Subgroup)
+	}
+
+	// Создаем новую пару
+	lesson := models.Lesson{
+		TeacherID: userInfo.ID,
+		GroupName: groupName,
+		Subject:   lessonItem.Subject,
+		Topic:     "Импортировано из расписания", // Дефолтная тема
+		Hours:     2,                             // Всегда 2 часа
+		Date:      lessonItem.Date,               // Дата из расписания
+		Type:      lessonItem.ClassType,          // Тип пары
+	}
+
+	// Сохраняем пару в базу данных
+	if err := database.Create(&lesson).Error; err != nil {
+		log.Printf("Error saving lesson: %v", err)
+		http.Error(w, "Error saving lesson: "+err.Error(), http.StatusInternalServerError)
+		return fmt.Errorf("error saving lesson: %w", err)
+	}
+
+	// Логируем добавление пары
+	db.LogAction(database, userInfo.ID, "Import Lesson from Schedule",
+		fmt.Sprintf("Added %s: %s, %s, %s hours, %s", lessonItem.ClassType, lessonItem.Subject, groupName, "2", lessonItem.Date))
+
+	// Перенаправляем обратно на страницу с сообщением об успехе
+	http.Redirect(w, r, "/?success=true", http.StatusSeeOther)
+	return nil
 }
 
 // parseScheduleHTMLWithEntities извлекает расписание из HTML-ответа API с учетом HTML-сущностей
-func parseScheduleHTMLWithEntities(html string) (string, int) {
+// Возвращает HTML-код для отображения, количество элементов и структурированные данные о парах
+func parseScheduleHTMLWithEntities(html string) (string, int, []scheduleModels.ScheduleItem) {
+	// Окружаем в try-catch блок для отлова паник
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in parseScheduleHTMLWithEntities: %v", r)
+		}
+	}()
+
 	var result strings.Builder
 	itemCount := 0
+	var scheduleItems []scheduleModels.ScheduleItem
+
+	// Проверка на пустой HTML
+	if html == "" {
+		result.WriteString("<div class='no-data'>Получен пустой ответ от сервера расписания</div>")
+		return result.String(), 0, scheduleItems
+	}
 
 	// Регулярное выражение для поиска блоков дней (учитываем структуру с маржином)
 	dayBlockRegex := regexp.MustCompile(`(?s)<div[^>]*margin-bottom: 25px[^>]*>\s*<div>\s*<strong>(\d+) ([а-яА-Я]+) (\d{4})</strong>\s*</div>\s*<div>\s*([а-яА-Я]+)\s*</div>\s*<table>(.*?)</table>\s*</div>`)
 	dayBlocks := dayBlockRegex.FindAllStringSubmatch(html, -1)
+
+	if len(dayBlocks) == 0 {
+		result.WriteString("<div class='no-data'>Не удалось найти блоки расписания в ответе сервера</div>")
+		return result.String(), 0, scheduleItems
+	}
 
 	for _, dayBlock := range dayBlocks {
 		if len(dayBlock) < 6 {
@@ -180,13 +365,19 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 			continue
 		}
 
-		// Форматируем дату в виде ДД.ММ.ГГГГ
-		formattedDate := fmt.Sprintf("%s.%s.%s", day, month, year)
+		// Форматируем дату в виде ГГГГ-ММ-ДД для БД и ДД.ММ.ГГГГ для отображения
+		dbFormatDate := fmt.Sprintf("%s-%s-%s", year, month, day)
+		displayDate := fmt.Sprintf("%s.%s.%s", day, month, year)
 
 		// Ищем все классы (лекции, лабы и т.д.) в расписании этого дня
 		// Обратите внимание на структуру td с width:75px и width:auto
 		classRegex := regexp.MustCompile(`(?s)<tr>\s*<td[^>]*>(\d+:\d+-\d+:\d+)</td>\s*<td[^>]*>(.*?)</td>\s*</tr>`)
 		classes := classRegex.FindAllStringSubmatch(scheduleTable, -1)
+
+		if len(classes) == 0 {
+			// Не найдены пары в этот день
+			continue
+		}
 
 		for _, class := range classes {
 			if len(class) < 3 {
@@ -229,11 +420,13 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 				}
 			}
 
-			// Преобразуем список групп в строку
-			groupsStr := "Нет информации"
-			if len(groups) > 0 {
-				groupsStr = strings.Join(groups, ", ")
+			// Если группы не найдены, пропускаем эту пару
+			if len(groups) == 0 {
+				continue
 			}
+
+			// Преобразуем список групп в строку
+			groupsStr := strings.Join(groups, ", ")
 
 			// Ищем подгруппу (например, 1 п.г. или 2 п.г.)
 			// Обычно подгруппы есть только для лабораторных и практических занятий
@@ -250,7 +443,22 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 				subgroup = "Поток"
 			}
 
-			// Формируем элемент расписания
+			// Создаем уникальный ID для этой пары
+			lessonID := fmt.Sprintf("lesson_%d", itemCount)
+
+			// Создаем объект пары для сохранения
+			scheduleItem := scheduleModels.ScheduleItem{
+				ID:        lessonID,
+				Date:      dbFormatDate,
+				Time:      classTime,
+				ClassType: classTypeFull,
+				Subject:   subjectName,
+				Group:     groups[0], // Берем первую группу (если их несколько)
+				Subgroup:  subgroup,
+			}
+			scheduleItems = append(scheduleItems, scheduleItem)
+
+			// Формируем элемент расписания с кнопкой добавления
 			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
 <div class="date-line">Дата: %s</div>
 <div class="time-line">Время: %s</div>
@@ -258,7 +466,11 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 <div class="subject-line">Предмет: %s</div>
 <div class="group-line">Группа: %s</div>
 <div class="subgroup-line">Подгруппа: %s</div>
-</div>`, formattedDate, classTime, classTypeFull, subjectName, groupsStr, subgroup))
+<form action="/add-lesson" method="post" class="add-lesson-form">
+  <input type="hidden" name="lesson_index" value="%s">
+  <button type="submit" class="add-lesson-btn">Добавить в пары</button>
+</form>
+</div>`, displayDate, classTime, classTypeFull, subjectName, groupsStr, subgroup, lessonID))
 
 			itemCount++
 		}
@@ -269,7 +481,7 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 		result.WriteString("<div class='no-data'>Не найдено предметов для отображения</div>")
 	}
 
-	return result.String(), itemCount
+	return result.String(), itemCount, scheduleItems
 }
 
 // fetchDirectSchedule выполняет прямой запрос к API и возвращает отладочную информацию и HTML-контент
@@ -291,6 +503,7 @@ func fetchDirectSchedule(teacher, date string) (string, string, error) {
 	// Создаем запрос
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
+		log.Printf("Error creating request: %v", err)
 		return debugBuilder.String(), "", fmt.Errorf("error creating request: %w", err)
 	}
 
@@ -302,6 +515,7 @@ func fetchDirectSchedule(teacher, date string) (string, string, error) {
 	// Выполняем запрос
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("Error making API request: %v", err)
 		return debugBuilder.String(), "", fmt.Errorf("error making API request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -320,12 +534,19 @@ func fetchDirectSchedule(teacher, date string) (string, string, error) {
 	// Читаем тело ответа
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("Error reading response: %v", err)
 		return debugBuilder.String(), "", fmt.Errorf("error reading response: %w", err)
 	}
 
 	// Конвертируем в строку
 	content := string(body)
 	debugBuilder.WriteString(fmt.Sprintf("\nResponse length: %d bytes\n", len(content)))
+
+	// Проверяем, не пустой ли ответ
+	if content == "" {
+		log.Printf("Empty response received from API")
+		return debugBuilder.String(), "", fmt.Errorf("empty response received from API")
+	}
 
 	// Показываем превью содержимого
 	preview := content

@@ -18,11 +18,13 @@ show_help() {
     echo "Сервисы:"
     echo "  dashboard      Обновить только сервис dashboard"
     echo "  tickets        Обновить только сервис tickets"
+    echo "  schedule       Обновить только сервис schedule"
     echo "  all            Обновить все сервисы (по умолчанию)"
     echo ""
     echo "Примеры:"
     echo "  $0 dashboard   Обновить только dashboard"
     echo "  $0 tickets     Обновить только tickets"
+    echo "  $0 schedule    Обновить только schedule"
     echo "  $0 all         Обновить все сервисы"
     echo "  $0             Обновить все сервисы (аналогично 'all')"
 }
@@ -59,7 +61,7 @@ if [ "$SERVICE" == "all" ]; then
     echo -e "${GREEN}Контейнеры остановлены.${NC}"
 
     echo -e "${YELLOW}Пересобираем образы...${NC}"
-    docker-compose build --no-cache dashboard tickets
+    docker-compose build --no-cache dashboard tickets schedule
     echo -e "${GREEN}Образы пересобраны.${NC}"
 
     echo -e "${YELLOW}Запускаем обновленные контейнеры...${NC}"
@@ -98,6 +100,22 @@ elif [ "$SERVICE" == "tickets" ]; then
     docker-compose up -d tickets
     echo -e "${GREEN}Контейнер tickets запущен.${NC}"
 
+# Обновление только schedule
+elif [ "$SERVICE" == "schedule" ]; then
+    echo -e "${YELLOW}Обновление сервиса schedule...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер schedule...${NC}"
+    docker-compose stop schedule
+    echo -e "${GREEN}Контейнер schedule остановлен.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образ schedule...${NC}"
+    docker-compose build --no-cache schedule
+    echo -e "${GREEN}Образ schedule пересобран.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер schedule...${NC}"
+    docker-compose up -d schedule
+    echo -e "${GREEN}Контейнер schedule запущен.${NC}"
+
 else
     echo -e "${RED}Неизвестный сервис: $SERVICE${NC}"
     show_help
@@ -112,3 +130,4 @@ echo -e "${GREEN}Обновление завершено!${NC}"
 echo -e "${YELLOW}Для просмотра логов используйте:${NC}"
 echo -e "  - docker-compose logs -f dashboard"
 echo -e "  - docker-compose logs -f tickets"
+echo -e "  - docker-compose logs -f schedule"
