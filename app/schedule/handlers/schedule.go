@@ -173,6 +173,9 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 				continue
 			}
 
+			// Получаем время занятия
+			classTime := class[1]
+
 			// Получаем детали занятия
 			classContent := class[2]
 
@@ -230,11 +233,12 @@ func parseScheduleHTMLWithEntities(html string) (string, int) {
 			// Формируем элемент расписания
 			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
 <div class="date-line">Дата: %s</div>
+<div class="time-line">Время: %s</div>
 <div class="type-line">Тип: %s</div>
 <div class="subject-line">Предмет: %s</div>
 <div class="group-line">Группа: %s</div>
 <div class="subgroup-line">Подгруппа: %s</div>
-</div>`, formattedDate, classTypeFull, subjectName, groupsStr, subgroup))
+</div>`, formattedDate, classTime, classTypeFull, subjectName, groupsStr, subgroup))
 
 			itemCount++
 		}
