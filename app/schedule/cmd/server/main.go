@@ -1,7 +1,9 @@
 package main
 
 import (
+	"TeacherJournal/app/dashboard/db"
 	"TeacherJournal/app/schedule/handlers"
+	"TeacherJournal/app/schedule/middleware"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,6 +12,16 @@ import (
 )
 
 func main() {
+	// Инициализируем базу данных
+	database := db.InitDB()
+
+	// Получаем sql.DB для отложенного закрытия
+	sqlDB, err := database.DB()
+	if err != nil {
+		log.Fatal("Failed to get SQL DB for closing:", err)
+	}
+	defer sqlDB.Close()
+
 	// Определяем абсолютный путь к директории с шаблонами
 	execPath, err := os.Executable()
 	if err != nil {
@@ -43,9 +55,10 @@ func main() {
 
 	// Инициализируем обработчики и передаем путь к шаблонам
 	handlers.InitTemplates(templatesDir)
+	handlers.InitDB(database)
 
 	// Регистрируем обработчики
-	http.HandleFunc("/", handlers.ScheduleHandler)
+	http.HandleFunc("/", middleware.AuthMiddleware(database, handlers.ScheduleHandler))
 
 	// Запуск сервера
 	fmt.Println("Server started at http://localhost:8091")

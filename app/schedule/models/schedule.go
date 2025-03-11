@@ -1,6 +1,9 @@
 package models
 
-import "html/template"
+import (
+	"TeacherJournal/app/dashboard/db"
+	"html/template"
+)
 
 // PageData содержит данные для отображения на странице
 type PageData struct {
@@ -12,6 +15,7 @@ type PageData struct {
 	Date         string
 	HasResults   bool
 	CurrentDate  string
+	User         db.UserInfo // Информация о пользователе
 }
 
 // ScheduleResponse представляет ответ от API расписания

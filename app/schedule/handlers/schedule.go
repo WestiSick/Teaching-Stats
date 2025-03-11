@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"TeacherJournal/app/dashboard/db"
 	"TeacherJournal/app/schedule/models"
+	"TeacherJournal/config"
 	"fmt"
 	"html"
 	"html/template"
@@ -12,10 +14,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // templateDir хранит путь к директории шаблонов
 var templateDir string
+
+// database хранит экземпляр базы данных
+var database *gorm.DB
 
 // Карта соответствия сокращений типов занятий их полным названиям
 var classTypeMap = map[string]string{
@@ -29,8 +36,20 @@ func InitTemplates(templatesPath string) {
 	templateDir = templatesPath
 }
 
+// InitDB инициализирует соединение с базой данных
+func InitDB(db *gorm.DB) {
+	database = db
+}
+
 // ScheduleHandler обрабатывает запросы для страницы расписания
 func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
+	// Получаем информацию о пользователе
+	userInfo, err := db.GetUserInfo(database, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	// Получаем текущую дату
 	currentDate := time.Now().Format("2006-01-02")
 
@@ -39,6 +58,7 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		HasResults:  false,
 		CurrentDate: currentDate,
 		Date:        currentDate, // По умолчанию используем текущую дату
+		User:        userInfo,    // Добавляем информацию о пользователе
 	}
 
 	// Обрабатываем отправку формы
