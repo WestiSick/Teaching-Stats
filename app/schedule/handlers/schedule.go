@@ -69,7 +69,7 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем добавление пары
-	if r.Method == http.MethodPost && r.URL.Path == "/add-lesson" {
+	if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/add-lesson") {
 		if err := handleAddLesson(w, r, userInfo); err != nil {
 			http.Error(w, fmt.Sprintf("Error adding lesson: %v", err), http.StatusInternalServerError)
 		}
@@ -77,7 +77,7 @@ func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обрабатываем отправку формы поиска расписания
-	if r.Method == http.MethodPost && r.URL.Path == "/" {
+	if r.Method == http.MethodPost && (r.URL.Path == "/" || r.URL.Path == "/schedule/" || r.URL.Path == "/schedule") {
 		// Окружаем обработку формы в try-catch блок
 		func() {
 			defer func() {
@@ -286,7 +286,13 @@ func handleAddLesson(w http.ResponseWriter, r *http.Request, userInfo db.UserInf
 		fmt.Sprintf("Added %s: %s, %s, %s hours, %s", lessonItem.ClassType, lessonItem.Subject, groupName, "2", lessonItem.Date))
 
 	// Перенаправляем обратно на страницу с сообщением об успехе
-	http.Redirect(w, r, "/?success=true", http.StatusSeeOther)
+	// Проверяем контекст маршрутизации и используем правильный путь для перенаправления
+	redirectPath := "/"
+	if strings.HasPrefix(r.RequestURI, "/schedule") {
+		redirectPath = "/schedule/"
+	}
+
+	http.Redirect(w, r, redirectPath+"?success=true", http.StatusSeeOther)
 	return nil
 }
 
@@ -458,7 +464,8 @@ func parseScheduleHTMLWithEntities(html string) (string, int, []scheduleModels.S
 			}
 			scheduleItems = append(scheduleItems, scheduleItem)
 
-			// Формируем элемент расписания с кнопкой добавления
+			// Обратите внимание, что мы убираем hardcoded пути для action в форме
+			// JavaScript в шаблоне schedule.html определит правильный путь во время выполнения
 			result.WriteString(fmt.Sprintf(`<div class="schedule-item">
 <div class="date-line">Дата: %s</div>
 <div class="time-line">Время: %s</div>
@@ -466,7 +473,7 @@ func parseScheduleHTMLWithEntities(html string) (string, int, []scheduleModels.S
 <div class="subject-line">Предмет: %s</div>
 <div class="group-line">Группа: %s</div>
 <div class="subgroup-line">Подгруппа: %s</div>
-<form action="/add-lesson" method="post" class="add-lesson-form">
+<form method="post" class="add-lesson-form">
   <input type="hidden" name="lesson_index" value="%s">
   <button type="submit" class="add-lesson-btn">Добавить в пары</button>
 </form>

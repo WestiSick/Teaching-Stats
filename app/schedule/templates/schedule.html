@@ -191,6 +191,12 @@
         }
     </style>
     <script>
+        // Получить текущий путь
+        function getCurrentPath() {
+            const path = window.location.pathname;
+            return path.endsWith('/') ? path : path + '/';
+        }
+
         // Функция для подтверждения добавления пары
         function confirmAddLesson(event) {
             if (!confirm('Вы уверены, что хотите добавить эту пару в систему?')) {
@@ -200,10 +206,22 @@
 
         // При загрузке страницы добавляем обработчики событий
         window.addEventListener('DOMContentLoaded', function() {
+            // Настраиваем формы добавления пары
             const forms = document.querySelectorAll('.add-lesson-form');
             forms.forEach(form => {
                 form.addEventListener('submit', confirmAddLesson);
+                // Обновляем атрибут action для форм динамически, чтобы учесть контекст маршрутизации
+                const currentPath = getCurrentPath();
+                const addLessonPath = currentPath + 'add-lesson';
+                form.setAttribute('action', addLessonPath);
             });
+
+            // Обновляем action для формы поиска
+            const searchForm = document.querySelector('.search-form form');
+            if (searchForm) {
+                const currentPath = getCurrentPath();
+                searchForm.setAttribute('action', currentPath);
+            }
 
             // Автоматически скрыть сообщение об успехе через 5 секунд
             const successMessage = document.querySelector('.success-message');
@@ -236,7 +254,7 @@
 {{end}}
 
 <div class="search-form">
-    <form method="post" action="/">
+    <form method="post">
         <div class="form-group">
             <label for="teacher">Фамилия и инициалы преподавателя:</label>
             <input type="text" id="teacher" name="teacher" placeholder="Например: Буздин В.Э." value="{{.Teacher}}" required>

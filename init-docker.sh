@@ -354,7 +354,7 @@ networks:
 EOF
 echo -e "${GREEN}docker-compose.yml создан.${NC}"
 
-# Создание nginx.conf
+# Создание nginx.conf с оптимизированной конфигурацией для schedule
 echo -e "${YELLOW}Создание конфигурации для Nginx...${NC}"
 cat > nginx/nginx.conf << 'EOF'
 server {
@@ -377,12 +377,34 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /schedule {
-        proxy_pass http://schedule:8091;
+    # Обработка корневого маршрута /schedule
+    location = /schedule {
+        proxy_pass http://schedule:8091/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Перенаправление всех подмаршрутов /schedule/ с сохранением пути
+    location ~ ^/schedule(/.*)$ {
+        proxy_pass http://schedule:8091$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Обработка POST-запросов для /schedule/add-lesson
+    location = /schedule/add-lesson {
+        proxy_pass http://schedule:8091/add-lesson;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
     }
 
     location /attachments/ {
@@ -398,6 +420,11 @@ server {
 
     # Увеличиваем размер загружаемых файлов
     client_max_body_size 10M;
+
+    # Увеличение таймаутов для API-запросов, которые могут выполняться долго
+    proxy_connect_timeout 180s;
+    proxy_send_timeout 180s;
+    proxy_read_timeout 180s;
 }
 EOF
 echo -e "${GREEN}Файл nginx/nginx.conf создан.${NC}"
@@ -431,12 +458,14 @@ show_help() {
     echo "  dashboard      Обновить только сервис dashboard"
     echo "  tickets        Обновить только сервис tickets"
     echo "  schedule       Обновить только сервис schedule"
+    echo "  nginx          Обновить только конфигурацию Nginx"
     echo "  all            Обновить все сервисы (по умолчанию)"
     echo ""
     echo "Примеры:"
     echo "  $0 dashboard   Обновить только dashboard"
     echo "  $0 tickets     Обновить только tickets"
     echo "  $0 schedule    Обновить только schedule"
+    echo "  $0 nginx       Обновить только Nginx конфигурацию"
     echo "  $0 all         Обновить все сервисы"
     echo "  $0             Обновить все сервисы (аналогично 'all')"
 }
@@ -528,6 +557,18 @@ elif [ "$SERVICE" == "schedule" ]; then
     docker-compose up -d schedule
     echo -e "${GREEN}Контейнер schedule запущен.${NC}"
 
+# Обновление только Nginx
+elif [ "$SERVICE" == "nginx" ]; then
+    echo -e "${YELLOW}Обновление конфигурации Nginx...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер nginx...${NC}"
+    docker-compose stop nginx
+    echo -e "${GREEN}Контейнер nginx остановлен.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер nginx...${NC}"
+    docker-compose up -d nginx
+    echo -e "${GREEN}Контейнер nginx запущен.${NC}"
+
 else
     echo -e "${RED}Неизвестный сервис: $SERVICE${NC}"
     show_help
@@ -543,6 +584,7 @@ echo -e "${YELLOW}Для просмотра логов используйте:${
 echo -e "  - docker-compose logs -f dashboard"
 echo -e "  - docker-compose logs -f tickets"
 echo -e "  - docker-compose logs -f schedule"
+echo -e "  - docker-compose logs -f nginx"
 EOF
 chmod +x update-service.sh
 echo -e "${GREEN}Скрипт update-service.sh создан и сделан исполняемым.${NC}"
