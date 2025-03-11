@@ -416,7 +416,7 @@ func parseScheduleHTMLWithEntities(html string) (string, int, []scheduleModels.S
 
 			// Ищем все группы (например, ИС1-227-ОТ)
 			// Для лекций может быть несколько групп
-			groupRegex := regexp.MustCompile(`(ИС\d+-\d+-[А-Я]{2})`)
+			groupRegex := regexp.MustCompile(`([А-Я]+\d+-\d+-[А-Я]{2})`)
 			groupMatches := groupRegex.FindAllStringSubmatch(classContent, -1)
 
 			groups := []string{}
