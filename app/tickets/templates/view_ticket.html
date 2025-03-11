@@ -2,339 +2,513 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Просмотр тикета #{{.Ticket.ID}} - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* Сброс стилей */
+    /* Reset styles */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
+
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       min-height: 100vh;
-      color: #333;
+      color: rgba(243, 244, 246, 1);
+      padding: 2rem 1rem;
       position: relative;
     }
+
     .container {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      padding: 40px;
+      background-color: rgba(17, 24, 39, 1);
+      border-radius: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      padding: 2rem;
       width: 100%;
       max-width: 900px;
-      margin: 20px;
+      margin: 0 auto;
     }
+
     .user-info {
       position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-      color: #333;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(26, 32, 44, 0.9);
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      color: rgba(243, 244, 246, 1);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
     }
+
+    /* Ticket header */
     .ticket-header {
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 20px;
-      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(55, 65, 81, 1);
+      padding-bottom: 1.5rem;
+      margin-bottom: 1.5rem;
     }
+
     .ticket-title {
-      font-size: 24px;
-      margin-bottom: 10px;
-      color: #444;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: rgba(243, 244, 246, 1);
+      font-weight: 700;
     }
+
+    /* Ticket meta */
     .ticket-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
-      margin-bottom: 15px;
-      font-size: 14px;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
     }
+
     .meta-item {
-      background: #f2f2f2;
-      padding: 5px 10px;
-      border-radius: 5px;
+      background-color: rgba(26, 32, 44, 1);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(55, 65, 81, 1);
     }
-    .status-badge, .priority-badge {
+
+    .meta-item strong {
+      color: rgba(156, 163, 175, 1);
+      margin-right: 0.25rem;
+    }
+
+    /* Status and priority badges */
+    .status-badge,
+    .priority-badge {
       display: inline-block;
-      padding: 5px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
+      padding: 0.25rem 0.5rem;
+      border-radius: 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
       text-align: center;
       color: white;
     }
+
     .status-new {
       background-color: #007BFF;
     }
+
     .status-open {
       background-color: #6610f2;
     }
+
     .status-progress {
       background-color: #fd7e14;
     }
+
     .status-resolved {
       background-color: #28a745;
     }
+
     .status-closed {
       background-color: #6c757d;
     }
+
     .priority-low {
       background-color: #17a2b8;
     }
+
     .priority-medium {
       background-color: #fd7e14;
     }
+
     .priority-high {
       background-color: #dc3545;
     }
+
     .priority-critical {
       background-color: #6f42c1;
       animation: pulse 2s infinite;
     }
+
     @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.7; }
-      100% { opacity: 1; }
+      0% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
+      100% {
+        opacity: 1;
+      }
     }
-    .ticket-description {
-      background: #f9f9f9;
-      padding: 20px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-      white-space: pre-wrap;
-      line-height: 1.5;
-    }
+
+    /* Ticket actions */
     .ticket-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
     }
+
+    /* Form elements */
+    select,
+    input[type="text"] {
+      padding: 0.625rem;
+      border: 1px solid rgba(55, 65, 81, 1);
+      border-radius: 0.375rem;
+      margin-right: 0.75rem;
+      font-size: 0.875rem;
+      background-color: rgba(17, 24, 39, 1);
+      color: rgba(243, 244, 246, 1);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1rem;
+      padding-right: 2rem;
+    }
+
+    select:focus,
+    input[type="text"]:focus {
+      border-color: rgba(167, 139, 250, 1);
+      outline: none;
+    }
+
+    input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      margin-right: 0.5rem;
+    }
+
+    /* Description */
+    .ticket-description {
+      background-color: rgba(26, 32, 44, 1);
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      border: 1px solid rgba(55, 65, 81, 1);
+    }
+
+    /* Attachments */
     .ticket-attachments {
-      margin-bottom: 20px;
+      margin-bottom: 1.5rem;
     }
+
+    .ticket-attachments h3,
+    .ticket-attachments h4 {
+      margin-bottom: 0.75rem;
+      color: rgba(209, 213, 219, 1);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
     .attachment-list {
       list-style-type: none;
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 0.75rem;
     }
+
     .attachment-item {
-      background: #f2f2f2;
-      padding: 5px 10px;
-      border-radius: 5px;
+      background-color: rgba(26, 32, 44, 1);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem;
       display: flex;
       align-items: center;
-      font-size: 14px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(55, 65, 81, 1);
     }
+
     .attachment-link {
-      color: #007BFF;
+      color: rgba(167, 139, 250, 1);
       text-decoration: none;
     }
+
     .attachment-link:hover {
+      color: rgba(139, 92, 246, 1);
       text-decoration: underline;
     }
-    .comments-section {
-      margin-top: 30px;
-    }
-    .comments-title {
-      font-size: 20px;
-      margin-bottom: 20px;
-      color: #444;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 5px;
-    }
-    .comment {
-      background: #f9f9f9;
-      border-radius: 5px;
-      padding: 15px;
-      margin-bottom: 15px;
-      position: relative;
-    }
-    .comment.internal-note {
-      background: #fff3cd;
-      border-left: 5px solid #ffc107;
-    }
-    .comment-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 14px;
-      color: #666;
-    }
-    .comment-author {
-      font-weight: bold;
-      color: #333;
-    }
-    .comment-body {
-      white-space: pre-wrap;
-      line-height: 1.5;
-    }
-    .add-comment-form {
-      margin-top: 30px;
-      background: #f9f9f9;
-      padding: 20px;
-      border-radius: 5px;
-    }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    textarea {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 16px;
-      min-height: 100px;
-      resize: vertical;
-    }
-    .form-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .form-checkbox {
-      margin-right: 10px;
-    }
-    .submit-btn {
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .submit-btn:hover {
-      background-color: #0056b3;
-    }
+
+    /* Tabs */
     .ticket-tabs {
       display: flex;
-      border-bottom: 1px solid #ddd;
-      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(55, 65, 81, 1);
+      margin-bottom: 1.5rem;
     }
+
     .tab {
-      padding: 10px 15px;
+      padding: 0.75rem 1rem;
       cursor: pointer;
       transition: all 0.3s;
       border-bottom: 3px solid transparent;
+      color: rgba(156, 163, 175, 1);
     }
+
     .tab.active {
-      border-bottom-color: #007BFF;
-      font-weight: bold;
+      border-bottom-color: rgba(167, 139, 250, 1);
+      font-weight: 600;
+      color: rgba(243, 244, 246, 1);
     }
+
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
+
+    /* Comments section */
+    .comments-section {
+      margin-top: 2rem;
+    }
+
+    .comments-title {
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      color: rgba(209, 213, 219, 1);
+      font-weight: 500;
+      border-bottom: 1px solid rgba(55, 65, 81, 1);
+      padding-bottom: 0.5rem;
+    }
+
+    .comment {
+      background-color: rgba(26, 32, 44, 1);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+      border: 1px solid rgba(55, 65, 81, 1);
+    }
+
+    .comment.internal-note {
+      background-color: rgba(251, 191, 36, 0.1);
+      border-left: 5px solid rgba(251, 191, 36, 0.5);
+    }
+
+    .comment-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      font-size: 0.75rem;
+      color: rgba(156, 163, 175, 1);
+    }
+
+    .comment-author {
+      font-weight: 600;
+      color: rgba(209, 213, 219, 1);
+    }
+
+    .comment-body {
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 0.875rem;
+    }
+
+    /* Add comment form */
+    .add-comment-form {
+      margin-top: 2rem;
+      background-color: rgba(26, 32, 44, 1);
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(55, 65, 81, 1);
+    }
+
+    .add-comment-form h3 {
+      margin-bottom: 1rem;
+      color: rgba(209, 213, 219, 1);
+      font-weight: 500;
+      font-size: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: rgba(156, 163, 175, 1);
+      font-size: 0.875rem;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid rgba(55, 65, 81, 1);
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      min-height: 100px;
+      resize: vertical;
+      background-color: rgba(17, 24, 39, 1);
+      color: rgba(243, 244, 246, 1);
+    }
+
+    textarea:focus {
+      border-color: rgba(167, 139, 250, 1);
+      outline: none;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .form-checkbox {
+      margin-right: 0.75rem;
+    }
+
+    /* Submit button */
+    .submit-btn {
+      padding: 0.75rem 1.25rem;
+      background-color: rgba(167, 139, 250, 1);
+      color: rgba(17, 24, 39, 1);
+      border: none;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.875rem;
+    }
+
+    .submit-btn:hover {
+      background-color: rgba(139, 92, 246, 1);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
+    }
+
+    /* History */
     .history-item {
       display: flex;
-      border-bottom: 1px solid #eee;
-      padding: 10px 0;
-      font-size: 14px;
+      border-bottom: 1px solid rgba(55, 65, 81, 1);
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
     }
+
     .history-user {
       width: 150px;
-      font-weight: bold;
-      padding-right: 10px;
+      font-weight: 500;
+      padding-right: 0.75rem;
+      color: rgba(209, 213, 219, 1);
     }
+
     .history-info {
       flex-grow: 1;
+      color: rgba(156, 163, 175, 1);
     }
+
+    .history-info strong {
+      color: rgba(209, 213, 219, 1);
+    }
+
     .history-time {
-      color: #666;
-      font-size: 12px;
+      color: rgba(156, 163, 175, 1);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
     }
+
+    /* Change highlight */
     .change-highlight {
-      background-color: #e6f7ff;
-      padding: 2px 4px;
-      border-radius: 3px;
+      background-color: rgba(59, 130, 246, 0.2);
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.25rem;
+      color: rgba(147, 197, 253, 1);
     }
-    select, input[type="text"] {
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      margin-right: 10px;
-      font-size: 14px;
-    }
+
+    /* Back link */
     .back-link {
       display: block;
       text-align: center;
-      margin-top: 20px;
-      color: #007BFF;
+      margin-top: 1.5rem;
+      color: rgba(167, 139, 250, 1);
       text-decoration: none;
-      font-size: 16px;
+      font-size: 0.875rem;
+      transition: color 0.3s;
     }
+
     .back-link:hover {
+      color: rgba(139, 92, 246, 1);
       text-decoration: underline;
     }
+
+    /* Attachment area */
     .attachment-area {
-      border: 2px dashed #ddd;
-      padding: 15px;
+      border: 2px dashed rgba(55, 65, 81, 1);
+      padding: 1rem;
       text-align: center;
-      margin-top: 10px;
-      border-radius: 5px;
+      margin-top: 0.75rem;
+      border-radius: 0.375rem;
       cursor: pointer;
       transition: border-color 0.3s;
     }
+
     .attachment-area:hover {
-      border-color: #aaa;
+      border-color: rgba(156, 163, 175, 1);
     }
+
     .attachment-area p {
-      margin-bottom: 10px;
-      color: #666;
-      font-size: 14px;
+      margin-bottom: 0.75rem;
+      color: rgba(156, 163, 175, 1);
+      font-size: 0.875rem;
     }
+
+    /* Attachment preview */
     .attachment-preview {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 0.75rem;
+      margin-top: 1rem;
     }
+
     .file-item {
-      padding: 5px 10px;
-      background: #f2f2f2;
-      border-radius: 5px;
+      padding: 0.5rem 0.75rem;
+      background-color: rgba(26, 32, 44, 1);
+      border-radius: 0.375rem;
       display: flex;
       align-items: center;
-      font-size: 14px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(55, 65, 81, 1);
     }
+
+    /* Remove file button */
     .remove-file {
-      color: #dc3545;
-      margin-left: 5px;
+      color: rgba(239, 68, 68, 1);
+      margin-left: 0.5rem;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 700;
     }
+
     @media (max-width: 768px) {
       .container {
-        padding: 20px;
+        padding: 1.5rem;
       }
+
       .ticket-title {
-        font-size: 20px;
+        font-size: 1.25rem;
       }
-      .ticket-actions, .ticket-meta {
+
+      .ticket-actions,
+      .ticket-meta {
         flex-direction: column;
-        gap: 5px;
+        gap: 0.5rem;
       }
-      textarea, select, input, .submit-btn {
-        font-size: 14px;
+
+      textarea,
+      select,
+      input,
+      .submit-btn {
+        font-size: 0.875rem;
+      }
+
+      .user-info {
+        width: calc(100% - 2rem);
+        right: 1rem;
       }
     }
   </style>
@@ -459,7 +633,7 @@
           {{if eq .User.Role "admin"}}
           <div class="form-row">
             <input type="checkbox" id="internal" name="internal" value="1" class="form-checkbox">
-            <label for="internal" style="display: inline; font-weight: normal;">Внутренняя заметка (видна только администраторам)</label>
+            <label for="internal" style="display: inline; font-weight: normal; color: rgba(209, 213, 219, 1);">Внутренняя заметка (видна только администраторам)</label>
           </div>
           {{end}}
 
@@ -547,9 +721,9 @@
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         fileItem.innerHTML = `
-          ${file.name} (${formatFileSize(file.size)})
-          <span class="remove-file" data-index="${i}" onclick="removeFile(this)">×</span>
-        `;
+            ${file.name} (${formatFileSize(file.size)})
+            <span class="remove-file" data-index="${i}" onclick="removeFile(this)">×</span>
+          `;
         preview.appendChild(fileItem);
       }
     }
