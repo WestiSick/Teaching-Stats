@@ -68,13 +68,13 @@ var Store = sessions.NewCookieStore([]byte(CookieStoreKey))
 const TicketSystemPort = 8090
 
 // TicketStatusValues defines the valid status values for tickets
-var TicketStatusValues = []string{"New", "Open", "InProgress", "Resolved", "Closed"}
+var TicketStatusValues = []string{"Новый", "Открытый", "В работе", "Решенный", "Закрыт"}
 
 // TicketPriorityValues defines the valid priority values for tickets
-var TicketPriorityValues = []string{"Low", "Medium", "High", "Critical"}
+var TicketPriorityValues = []string{"Низкий", "Средний", "Высокий", "Критический"}
 
 // TicketCategoryValues defines the valid category values for tickets
-var TicketCategoryValues = []string{"Technical", "Administrative", "Account", "Feature", "Bug", "Other"}
+var TicketCategoryValues = []string{"Технический", "Административный", "Аккаунт", "Особенность", "Баг", "Другая"}
 
 // AttachmentStoragePath defines where file attachments are stored
 const AttachmentStoragePath = "./attachments"
