@@ -16,7 +16,7 @@ const (
 // Get DB connection string from environment or use default
 var DBConnectionString = getEnv("DB_CONNECTION_STRING", fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 	getEnv("DB_USER", "postgres"),
-	getEnv("DB_PASSWORD", "vadimvadimvadim13"),
+	getEnv("DB_PASSWORD", "vadimvadimvadim"),
 	getEnv("DB_HOST", "localhost"),
 	getEnv("DB_PORT", "5432"),
 	getEnv("DB_NAME", "teacher")))
