@@ -49,8 +49,8 @@ import (
 
 // Application constants
 const (
-	CookieStoreKey = "super-secret-key"
-	SessionName    = "session-name"
+	CookieStoreKey = "SDfrw2Nja4aA4wfcxvAEedacdvSARfggfdsdsfasdASR"
+	SessionName    = "SessionvgvadimStatsT"
 )
 
 // Get DB connection string from environment or use default
