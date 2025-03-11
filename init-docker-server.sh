@@ -351,7 +351,7 @@ echo -e "${GREEN}docker-compose.yml создан.${NC}"
 echo -e "${YELLOW}Создание конфигурации для Nginx...${NC}"
 cat > nginx/nginx.conf << 'EOF'
 server {
-    server_name vg.vadimbuzdin.ru www.vg.vadimbuzdin.ru 89.150.34.90 ;
+    server_name vg.vadimbuzdin.ru www.vg.vadimbuzdin.ru ;
 
     location / {
         proxy_pass http://dashboard:8080;
