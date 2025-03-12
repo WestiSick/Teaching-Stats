@@ -235,6 +235,53 @@ ENTRYPOINT ["./schedule"]
 EOF
 echo -e "${GREEN}Dockerfile.schedule создан.${NC}"
 
+# Создание Dockerfile для calendar
+echo -e "${YELLOW}Создание Dockerfile.calendar...${NC}"
+cat > Dockerfile.calendar << 'EOF'
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Install required packages
+RUN apk add --no-cache git
+
+# Copy go.mod and go.sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy the source code
+COPY . .
+
+# Build the calendar application
+RUN go build -o calendar ./app/calendar/cmd/server/main.go
+
+# Final stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Install CA certificates for HTTPS
+RUN apk --no-cache add ca-certificates
+
+# Copy binary from builder stage
+COPY --from=builder /app/calendar .
+
+# Copy templates and other necessary files
+COPY --from=builder /app/app/calendar/templates ./app/calendar/templates
+
+# Create uploads directory
+RUN mkdir -p /app/uploads/calendar
+
+# Expose calendar port
+EXPOSE 8092
+
+# Set up the entrypoint
+ENTRYPOINT ["./calendar"]
+EOF
+echo -e "${GREEN}Dockerfile.calendar создан.${NC}"
+
 # Создание docker-compose.yml
 echo -e "${YELLOW}Создание docker-compose.yml...${NC}"
 cat > docker-compose.yml << 'EOF'
@@ -298,6 +345,26 @@ services:
     networks:
       - app-network
 
+  calendar:
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar
+    container_name: teaching-stats-calendar
+    restart: always
+    depends_on:
+      - db
+      - dashboard
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=vadimvadimvadim
+      - DB_NAME=teacher
+      - DB_PORT=5432
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - app-network
+
   db:
     image: postgres:14-alpine
     container_name: teaching-stats-db
@@ -323,6 +390,7 @@ services:
       - dashboard
       - tickets
       - schedule
+      - calendar
     networks:
       - app-network
 
@@ -340,6 +408,7 @@ services:
 volumes:
   postgres-data:
   attachments:
+  uploads:
 
 networks:
   app-network:
@@ -347,7 +416,7 @@ networks:
 EOF
 echo -e "${GREEN}docker-compose.yml создан.${NC}"
 
-# Создание nginx.conf с оптимизированной конфигурацией для schedule
+# Создание nginx.conf с оптимизированной конфигурацией для schedule и calendar
 echo -e "${YELLOW}Создание конфигурации для Nginx...${NC}"
 cat > nginx/nginx.conf << 'EOF'
 server {
@@ -400,6 +469,53 @@ server {
         proxy_set_header X-Original-URI $request_uri;
     }
 
+    # Обработка маршрута /calendar
+    location = /calendar {
+        proxy_pass http://calendar:8092/calendar;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Обработка маршрута /calendar/create
+    location = /calendar/create {
+        proxy_pass http://calendar:8092/calendar/create;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Перенаправление всех подмаршрутов /calendar/
+    location ~ ^/calendar/(.*)$ {
+        proxy_pass http://calendar:8092/calendar/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Обработка маршрутов администратора для календаря
+    location ~ ^/admin/calendar(.*)$ {
+        proxy_pass http://calendar:8092/admin/calendar$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
+    # Обработка статических файлов календаря
+    location /static/calendar/ {
+        proxy_pass http://calendar:8092/static/calendar/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     location /attachments/ {
         proxy_pass http://dashboard:8080;
         proxy_set_header Host $host;
@@ -422,10 +538,14 @@ server {
 EOF
 echo -e "${GREEN}Файл nginx/nginx.conf создан.${NC}"
 
-# Создание директории для вложений, если она еще не существует
+# Создание директорий для вложений и загрузок
 echo -e "${YELLOW}Создание директории для вложений...${NC}"
 mkdir -p attachments
 echo -e "${GREEN}Директория attachments создана.${NC}"
+
+echo -e "${YELLOW}Создание директории для загрузок календаря...${NC}"
+mkdir -p uploads/calendar
+echo -e "${GREEN}Директория uploads/calendar создана.${NC}"
 
 # Создание скрипта обновления для определенного сервиса
 echo -e "${YELLOW}Создание скрипта update-service.sh...${NC}"
@@ -451,6 +571,7 @@ show_help() {
     echo "  dashboard      Обновить только сервис dashboard"
     echo "  tickets        Обновить только сервис tickets"
     echo "  schedule       Обновить только сервис schedule"
+    echo "  calendar       Обновить только сервис calendar"
     echo "  nginx          Обновить только конфигурацию Nginx"
     echo "  all            Обновить все сервисы (по умолчанию)"
     echo ""
@@ -458,6 +579,7 @@ show_help() {
     echo "  $0 dashboard   Обновить только dashboard"
     echo "  $0 tickets     Обновить только tickets"
     echo "  $0 schedule    Обновить только schedule"
+    echo "  $0 calendar    Обновить только calendar"
     echo "  $0 nginx       Обновить только Nginx конфигурацию"
     echo "  $0 all         Обновить все сервисы"
     echo "  $0             Обновить все сервисы (аналогично 'all')"
@@ -495,7 +617,7 @@ if [ "$SERVICE" == "all" ]; then
     echo -e "${GREEN}Контейнеры остановлены.${NC}"
 
     echo -e "${YELLOW}Пересобираем образы...${NC}"
-    docker-compose build --no-cache dashboard tickets schedule
+    docker-compose build --no-cache dashboard tickets schedule calendar
     echo -e "${GREEN}Образы пересобраны.${NC}"
 
     echo -e "${YELLOW}Запускаем обновленные контейнеры...${NC}"
@@ -550,6 +672,22 @@ elif [ "$SERVICE" == "schedule" ]; then
     docker-compose up -d schedule
     echo -e "${GREEN}Контейнер schedule запущен.${NC}"
 
+# Обновление только calendar
+elif [ "$SERVICE" == "calendar" ]; then
+    echo -e "${YELLOW}Обновление сервиса calendar...${NC}"
+
+    echo -e "${YELLOW}Останавливаем контейнер calendar...${NC}"
+    docker-compose stop calendar
+    echo -e "${GREEN}Контейнер calendar остановлен.${NC}"
+
+    echo -e "${YELLOW}Пересобираем образ calendar...${NC}"
+    docker-compose build --no-cache calendar
+    echo -e "${GREEN}Образ calendar пересобран.${NC}"
+
+    echo -e "${YELLOW}Запускаем обновленный контейнер calendar...${NC}"
+    docker-compose up -d calendar
+    echo -e "${GREEN}Контейнер calendar запущен.${NC}"
+
 # Обновление только Nginx
 elif [ "$SERVICE" == "nginx" ]; then
     echo -e "${YELLOW}Обновление конфигурации Nginx...${NC}"
@@ -577,6 +715,7 @@ echo -e "${YELLOW}Для просмотра логов используйте:${
 echo -e "  - docker-compose logs -f dashboard"
 echo -e "  - docker-compose logs -f tickets"
 echo -e "  - docker-compose logs -f schedule"
+echo -e "  - docker-compose logs -f calendar"
 echo -e "  - docker-compose logs -f nginx"
 EOF
 chmod +x update-service.sh
@@ -617,7 +756,7 @@ echo -e "${GREEN}Контейнеры остановлены.${NC}"
 
 # Пересборка образов без использования кэша
 echo -e "${YELLOW}Пересобираем образы...${NC}"
-docker-compose build --no-cache dashboard tickets schedule
+docker-compose build --no-cache dashboard tickets schedule calendar
 echo -e "${GREEN}Образы пересобраны.${NC}"
 
 # Запуск контейнеров
@@ -634,6 +773,7 @@ echo -e "${YELLOW}Для просмотра логов используйте:${
 echo -e "  - docker-compose logs -f dashboard"
 echo -e "  - docker-compose logs -f tickets"
 echo -e "  - docker-compose logs -f schedule"
+echo -e "  - docker-compose logs -f calendar"
 echo -e "  - docker-compose logs -f nginx"
 EOF
 chmod +x update-docker.sh
@@ -650,6 +790,7 @@ if [ $? -eq 0 ]; then
     echo -e "  - Dashboard: http://localhost/"
     echo -e "  - Tickets: http://localhost/tickets"
     echo -e "  - Schedule: http://localhost/schedule"
+    echo -e "  - Calendar: http://localhost/calendar"
     echo -e "  - PGAdmin: http://localhost:5050"
     echo ""
     echo -e "${YELLOW}Для просмотра логов используйте:${NC} docker-compose logs -f"
