@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Календарь событий</title>
+  <title>Календарь пользователя {{.SelectedUser.FIO}}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
@@ -22,36 +22,42 @@
         <li class="nav-item">
           <a class="nav-link" href="/dashboard">Главная</a>
         </li>
-        <li class="nav-item active">
-          <a class="nav-link active" href="/calendar">Календарь</a>
-        </li>
-        {{if eq .User.Role "admin"}}
         <li class="nav-item">
-          <a class="nav-link" href="/admin/calendar">
-            <i class="bi bi-gear"></i> Админ-панель
-          </a>
+          <a class="nav-link" href="/calendar">Календарь</a>
         </li>
-        {{end}}
-        <!-- Additional menu items -->
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/calendar">Админ-панель</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/calendar/users">Пользователи</a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link active" href="/admin/calendar/user/{{.SelectedUser.ID}}">Календарь пользователя</a>
+        </li>
       </ul>
-
-      <div class="mt-4">
-        <a href="/calendar/create" class="btn btn-primary">
-          <i class="bi bi-plus-circle"></i> Создать событие
-        </a>
-      </div>
     </div>
 
     <!-- Main content -->
     <div class="col-md-10 main-content">
-      <div class="calendar-header mb-4">
-        <h1>Календарь событий</h1>
-        <div class="view-selector mb-3">
-          <div class="btn-group" role="group">
-            <a href="/calendar?view=month" class="btn btn-outline-primary {{if eq .View "month"}}active{{end}}">Месяц</a>
-            <a href="/calendar?view=week" class="btn btn-outline-primary {{if eq .View "week"}}active{{end}}">Неделя</a>
-            <a href="/calendar?view=day" class="btn btn-outline-primary {{if eq .View "day"}}active{{end}}">День</a>
-          </div>
+      <div class="content-header d-flex justify-content-between align-items-center">
+        <h1>Календарь пользователя: {{.SelectedUser.FIO}}</h1>
+        <div>
+          <a href="/admin/calendar/users" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Назад к списку пользователей
+          </a>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        Просмотр календаря пользователя ID: {{.SelectedUser.ID}}, ФИО: {{.SelectedUser.FIO}}, Роль: {{.SelectedUser.Role}}
+      </div>
+
+      <div class="view-selector mb-3">
+        <div class="btn-group" role="group">
+          <a href="/admin/calendar/user/{{.SelectedUser.ID}}?view=month" class="btn btn-outline-primary {{if eq .View "month"}}active{{end}}">Месяц</a>
+          <a href="/admin/calendar/user/{{.SelectedUser.ID}}?view=week" class="btn btn-outline-primary {{if eq .View "week"}}active{{end}}">Неделя</a>
+          <a href="/admin/calendar/user/{{.SelectedUser.ID}}?view=day" class="btn btn-outline-primary {{if eq .View "day"}}active{{end}}">День</a>
         </div>
       </div>
 
@@ -86,17 +92,20 @@
       allDaySlot: false,
       slotMinTime: '03:00:00',
       slotMaxTime: '23:00:00',
-      events: '/calendar/events',
+      events: {
+        url: '/admin/calendar/events',
+        method: 'GET',
+        extraParams: {
+          user_id: '{{.SelectedUser.ID}}'
+        }
+      },
       eventTimeFormat: {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
       },
       eventClick: function(info) {
-        window.location.href = '/calendar/event/' + info.event.id;
-      },
-      dateClick: function(info) {
-        window.location.href = '/calendar/create?date=' + info.dateStr;
+        window.location.href = '/admin/calendar/event/' + info.event.id;
       }
     });
 

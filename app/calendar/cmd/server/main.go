@@ -55,6 +55,15 @@ func main() {
 	r.HandleFunc("/calendar/attachment/{id:[0-9]+}", dashboardMiddleware.AuthMiddleware(calendarHandler.DownloadAttachmentHandler)).Methods("GET")
 	r.HandleFunc("/calendar/attachment/{id:[0-9]+}/delete", dashboardMiddleware.AuthMiddleware(calendarHandler.DeleteAttachmentHandler)).Methods("POST")
 
+	// Маршруты для админ-панели календаря
+	r.HandleFunc("/admin/calendar", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminIndexHandler)).Methods("GET")
+	r.HandleFunc("/admin/calendar/users", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminUsersHandler)).Methods("GET")
+	r.HandleFunc("/admin/calendar/user/{id:[0-9]+}", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminUserCalendarHandler)).Methods("GET")
+	r.HandleFunc("/admin/calendar/events", dashboardMiddleware.AdminMiddleware(database, calendarHandler.GetAdminEventsJSON)).Methods("GET")
+	r.HandleFunc("/admin/calendar/event/{id:[0-9]+}", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminViewEventHandler)).Methods("GET")
+	r.HandleFunc("/admin/calendar/event/{id:[0-9]+}/edit", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminEditEventHandler)).Methods("GET", "POST")
+	r.HandleFunc("/admin/calendar/event/{id:[0-9]+}/delete", dashboardMiddleware.AdminMiddleware(database, calendarHandler.AdminDeleteEventHandler)).Methods("POST")
+
 	// Serve static files
 	r.PathPrefix("/static/calendar/").Handler(http.StripPrefix("/static/calendar/", http.FileServer(http.Dir(staticDir))))
 
