@@ -195,6 +195,27 @@
                 min-width: 120px;
             }
         }
+        
+        .view-button {
+            padding: 0.625rem 0.875rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-left: 0.5rem;
+            font-weight: 500;
+            background-color: rgba(59, 130, 246, 1);
+            color: white;
+        }
+
+        .view-button:hover {
+            background-color: rgba(37, 99, 235, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(37, 99, 235, 0.3);
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -213,6 +234,7 @@
                 <span class="student-count">({{.StudentCount}} студентов)</span>
             </div>
             <div>
+                <a href="/labs/view/{{$currentSubject}}/{{.Name}}" class="view-button">Просмотр</a>
                 <a href="/labs/grades/{{$currentSubject}}/{{.Name}}" class="lab-button">Сдача лабораторных</a>
                 <a href="/labs/export/{{$currentSubject}}/{{.Name}}" class="export-button">Экспортировать в Excel</a>
             </div>

@@ -168,7 +168,7 @@ func ExportAttendanceByGroup(db *gorm.DB, teacherID int, file *xlsx.File) error 
 
 		var lessons []LessonInfo
 		err = db.Raw(`
-			SELECT l.id, l.date, l.group_name as 'group', l.topic
+			SELECT l.id, l.date, l.group_name as "group", l.topic
 			FROM lessons l
 			WHERE l.teacher_id = ? AND l.subject = ? AND EXISTS (
 				SELECT 1 FROM attendances a WHERE a.lesson_id = l.id

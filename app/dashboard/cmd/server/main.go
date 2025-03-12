@@ -108,6 +108,7 @@ func main() {
 	// Attendance management
 	router.HandleFunc("/attendance/add", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, attendanceHandler.AddAttendanceHandler))).Methods("GET", "POST")
 	router.HandleFunc("/attendance", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, attendanceHandler.AttendanceHandler))).Methods("GET", "POST")
+	router.HandleFunc("/attendance/view/{id}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, attendanceHandler.ViewAttendanceHandler))).Methods("GET")
 	router.HandleFunc("/attendance/edit/{id}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, attendanceHandler.EditAttendanceHandler))).Methods("GET", "POST")
 	router.HandleFunc("/export/attendance", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, attendanceHandler.ExportAttendanceExcelHandler))).Methods("GET")
 
@@ -133,6 +134,7 @@ func main() {
 
 	// Lab grades management
 	router.HandleFunc("/labs", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.GroupLabsHandler))).Methods("GET")
+	router.HandleFunc("/labs/view/{subject}/{group}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.ViewLabGradesHandler))).Methods("GET")
 	router.HandleFunc("/labs/grades/{subject}/{group}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.LabGradesHandler))).Methods("GET", "POST")
 	router.HandleFunc("/labs/export/{subject}/{group}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.ExportLabGradesHandler))).Methods("GET")
 

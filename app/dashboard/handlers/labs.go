@@ -281,3 +281,33 @@ func (h *LabHandler) ExportLabGradesHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 }
+
+// ViewLabGradesHandler handles viewing lab grades (without editing) for a specific group and subject
+func (h *LabHandler) ViewLabGradesHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	subject := vars["subject"]
+	groupName := vars["group"]
+
+	// Get lab summary for the group
+	summary, err := db.GetGroupLabSummary(h.DB, userInfo.ID, groupName, subject)
+	if err != nil {
+		HandleError(w, err, "Error retrieving lab summary", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		User    db.UserInfo
+		Summary db.GroupLabSummary
+	}{
+		User:    userInfo,
+		Summary: summary,
+	}
+
+	renderTemplate(w, h.Tmpl, "view_labs.html", data)
+}

@@ -275,3 +275,73 @@ func (h *AttendanceHandler) ExportAttendanceExcelHandler(w http.ResponseWriter, 
 	w.Header().Set("Content-Disposition", "attachment; filename=attendance.xlsx")
 	file.Write(w)
 }
+
+// ViewAttendanceHandler handles viewing attendance details for regular teachers
+func (h *AttendanceHandler) ViewAttendanceHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	lessonID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid lesson ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get lesson details
+	lesson, err := db.GetLessonByID(h.DB, lessonID, userInfo.ID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Lesson not found or doesn't belong to you", http.StatusNotFound)
+		} else {
+			HandleError(w, err, "Error retrieving lesson", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Format date for display
+	lesson.Date = utils.FormatDate(lesson.Date)
+
+	// Get student attendance records
+	students, err := db.GetAttendanceForLesson(h.DB, lessonID, userInfo.ID)
+	if err != nil {
+		HandleError(w, err, "Error retrieving students", http.StatusInternalServerError)
+		return
+	}
+
+	// Count present students
+	totalStudents := len(students)
+	presentStudents := 0
+	for _, s := range students {
+		if s.Attended {
+			presentStudents++
+		}
+	}
+
+	// Calculate attendance percentage
+	attendancePercent := 0.0
+	if totalStudents > 0 {
+		attendancePercent = float64(presentStudents) / float64(totalStudents) * 100
+	}
+
+	data := struct {
+		User              db.UserInfo
+		Lesson            db.LessonData
+		Students          []db.StudentAttendance
+		TotalStudents     int
+		PresentStudents   int
+		AttendancePercent float64
+	}{
+		User:              userInfo,
+		Lesson:            lesson,
+		Students:          students,
+		TotalStudents:     totalStudents,
+		PresentStudents:   presentStudents,
+		AttendancePercent: attendancePercent,
+	}
+
+	renderTemplate(w, h.Tmpl, "view_attendance.html", data)
+}
