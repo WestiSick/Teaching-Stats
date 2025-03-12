@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Календарь событий</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/static/calendar/css/calendar.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-2 bg-light sidebar">
+      <h4 class="mt-3 mb-4">Меню</h4>
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard">Главная</a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link active" href="/calendar">Календарь</a>
+        </li>
+        <!-- Additional menu items -->
+      </ul>
+
+      <div class="mt-4">
+        <a href="/calendar/create" class="btn btn-primary">
+          <i class="bi bi-plus-circle"></i> Создать событие
+        </a>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="col-md-10 main-content">
+      <div class="calendar-header mb-4">
+        <h1>Календарь событий</h1>
+        <div class="view-selector mb-3">
+          <div class="btn-group" role="group">
+            <a href="/calendar?view=month" class="btn btn-outline-primary {{if eq .View "month"}}active{{end}}">Месяц</a>
+            <a href="/calendar?view=week" class="btn btn-outline-primary {{if eq .View "week"}}active{{end}}">Неделя</a>
+            <a href="/calendar?view=day" class="btn btn-outline-primary {{if eq .View "day"}}active{{end}}">День</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="calendar"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Определяем начальный вид в зависимости от параметра
+    let initialView;
+    {{if eq .View "day"}}
+    initialView = 'timeGridDay';
+    {{else if eq .View "week"}}
+    initialView = 'timeGridWeek';
+    {{else}}
+    initialView = 'dayGridMonth';
+    {{end}}
+
+    var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: initialView,
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      },
+      firstDay: 1, // Понедельник как первый день
+      locale: 'ru',
+      allDaySlot: false,
+      slotMinTime: '03:00:00',
+      slotMaxTime: '23:00:00',
+      events: '/calendar/events',
+      eventTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      },
+      eventClick: function(info) {
+        window.location.href = '/calendar/event/' + info.event.id;
+      },
+      dateClick: function(info) {
+        window.location.href = '/calendar/create?date=' + info.dateStr;
+      }
+    });
+
+    calendar.render();
+  });
+</script>
+</body>
+</html>
