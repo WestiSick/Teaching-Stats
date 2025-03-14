@@ -4,6 +4,7 @@ import (
 	"TeacherJournal/app/dashboard/db"
 	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -310,4 +311,140 @@ func (h *LabHandler) ViewLabGradesHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	renderTemplate(w, h.Tmpl, "view_labs.html", data)
+}
+
+// ShareLabGradesHandler generates a shareable link for lab grades
+func (h *LabHandler) ShareLabGradesHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	subject := vars["subject"]
+	groupName := vars["group"]
+
+	// Check if the group belongs to this teacher
+	groups, err := db.GetGroupsByTeacher(h.DB, userInfo.ID)
+	if err != nil {
+		http.Error(w, "Error retrieving groups", http.StatusInternalServerError)
+		return
+	}
+
+	// Verify the teacher has access to this group
+	hasAccess := false
+	for _, group := range groups {
+		if group.Name == groupName {
+			hasAccess = true
+			break
+		}
+	}
+
+	if !hasAccess {
+		http.Error(w, "No access to this group", http.StatusForbidden)
+		return
+	}
+
+	// For POST requests, generate a new shareable link
+	if r.Method == "POST" {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Error parsing form", http.StatusBadRequest)
+			return
+		}
+
+		// Parse expiration days
+		expirationDays := 7 // Default to 7 days
+		if expStr := r.FormValue("expiration"); expStr != "" {
+			if exp, err := strconv.Atoi(expStr); err == nil {
+				expirationDays = exp
+			}
+		}
+
+		// Generate the shared link
+		token, err := db.CreateSharedLabLink(h.DB, userInfo.ID, groupName, subject, expirationDays)
+		if err != nil {
+			http.Error(w, "Error creating shared link", http.StatusInternalServerError)
+			return
+		}
+
+		// Construct the full URL
+		shareURL := fmt.Sprintf("%s/s/%s", getBaseURL(r), token)
+
+		// Log the action
+		db.LogAction(h.DB, userInfo.ID, "Share Lab Grades",
+			fmt.Sprintf("Created shared link for %s, %s", subject, groupName))
+
+		// Return the URL as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":  true,
+			"shareUrl": shareURL,
+		})
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+// SharedLabViewHandler handles viewing lab grades via a shared link
+func (h *LabHandler) SharedLabViewHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := vars["token"]
+
+	// Get the shared link details
+	sharedLink, err := db.GetSharedLabLink(h.DB, token)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "The link is invalid or has expired", http.StatusNotFound)
+		} else {
+			http.Error(w, "Error retrieving shared link", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Get teacher info
+	var teacher models.User
+	if err := h.DB.First(&teacher, sharedLink.TeacherID).Error; err != nil {
+		http.Error(w, "Error retrieving teacher information", http.StatusInternalServerError)
+		return
+	}
+
+	// Get lab summary for the group
+	summary, err := db.GetGroupLabSummary(h.DB, sharedLink.TeacherID, sharedLink.GroupName, sharedLink.Subject)
+	if err != nil {
+		http.Error(w, "Error retrieving lab summary", http.StatusInternalServerError)
+		return
+	}
+
+	// Prepare expiration date string if applicable
+	var expirationDate string
+	if sharedLink.ExpiresAt != nil {
+		expirationDate = sharedLink.ExpiresAt.Format("02.01.2006")
+	}
+
+	data := struct {
+		Summary        db.GroupLabSummary
+		TeacherName    string
+		ExpirationDate string
+	}{
+		Summary:        summary,
+		TeacherName:    teacher.FIO,
+		ExpirationDate: expirationDate,
+	}
+
+	// Log the access
+	db.LogAction(h.DB, sharedLink.TeacherID, "Shared Link Accessed",
+		fmt.Sprintf("Shared link for %s, %s was accessed", sharedLink.Subject, sharedLink.GroupName))
+
+	renderTemplate(w, h.Tmpl, "shared_lab_view.html", data)
+}
+
+// Helper function to get the base URL from a request
+func getBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s", scheme, r.Host)
 }

@@ -46,6 +46,7 @@ func InitDB() *gorm.DB {
 		&models.LabSettings{},
 		&models.LabGrade{},
 		&models.UserNotificationSettings{},
+		&models.SharedLabLink{},
 	)
 
 	if err != nil {

@@ -91,3 +91,14 @@ type UserNotificationSettings struct {
 	NotifyTicketComment bool `gorm:"not null;default:true"`
 	NotifyTicketStatus  bool `gorm:"not null;default:true"`
 }
+
+type SharedLabLink struct {
+	ID          int `gorm:"primaryKey"`
+	Token       string
+	TeacherID   int
+	GroupName   string
+	Subject     string
+	CreatedAt   time.Time
+	ExpiresAt   *time.Time
+	AccessCount int
+}
