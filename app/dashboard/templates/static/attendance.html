@@ -3,15 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Список посещений - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Список посещений - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Список посещений</h1>
 
+  {{if .Attendances}}
   <div class="table-container">
     <table>
       <thead>
@@ -31,34 +35,70 @@
         <td>{{.Subject}}</td>
         <td>{{.GroupName}}</td>
         <td>{{.TotalStudents}}</td>
-        <td>{{.AttendedStudents}}</td>
         <td>
-          <a href="/attendance/view/{{.LessonID}}" class="view-btn">Посмотреть</a>
-          <a href="/attendance/edit/{{.LessonID}}" class="edit-btn">Редактировать</a>
-          <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить посещаемость для пары от {{.Date}}?');">
-            <input type="hidden" name="attendance_id" value="{{.LessonID}}">
-            <button type="submit" class="delete-btn">Удалить</button>
-          </form>
-        </td>
-      </tr>
-      {{end}}
-      </tbody>
-    </table>
+          <div class="d-flex align-items-center gap-2">
+            <span class="attendance-count">
+              {{.AttendedStudents}}/{{.TotalStudents}}
+            </span>
+            {{$percentage := divideAndMultiply .AttendedStudents .TotalStudents 100}}
+            <div class="attendance-bar">
+              <div class="attendance-progress {{if ge $percentage 80}}high-attendance{{else if ge $percentage 50}}medium-attendance{{else}}low-attendance{{end}}"
+                   style="width: {{printf "%.1f" $percentage}}%;">
+            </div>
+          </div>
+          <span class="attendance-percent">({{printf "%.1f" $percentage}}%)</span>
   </div>
-
-  <!-- Export section -->
-  <div class="export-section">
-    <h3>Экспорт посещаемости</h3>
-    <div class="export-options">
-      <a href="/export/attendance?mode=lesson" class="export-btn">Экспорт по группе</a>
-      <a href="/export/attendance?mode=group" class="export-btn">Экспорт по предмету</a>
+  </td>
+  <td>
+    <div class="action-buttons">
+      <a href="/attendance/view/{{.LessonID}}" class="btn btn-sm btn-secondary">
+        <span>👁️</span> Просмотр
+      </a>
+      <a href="/attendance/edit/{{.LessonID}}" class="btn btn-sm btn-edit">
+        <span>✏️</span> Редактировать
+      </a>
+      <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить посещаемость для пары от {{.Date}}?');">
+        <input type="hidden" name="attendance_id" value="{{.LessonID}}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <span>🗑️</span> Удалить
+        </button>
+      </form>
     </div>
-  </div>
+  </td>
+  </tr>
+  {{end}}
+  </tbody>
+  </table>
+</div>
 
-  <div class="action-links">
-    <a href="/attendance/add">Добавить посещаемость</a>
-    <a href="/dashboard">Назад</a>
+<!-- Export section -->
+<div class="card export-section p-4 mt-6">
+  <h3 class="mb-4">Экспорт посещаемости</h3>
+  <div class="d-flex gap-4">
+    <a href="/export/attendance?mode=lesson" class="btn btn-info">
+      <span>📊</span> Экспорт по группе
+    </a>
+    <a href="/export/attendance?mode=group" class="btn btn-info">
+      <span>📊</span> Экспорт по предмету
+    </a>
   </div>
+</div>
+{{else}}
+<div class="empty-state card text-center p-6">
+  <div class="empty-state-icon mb-4">📋</div>
+  <h3>Нет данных о посещаемости</h3>
+  <p class="text-muted mb-4">У вас пока нет записей о посещаемости</p>
+</div>
+{{end}}
+
+<div class="btn-group">
+  <a href="/attendance/add" class="btn btn-primary">
+    <span>➕</span> Добавить посещаемость
+  </a>
+  <a href="/dashboard" class="btn btn-secondary">
+    <span>🏠</span> Назад на главную
+  </a>
+</div>
 </div>
 
 <div class="user-info">
@@ -67,7 +107,58 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+
+<style>
+  /* Add some additional styles for the attendance bar */
+  .attendance-bar {
+    height: 8px;
+    width: 100px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+
+  .attendance-progress {
+    height: 100%;
+    border-radius: var(--radius-full);
+  }
+
+  .high-attendance {
+    background: linear-gradient(90deg, var(--success) 0%, #059669 100%);
+  }
+
+  .medium-attendance {
+    background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
+  }
+
+  .low-attendance {
+    background: linear-gradient(90deg, var(--danger) 0%, #b91c1c 100%);
+  }
+
+  .attendance-count {
+    min-width: 50px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .attendance-percent {
+    min-width: 60px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+  }
+</style>
 </body>
 </html>

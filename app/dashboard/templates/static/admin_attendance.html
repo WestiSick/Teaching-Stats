@@ -3,55 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление посещаемостью - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Управление посещаемостью - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Управление посещаемостью</h1>
 
-    <form method="GET" class="filter-form">
-        <label>
-            Преподаватель:
-            <select name="teacher_id" onchange="this.form.submit()">
-                <option value="">-- Выберите преподавателя --</option>
-                {{range .TeacherList}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedTeacherID}}selected{{end}}>{{.FIO}}</option>
-                {{end}}
-            </select>
-        </label>
+    <div class="card filter-section mb-6">
+        <h2 class="filter-title mb-4">Фильтры</h2>
+        <form method="GET" class="filter-form">
+            <div class="filter-row">
+                <div class="form-group mb-0">
+                    <label for="teacher-filter">Преподаватель:</label>
+                    <select name="teacher_id" id="teacher-filter" class="form-control" onchange="this.form.submit()">
+                        <option value="">-- Выберите преподавателя --</option>
+                        {{range .TeacherList}}
+                        <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedTeacherID}}selected{{end}}>{{.FIO}}</option>
+                        {{end}}
+                    </select>
+                </div>
 
-        {{if .SelectedTeacherID}}
-        <label>
-            Группа:
-            <select name="group" onchange="this.form.submit()">
-                <option value="">-- Все группы --</option>
-                {{range .Groups}}
-                <option value="{{.}}" {{if eq . $.SelectedGroup}}selected{{end}}>{{.}}</option>
+                {{if .SelectedTeacherID}}
+                <div class="form-group mb-0">
+                    <label for="group-filter">Группа:</label>
+                    <select name="group" id="group-filter" class="form-control" onchange="this.form.submit()">
+                        <option value="">-- Все группы --</option>
+                        {{range .Groups}}
+                        <option value="{{.}}" {{if eq . $.SelectedGroup}}selected{{end}}>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
                 {{end}}
-            </select>
-        </label>
-        {{end}}
 
-        {{if and .SelectedTeacherID .SelectedGroup}}
-        <label>
-            Предмет:
-            <select name="subject" onchange="this.form.submit()">
-                <option value="">-- Все предметы --</option>
-                {{range .Subjects}}
-                <option value="{{.}}" {{if eq . $.SelectedSubject}}selected{{end}}>{{.}}</option>
+                {{if and .SelectedTeacherID .SelectedGroup}}
+                <div class="form-group mb-0">
+                    <label for="subject-filter">Предмет:</label>
+                    <select name="subject" id="subject-filter" class="form-control" onchange="this.form.submit()">
+                        <option value="">-- Все предметы --</option>
+                        {{range .Subjects}}
+                        <option value="{{.}}" {{if eq . $.SelectedSubject}}selected{{end}}>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
                 {{end}}
-            </select>
-        </label>
-        {{end}}
-    </form>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span>🔍</span> Применить фильтры
+                </button>
+                {{if or .SelectedTeacherID .SelectedGroup .SelectedSubject}}
+                <a href="/admin/attendance" class="btn btn-secondary">
+                    <span>♻️</span> Сбросить фильтры
+                </a>
+                {{end}}
+            </div>
+        </form>
+    </div>
 
     {{if .AttendanceData}}
-    <div class="attendance-header">
-        <h2>Данные о посещаемости: {{if .SelectedGroup}}группа {{.SelectedGroup}}{{else}}все группы{{end}}</h2>
-        <a href="/admin/attendance/export?teacher_id={{.SelectedTeacherID}}{{if .SelectedGroup}}&group={{.SelectedGroup}}{{end}}{{if .SelectedSubject}}&subject={{.SelectedSubject}}{{end}}" class="export-btn">Экспорт в Excel</a>
+    <div class="export-header d-flex justify-between align-items-center mb-4">
+        <h2 class="section-title mb-0">
+            Данные о посещаемости
+            {{if .SelectedGroup}}
+            <span class="badge badge-primary">Группа {{.SelectedGroup}}</span>
+            {{else}}
+            <span class="badge badge-secondary">Все группы</span>
+            {{end}}
+        </h2>
+
+        <a href="/admin/attendance/export?teacher_id={{.SelectedTeacherID}}{{if .SelectedGroup}}&group={{.SelectedGroup}}{{end}}{{if .SelectedSubject}}&subject={{.SelectedSubject}}{{end}}" class="btn btn-info">
+            <span>📊</span> Экспорт в Excel
+        </a>
     </div>
 
     <div class="table-container">
@@ -72,48 +101,85 @@
                 <td>{{.Subject}}</td>
                 <td>{{.GroupName}}</td>
                 <td>
-                    {{$percentage := divideAndMultiply .AttendedStudents .TotalStudents 100}}
-                    <span class="attendance-stats {{if ge $percentage 80}}good-attendance{{else if ge $percentage 50}}medium-attendance{{else}}bad-attendance{{end}}">
-                {{.AttendedStudents}}/{{.TotalStudents}} ({{printf "%.1f" $percentage}}%)
-              </span>
-                </td>
-                <td>
-                    <div class="action-links">
-                        <a href="/admin/attendance/view/{{.LessonID}}" class="btn-admin">Просмотр</a>
-                        <a href="/admin/attendance/edit/{{.LessonID}}" class="btn-edit">Редактировать</a>
-                        <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить данные о посещаемости?');">
-                            <input type="hidden" name="attendance_id" value="{{.LessonID}}">
-                            <button type="submit" class="btn-delete">Удалить</button>
-                        </form>
+                    <div class="attendance-display">
+                        {{$percentage := divideAndMultiply .AttendedStudents .TotalStudents 100}}
+                        <div class="attendance-numbers">{{.AttendedStudents}}/{{.TotalStudents}}</div>
+                        <div class="attendance-bar">
+                            <div class="attendance-progress {{if ge $percentage 80}}high-attendance{{else if ge $percentage 50}}medium-attendance{{else}}low-attendance{{end}}"
+                                 style="width: {{printf "%.1f" $percentage}}%;">
+                        </div>
                     </div>
-                </td>
-            </tr>
-            {{end}}
-            </tbody>
-        </table>
+                    <div class="attendance-percent">{{printf "%.1f" $percentage}}%</div>
     </div>
-    {{else if .SelectedTeacherID}}
-    {{if .SelectedGroup}}
-    <div class="admin-action">
-        <div class="section-title">Данные о посещаемости не найдены</div>
-        <p>Для выбранной группы нет данных о посещаемости.</p>
-        <a href="/admin/attendance/add/{{.SelectedTeacherID}}{{if .SelectedGroup}}/{{.SelectedGroup}}{{end}}" class="btn btn-edit">Добавить данные о посещаемости</a>
-    </div>
-    {{else}}
-    <div class="admin-action">
-        <div class="section-title">Выберите группу</div>
-        <p>Для просмотра данных о посещаемости выберите группу из списка выше.</p>
-    </div>
+    </td>
+    <td>
+        <div class="action-buttons">
+            <a href="/admin/attendance/view/{{.LessonID}}" class="btn btn-sm btn-secondary">
+                <span>👁️</span> Просмотр
+            </a>
+            <a href="/admin/attendance/edit/{{.LessonID}}" class="btn btn-sm btn-edit">
+                <span>✏️</span> Редактировать
+            </a>
+            <button type="button" class="btn btn-sm btn-danger delete-attendance" data-id="{{.LessonID}}" data-date="{{.Date}}">
+                <span>🗑️</span> Удалить
+            </button>
+        </div>
+    </td>
+    </tr>
     {{end}}
-    {{else}}
-    <div class="admin-action">
-        <div class="section-title">Выберите преподавателя</div>
-        <p>Для просмотра данных о посещаемости выберите преподавателя из списка выше.</p>
-    </div>
-    {{end}}
+    </tbody>
+    </table>
+</div>
+{{else if .SelectedTeacherID}}
+{{if .SelectedGroup}}
+<div class="empty-state card p-6 text-center">
+    <div class="empty-state-icon mb-4">📋</div>
+    <h3>Данные о посещаемости не найдены</h3>
+    <p class="text-muted mb-4">Для выбранной группы нет данных о посещаемости</p>
+    <a href="/admin/attendance/add/{{.SelectedTeacherID}}{{if .SelectedGroup}}/{{.SelectedGroup}}{{end}}" class="btn btn-primary">
+        <span>➕</span> Добавить данные о посещаемости
+    </a>
+</div>
+{{else}}
+<div class="empty-state card p-6 text-center">
+    <div class="empty-state-icon mb-4">👥</div>
+    <h3>Выберите группу</h3>
+    <p class="text-muted mb-4">Для просмотра данных о посещаемости выберите группу из списка выше</p>
+</div>
+{{end}}
+{{else}}
+<div class="empty-state card p-6 text-center">
+    <div class="empty-state-icon mb-4">👨‍🏫</div>
+    <h3>Выберите преподавателя</h3>
+    <p class="text-muted mb-4">Для просмотра данных о посещаемости выберите преподавателя из списка выше</p>
+</div>
+{{end}}
 
-    <div class="btn-group">
-        <a href="/admin" class="btn btn-admin">Назад в админ-панель</a>
+<div class="btn-group mt-6">
+    <a href="/admin" class="btn btn-secondary">
+        <span>🏠</span> Назад в админ-панель
+    </a>
+</div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+            <button type="button" class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Вы уверены, что хотите удалить данные о посещаемости за <span id="deleteDate" class="font-bold"></span>?</p>
+            <p class="text-danger mt-2">Это действие не может быть отменено.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
+            <form id="deleteForm" method="POST">
+                <input type="hidden" id="deleteAttendanceId" name="attendance_id" value="">
+                <button type="submit" class="btn btn-danger">Удалить</button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -123,14 +189,188 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script>
-    // Helper function to calculate percentage for attendance
-    function divideAndMultiply(a, b, multiplier) {
-        if (b === 0) return 0;
-        return (a / b) * multiplier;
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        // Delete attendance functionality
+        const deleteButtons = document.querySelectorAll('.delete-attendance');
+        const deleteModal = document.getElementById('deleteModal');
+        const deleteForm = document.getElementById('deleteForm');
+        const deleteAttendanceId = document.getElementById('deleteAttendanceId');
+        const deleteDate = document.getElementById('deleteDate');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelDeleteBtn = document.getElementById('cancelDelete');
+
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const date = this.getAttribute('data-date');
+
+                if (deleteAttendanceId) deleteAttendanceId.value = id;
+                if (deleteDate) deleteDate.textContent = date;
+                if (deleteModal) deleteModal.style.display = 'flex';
+            });
+        });
+
+        // Close modal functions
+        const closeModal = function() {
+            if (deleteModal) deleteModal.style.display = 'none';
+        };
+
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+        if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeModal);
+
+        // Click outside modal to close
+        window.addEventListener('click', function(event) {
+            if (event.target === deleteModal) closeModal();
+        });
+
+        // Animate attendance bars
+        const progressBars = document.querySelectorAll('.attendance-progress');
+        setTimeout(() => {
+            progressBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.transition = 'width 1s ease-out';
+                    bar.style.width = width;
+                }, 100);
+            });
+        }, 200);
+    });
 </script>
+
+<style>
+    .filter-section {
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .filter-title {
+        color: var(--text-primary);
+        margin-bottom: var(--space-4);
+    }
+
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: var(--space-3);
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .section-title {
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .attendance-display {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .attendance-numbers {
+        font-family: var(--font-mono);
+        font-weight: 600;
+        min-width: 45px;
+    }
+
+    .attendance-bar {
+        height: 8px;
+        width: 100px;
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+    }
+
+    .attendance-progress {
+        height: 100%;
+        width: 0;
+        transition: width 0.3s ease-out;
+    }
+
+    .high-attendance {
+        background: linear-gradient(90deg, var(--success) 0%, #059669 100%);
+    }
+
+    .medium-attendance {
+        background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
+    }
+
+    .low-attendance {
+        background: linear-gradient(90deg, var(--danger) 0%, #b91c1c 100%);
+    }
+
+    .attendance-percent {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        min-width: 50px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+    }
+
+    /* Modal animation */
+    .modal {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .filter-row {
+            flex-direction: column;
+        }
+
+        .export-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-3);
+        }
+
+        .attendance-display {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .attendance-bar {
+            width: 100%;
+        }
+    }
+</style>
 </body>
 </html>

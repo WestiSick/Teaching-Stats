@@ -3,41 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Редактирование посещаемости - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Редактирование посещаемости - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Редактирование посещаемости</h1>
 
-  <div class="lesson-info">
-    <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
-    <p><strong>Группа:</strong> {{.Lesson.GroupName}}</p>
-    <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
-    <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
-    <p><strong>Тип:</strong> {{.Lesson.Type}}</p>
+  <div class="card lesson-info mb-6">
+    <div class="lesson-details-grid">
+      <div class="detail-row">
+        <div class="detail-label">Предмет:</div>
+        <div class="detail-value">{{.Lesson.Subject}}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Группа:</div>
+        <div class="detail-value">{{.Lesson.GroupName}}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Тема:</div>
+        <div class="detail-value">{{.Lesson.Topic}}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Дата:</div>
+        <div class="detail-value">{{.Lesson.Date}}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Тип:</div>
+        <div class="detail-value">{{.Lesson.Type}}</div>
+      </div>
+    </div>
   </div>
 
-  <form method="POST">
-    <h3>Список студентов</h3>
-    <div class="student-list">
-      {{range .Students}}
-      <div class="student-item">
-        <input type="checkbox" id="student-{{.ID}}" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} class="attendance-checkbox">
-        <label for="student-{{.ID}}">{{.FIO}}</label>
+  <form method="POST" id="attendanceForm">
+    <div class="attendance-header card p-4 mb-4">
+      <div class="d-flex justify-between items-center">
+        <div class="attendance-count-container">
+          <span class="count-label">Присутствует:</span>
+          <span id="attendanceCount" class="attendance-count">0</span>
+          <span class="count-divider">/</span>
+          <span class="total-count">{{len .Students}}</span>
+          <span class="count-percentage" id="attendancePercent">(0%)</span>
+        </div>
+        <div class="attendance-controls">
+          <button type="button" class="btn btn-sm btn-secondary" id="selectAllBtn">
+            <span>✓</span> Выбрать всех
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" id="deselectAllBtn">
+            <span>✗</span> Снять выбор
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" id="invertSelectionBtn">
+            <span>⇄</span> Инвертировать
+          </button>
+        </div>
       </div>
-      {{end}}
+      <div class="attendance-progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
     </div>
 
-    <button type="submit" class="submit-btn">Сохранить изменения</button>
-    <a href="/attendance" class="cancel-btn">Отмена</a>
-  </form>
+    <div class="table-container">
+      <table id="studentsTable">
+        <thead>
+        <tr>
+          <th style="width: 60px;">№</th>
+          <th>ФИО студента</th>
+          <th style="width: 120px;">Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range $index, $student := .Students}}
+        <tr>
+          <td class="text-center">{{inc $index}}</td>
+          <td class="student-name">
+            <label class="student-label" for="student-{{$student.ID}}">
+              {{$student.FIO}}
+            </label>
+          </td>
+          <td class="attendance-toggle">
+            <div class="toggle-switch">
+              <input
+                      type="checkbox"
+                      id="student-{{$student.ID}}"
+                      name="attended"
+                      value="{{$student.ID}}"
+                      class="attendance-checkbox"
+                      {{if $student.Attended}}checked{{end}}>
+              <label for="student-{{$student.ID}}" class="switch-label">
+                <span class="switch-on">Присутствовал</span>
+                <span class="switch-off">Отсутствовал</span>
+              </label>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
 
-  <div class="legend">
-    <p>* Отметьте студентов, присутствовавших на паре</p>
-  </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <span>💾</span> Сохранить изменения
+      </button>
+      <a href="/attendance" class="btn btn-secondary">
+        <span>🔙</span> Отмена
+      </a>
+    </div>
+  </form>
 </div>
 
 <div class="user-info">
@@ -46,8 +123,308 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/attendance.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to increment index
+    function inc(i) {
+      return i + 1;
+    }
+
+    // Control elements
+    const attendanceCount = document.getElementById('attendanceCount');
+    const attendancePercent = document.getElementById('attendancePercent');
+    const progressFill = document.getElementById('progressFill');
+    const checkboxes = document.querySelectorAll('.attendance-checkbox');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const invertSelectionBtn = document.getElementById('invertSelectionBtn');
+
+    // Functions for attendance control
+    function updateAttendanceCount() {
+      const checkedCount = document.querySelectorAll('.attendance-checkbox:checked').length;
+      const totalCount = checkboxes.length;
+      const percentage = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+
+      attendanceCount.textContent = checkedCount;
+      attendancePercent.textContent = `(${percentage}%)`;
+      progressFill.style.width = `${percentage}%`;
+
+      // Update progress bar color
+      if (percentage >= 80) {
+        progressFill.className = 'progress-fill progress-high';
+      } else if (percentage >= 50) {
+        progressFill.className = 'progress-fill progress-medium';
+      } else {
+        progressFill.className = 'progress-fill progress-low';
+      }
+
+      // Update table rows
+      checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        if (checkbox.checked) {
+          row.classList.add('student-present');
+          row.classList.remove('student-absent');
+        } else {
+          row.classList.add('student-absent');
+          row.classList.remove('student-present');
+        }
+      });
+    }
+
+    function selectAll() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+      });
+      updateAttendanceCount();
+    }
+
+    function deselectAll() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      updateAttendanceCount();
+    }
+
+    function invertSelection() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = !checkbox.checked;
+      });
+      updateAttendanceCount();
+    }
+
+    // Add event listeners
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', updateAttendanceCount);
+
+      // Make the whole row clickable
+      const row = checkbox.closest('tr');
+      if (row) {
+        row.addEventListener('click', function(e) {
+          // Don't toggle if clicking on the checkbox itself or its label
+          if (e.target !== checkbox && !e.target.classList.contains('switch-label') &&
+                  !e.target.classList.contains('switch-on') && !e.target.classList.contains('switch-off')) {
+            checkbox.checked = !checkbox.checked;
+            updateAttendanceCount();
+          }
+        });
+      }
+    });
+
+    if (selectAllBtn) selectAllBtn.addEventListener('click', selectAll);
+    if (deselectAllBtn) deselectAllBtn.addEventListener('click', deselectAll);
+    if (invertSelectionBtn) invertSelectionBtn.addEventListener('click', invertSelection);
+
+    // Filter functionality
+    const searchInput = document.getElementById('searchStudent');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#studentsTable tbody tr');
+
+        rows.forEach(row => {
+          const studentName = row.querySelector('.student-name').textContent.toLowerCase();
+          if (studentName.includes(searchTerm)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // Initialize attendance count
+    updateAttendanceCount();
+  });
+</script>
+
+<style>
+  .lesson-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .detail-label {
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: var(--space-1);
+  }
+
+  .detail-value {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .attendance-count-container {
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+  }
+
+  .count-label {
+    margin-right: var(--space-2);
+    color: var(--text-muted);
+  }
+
+  .attendance-count {
+    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--success);
+  }
+
+  .count-divider {
+    margin: 0 var(--space-1);
+    color: var(--text-muted);
+  }
+
+  .total-count {
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+
+  .count-percentage {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-left: var(--space-2);
+  }
+
+  .attendance-controls {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .attendance-progress-bar {
+    height: 6px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    margin-top: var(--space-3);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+  }
+
+  .progress-high {
+    background: linear-gradient(90deg, var(--success), #059669);
+  }
+
+  .progress-medium {
+    background: linear-gradient(90deg, var(--warning), #d97706);
+  }
+
+  .progress-low {
+    background: linear-gradient(90deg, var(--danger), #b91c1c);
+  }
+
+  .student-name {
+    font-weight: 500;
+  }
+
+  .student-label {
+    display: block;
+    padding: var(--space-2) 0;
+    cursor: pointer;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+
+  .toggle-switch input {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+  }
+
+  .switch-label {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .switch-on, .switch-off {
+    transition: transform 0.3s ease;
+    display: block;
+  }
+
+  .switch-on {
+    color: var(--success);
+    transform: translateY(-100%);
+    position: absolute;
+    width: 100%;
+    left: 0;
+  }
+
+  .switch-off {
+    color: var(--danger);
+  }
+
+  input:checked + .switch-label {
+    background-color: var(--success-light);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  input:checked + .switch-label .switch-on {
+    transform: translateY(0);
+  }
+
+  input:checked + .switch-label .switch-off {
+    transform: translateY(100%);
+  }
+
+  .student-present {
+    background-color: rgba(16, 185, 129, 0.05);
+  }
+
+  .student-absent {
+    background-color: transparent;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+
+  @media (max-width: 768px) {
+    .attendance-header {
+      padding: var(--space-3);
+    }
+
+    .attendance-controls {
+      flex-wrap: wrap;
+    }
+
+    .d-flex {
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+  }
+</style>
 </body>
 </html>

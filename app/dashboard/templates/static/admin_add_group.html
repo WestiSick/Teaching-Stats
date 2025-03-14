@@ -3,46 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Добавление группы преподавателю - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Добавление группы преподавателю - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Добавление группы преподавателю</h1>
 
-  <div class="teacher-info">
-    <h2>Преподаватель: {{.TeacherFIO}}</h2>
+  <div class="breadcrumbs">
+    <a href="/admin" class="breadcrumb-item">Админ-панель</a>
+    <span class="breadcrumb-separator">›</span>
+    <a href="/admin/groups" class="breadcrumb-item">Управление группами</a>
+    <span class="breadcrumb-separator">›</span>
+    <span class="breadcrumb-item active">Добавление группы</span>
   </div>
 
-  <form method="POST" enctype="multipart/form-data">
-    <label>
-      Название группы:
-      <input type="text" name="group_name" required>
-    </label>
-
-    <h2>Студенты группы</h2>
-
-    <label>
-      Загрузить список студентов (каждый студент с новой строки):
-      <input type="file" name="student_list">
-    </label>
-
-    <div class="student-list" id="studentFields">
-      <label>
-        ФИО студента:
-        <input type="text" name="student_fio">
-      </label>
+  <div class="card teacher-info-card">
+    <div class="teacher-avatar">👨‍🏫</div>
+    <div class="teacher-details">
+      <h2 class="teacher-name">{{.TeacherFIO}}</h2>
+      <div class="teacher-id">ID: {{.TeacherID}}</div>
     </div>
+  </div>
 
-    <a class="add-more" id="addStudentButton">+ Добавить ещё одного студента</a>
+  <div class="card form-card">
+    <h2 class="card-title">Информация о группе</h2>
 
-    <button type="submit" class="add-student">Создать группу</button>
-  </form>
+    <form method="POST" enctype="multipart/form-data" id="addGroupForm" class="add-group-form">
+      <div class="form-group">
+        <label for="group_name">Название группы:</label>
+        <input
+                type="text"
+                id="group_name"
+                name="group_name"
+                class="form-control"
+                required
+                placeholder="Например: ИС-31">
+        <div class="form-text">Укажите уникальное название группы</div>
+      </div>
 
-  <div class="btn-group">
-    <a href="/admin/groups?teacher_id={{.TeacherID}}" class="btn btn-admin">Назад к группам</a>
+      <div class="group-students">
+        <h3>Студенты группы</h3>
+
+        <div class="upload-section">
+          <div class="upload-header">
+            <h4>Загрузить из файла</h4>
+            <div class="upload-info">
+              <span class="info-icon">ℹ️</span>
+              <span class="info-text">Текстовый файл с ФИО студентов, по одному на каждой строке</span>
+            </div>
+          </div>
+
+          <div class="file-upload">
+            <input type="file" name="student_list" id="student_list" class="file-input">
+            <label for="student_list" class="file-label">
+              <div class="file-icon">📄</div>
+              <div class="file-text">
+                <div class="file-title">Выберите файл</div>
+                <div class="file-subtitle">или перетащите его сюда</div>
+              </div>
+            </label>
+            <div id="file-name" class="file-name"></div>
+          </div>
+        </div>
+
+        <div class="manual-section">
+          <div class="manual-header">
+            <h4>Добавить вручную</h4>
+            <button type="button" id="addStudentButton" class="btn btn-sm btn-secondary">
+              <span>➕</span> Добавить студента
+            </button>
+          </div>
+
+          <div class="student-fields" id="studentFields">
+            <div class="student-field">
+              <input
+                      type="text"
+                      name="student_fio"
+                      class="form-control"
+                      placeholder="ФИО студента">
+              <button type="button" class="remove-student-btn" title="Удалить">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <span>💾</span> Создать группу
+        </button>
+        <button type="reset" class="btn btn-secondary">
+          <span>🔄</span> Очистить форму
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="btn-group mt-6">
+    <a href="/admin/groups?teacher_id={{.TeacherID}}" class="btn btn-secondary">
+      <span>🔙</span> Назад к группам
+    </a>
+    <a href="/admin" class="btn btn-secondary">
+      <span>🏠</span> Админ-панель
+    </a>
   </div>
 </div>
 
@@ -52,15 +120,398 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/groups.js"></script>
 <script>
-  // Назначаем обработчик на кнопку добавления студента
-  document.getElementById('addStudentButton').addEventListener('click', function(e) {
-    e.preventDefault();
-    Groups.addStudentField();
+  document.addEventListener('DOMContentLoaded', function() {
+    const addStudentButton = document.getElementById('addStudentButton');
+    const studentFields = document.getElementById('studentFields');
+    const fileInput = document.getElementById('student_list');
+    const fileName = document.getElementById('file-name');
+    const form = document.getElementById('addGroupForm');
+
+    // Add student field
+    if (addStudentButton) {
+      addStudentButton.addEventListener('click', function() {
+        addStudentField();
+      });
+    }
+
+    // Remove student field
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList.contains('remove-student-btn')) {
+        const field = e.target.closest('.student-field');
+        if (field && studentFields.children.length > 1) {
+          field.remove();
+        } else if (field) {
+          // Just clear the input if it's the last one
+          field.querySelector('input').value = '';
+        }
+      }
+    });
+
+    // Function to add a new student field
+    function addStudentField() {
+      const field = document.createElement('div');
+      field.className = 'student-field fade-in';
+      field.innerHTML = `
+        <input
+          type="text"
+          name="student_fio"
+          class="form-control"
+          placeholder="ФИО студента">
+        <button type="button" class="remove-student-btn" title="Удалить">✕</button>
+      `;
+      studentFields.appendChild(field);
+
+      // Focus the new field
+      const input = field.querySelector('input');
+      if (input) {
+        input.focus();
+      }
+    }
+
+    // Display filename when selected
+    if (fileInput) {
+      fileInput.addEventListener('change', function() {
+        if (this.files && this.files.length > 0) {
+          fileName.textContent = this.files[0].name;
+          fileName.classList.add('has-file');
+        } else {
+          fileName.textContent = '';
+          fileName.classList.remove('has-file');
+        }
+      });
+    }
+
+    // Form validation
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        const groupName = document.getElementById('group_name').value.trim();
+
+        // Check if group name is provided
+        if (!groupName) {
+          e.preventDefault();
+          alert('Пожалуйста, укажите название группы');
+          return false;
+        }
+
+        // Check if any students are added either via file or manually
+        const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+        let hasStudents = false;
+        const studentInputs = document.querySelectorAll('input[name="student_fio"]');
+        for (const input of studentInputs) {
+          if (input.value.trim()) {
+            hasStudents = true;
+            break;
+          }
+        }
+
+        if (!hasFile && !hasStudents) {
+          const proceed = confirm('Вы не добавили ни одного студента. Создать пустую группу?');
+          if (!proceed) {
+            e.preventDefault();
+            return false;
+          }
+        }
+
+        return true;
+      });
+    }
+
+    // File drag & drop functionality
+    const dropZone = document.querySelector('.file-label');
+
+    if (dropZone) {
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+      });
+
+      function highlight() {
+        dropZone.classList.add('highlight');
+      }
+
+      function unhighlight() {
+        dropZone.classList.remove('highlight');
+      }
+
+      dropZone.addEventListener('drop', handleDrop, false);
+
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (fileInput && files.length > 0) {
+          fileInput.files = files;
+
+          // Trigger change event
+          const event = new Event('change', { bubbles: true });
+          fileInput.dispatchEvent(event);
+        }
+      }
+    }
   });
 </script>
+
+<style>
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-6);
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+  }
+
+  .breadcrumb-item {
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .breadcrumb-item:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+  }
+
+  .breadcrumb-item.active {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .breadcrumb-separator {
+    margin: 0 var(--space-2);
+    color: var(--text-muted);
+  }
+
+  .teacher-info-card {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-6);
+    padding: var(--space-4);
+    border-left: 4px solid var(--accent-color);
+  }
+
+  .teacher-avatar {
+    font-size: 2.5rem;
+    margin-right: var(--space-4);
+  }
+
+  .teacher-name {
+    margin: 0 0 var(--space-1) 0;
+    font-size: 1.25rem;
+  }
+
+  .teacher-id {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .form-card {
+    margin-bottom: var(--space-6);
+  }
+
+  .card-title {
+    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .group-students {
+    margin-top: var(--space-6);
+  }
+
+  .upload-section, .manual-section {
+    margin-bottom: var(--space-6);
+    padding: var(--space-4);
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+  }
+
+  .upload-header, .manual-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+  }
+
+  h4 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .upload-info {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .info-icon {
+    margin-right: var(--space-2);
+  }
+
+  .file-upload {
+    position: relative;
+    margin-bottom: var(--space-3);
+  }
+
+  .file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+  }
+
+  .file-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    transition: all var(--transition-normal) ease;
+  }
+
+  .file-label:hover, .file-label.highlight {
+    border-color: var(--accent-color);
+    background-color: rgba(99, 102, 241, 0.05);
+  }
+
+  .file-icon {
+    font-size: 2rem;
+    margin-right: var(--space-4);
+    color: var(--text-muted);
+  }
+
+  .file-title {
+    font-weight: 600;
+    margin-bottom: var(--space-1);
+  }
+
+  .file-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .file-name {
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    display: none;
+  }
+
+  .file-name.has-file {
+    display: block;
+    color: var(--accent-color);
+    font-weight: 500;
+  }
+
+  .student-fields {
+    margin-top: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .student-field {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .remove-student-btn {
+    width: 36px;
+    height: 36px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all var(--transition-fast) ease;
+  }
+
+  .remove-student-btn:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .teacher-info-card {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .teacher-avatar {
+      margin-right: 0;
+      margin-bottom: var(--space-3);
+    }
+
+    .upload-header, .manual-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .file-label {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .file-icon {
+      margin-right: 0;
+      margin-bottom: var(--space-3);
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+  }
+</style>
 </body>
 </html>

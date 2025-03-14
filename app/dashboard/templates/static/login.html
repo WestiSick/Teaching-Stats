@@ -3,92 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Вход - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
-  <style>
-    /* Специфические стили только для страницы входа */
-    .form-container {
-      width: 320px;
-      border-radius: 0.75rem;
-      background-color: rgba(17, 24, 39, 1);
-      padding: 2rem;
-      color: rgba(243, 244, 246, 1);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .title {
-      text-align: center;
-      font-size: 1.5rem;
-      line-height: 2rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-    }
-
-    .form {
-      margin-top: 1.5rem;
-    }
-
-    .input-group {
-      margin-top: 0.25rem;
-      font-size: 0.875rem;
-      line-height: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .input-group label {
-      display: block;
-      color: rgba(156, 163, 175, 1);
-      margin-bottom: 4px;
-    }
-
-    .signup {
-      text-align: center;
-      font-size: 0.75rem;
-      line-height: 1rem;
-      color: rgba(156, 163, 175, 1);
-      margin-top: 1.5rem;
-    }
-
-    .signup a {
-      color: rgba(243, 244, 246, 1);
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .signup a:hover {
-      text-decoration: underline rgba(167, 139, 250, 1);
-    }
-
-    @media (max-width: 480px) {
-      .form-container {
-        width: 90%;
-        max-width: 320px;
-      }
-    }
-  </style>
 </head>
 <body>
-<div class="form-container">
-  <p class="title">Вход в систему</p>
-  <form class="form" method="POST">
-    <div class="input-group">
-      <label for="login">Почта</label>
-      <input type="text" name="login" id="login" required>
+<div class="auth-container">
+  <div class="auth-logo mb-4 text-center">
+    <div class="logo-icon">📊</div>
+    <h2 class="auth-title">Teacher Journal</h2>
+  </div>
+
+  <h1 class="auth-heading">Вход в систему</h1>
+
+  <form class="auth-form" method="POST">
+    <div class="form-group">
+      <label for="login">Имя пользователя</label>
+      <input
+              type="text"
+              id="login"
+              name="login"
+              placeholder="Введите ваш логин"
+              required
+              class="form-control"
+              autocomplete="username">
     </div>
-    <div class="input-group">
+
+    <div class="form-group">
       <label for="password">Пароль</label>
-      <input type="password" name="password" id="password" required>
+      <div class="password-input-wrapper">
+        <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Введите ваш пароль"
+                required
+                class="form-control"
+                autocomplete="current-password">
+        <button type="button" id="togglePassword" class="toggle-password" aria-label="Показать/скрыть пароль">
+          <span class="eye-icon">👁️</span>
+        </button>
+      </div>
     </div>
-    <button class="btn btn-primary w-100" type="submit">Войти</button>
+
+    <button type="submit" class="btn btn-primary w-full mt-4">
+      Войти в аккаунт
+    </button>
   </form>
-  <p class="signup">Еще нет аккаунта?
-    <a rel="noopener noreferrer" href="/register">Зарегистрироваться</a>
-  </p>
+
+  <div class="auth-links mt-4 text-center">
+    <p class="text-muted mb-2">Еще нет аккаунта?</p>
+    <a href="/register" class="btn btn-secondary w-full">Зарегистрироваться</a>
+  </div>
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+<script>
+  // Script to toggle password visibility
+  document.addEventListener('DOMContentLoaded', function() {
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+
+    if (togglePassword && password) {
+      togglePassword.addEventListener('click', function() {
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        this.classList.toggle('show-password');
+      });
+    }
+  });
+</script>
+
+<style>
+  body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .auth-container {
+    width: 100%;
+    max-width: 400px;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--border-color);
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .logo-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-2);
+    color: var(--accent-color);
+  }
+
+  .auth-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0;
+  }
+
+  .auth-heading {
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-2);
+    position: relative;
+  }
+
+  .auth-heading::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    border-radius: 3px;
+  }
+
+  .password-input-wrapper {
+    position: relative;
+  }
+
+  .toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toggle-password:hover {
+    color: var(--text-primary);
+  }
+
+  .show-password .eye-icon {
+    opacity: 0.7;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
 </body>
 </html>

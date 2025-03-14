@@ -3,46 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Список групп - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Список групп - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
-  <h1>Список групп</h1>
+  <h1>Управление группами</h1>
 
-  <div class="table-container">
-    <table>
-      <thead>
-      <tr>
-        <th>Название группы</th>
-        <th>Количество студентов</th>
-        <th>Действия</th>
-      </tr>
-      </thead>
-      <tbody>
-      {{range .Groups}}
-      <tr>
-        <td>{{.Name}}</td>
-        <td>{{.StudentCount}}</td>
-        <td>
-          <div class="action-buttons">
-            <a href="/groups/edit/{{.Name}}">Редактировать</a>
-            <form method="POST" style="display:inline; margin: 0;" id="deleteForm{{.Name}}">
-              <input type="hidden" name="group_name" value="{{.Name}}">
-              <button type="button" class="delete-btn" data-group="{{.Name}}">Удалить</button>
-            </form>
-          </div>
-        </td>
-      </tr>
-      {{end}}
-      </tbody>
-    </table>
+  <div class="d-flex justify-between align-items-center mb-6">
+    <div class="section-info">
+      <p class="text-muted">Всего групп: <span class="text-primary font-bold">{{len .Groups}}</span></p>
+    </div>
+    <div>
+      <a href="/groups/add" class="btn btn-primary">
+        <span>👥</span> Добавить группу
+      </a>
+    </div>
   </div>
 
-  <a href="/groups/add" class="add-btn">Добавить группу</a>
-  <a href="/dashboard" class="back-link">Назад</a>
+  {{if .Groups}}
+  <div class="groups-container">
+    {{range .Groups}}
+    <div class="card group-card fade-in">
+      <div class="group-card-header">
+        <div class="group-info">
+          <h3 class="group-name mb-1">{{.Name}}</h3>
+          <span class="badge badge-primary">{{.StudentCount}} студентов</span>
+        </div>
+        <div class="group-actions">
+          <a href="/groups/edit/{{.Name}}" class="btn btn-sm btn-edit">
+            <span>✏️</span> Редактировать
+          </a>
+          <button type="button" class="btn btn-sm btn-danger delete-group-btn" data-group="{{.Name}}">
+            <span>🗑️</span> Удалить
+          </button>
+        </div>
+      </div>
+
+      <form method="POST" id="deleteForm{{.Name}}" style="display: none;">
+        <input type="hidden" name="group_name" value="{{.Name}}">
+      </form>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty-state card text-center p-6">
+    <div class="empty-state-icon mb-4">👥</div>
+    <h3>У вас пока нет групп</h3>
+    <p class="text-muted mb-4">Создайте свою первую группу студентов</p>
+    <a href="/groups/add" class="btn btn-primary">Добавить группу</a>
+  </div>
+  {{end}}
+
+  <div class="btn-group mt-6">
+    <a href="/dashboard" class="btn btn-secondary">
+      <span>🏠</span> Вернуться на главную
+    </a>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div id="confirmDeleteModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+      <button type="button" class="close-btn" id="closeModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>Вы уверены, что хотите удалить группу <span id="deleteGroupName" class="font-bold"></span>?</p>
+      <p class="text-danger mt-2">Это действие удалит все связанные данные о парах и студентах и не может быть отменено.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
+      <button type="button" class="btn btn-danger" id="confirmDelete">Удалить</button>
+    </div>
+  </div>
 </div>
 
 <div class="user-info">
@@ -51,24 +91,150 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/groups.js"></script>
 <script>
-  // Назначаем обработчики для кнопок удаления группы
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.delete-btn').forEach(button => {
+    const modal = document.getElementById('confirmDeleteModal');
+    const closeBtn = document.getElementById('closeModal');
+    const cancelBtn = document.getElementById('cancelDelete');
+    const confirmBtn = document.getElementById('confirmDelete');
+    const groupNameEl = document.getElementById('deleteGroupName');
+    let currentForm = null;
+
+    // Open modal when delete button is clicked
+    document.querySelectorAll('.delete-group-btn').forEach(button => {
       button.addEventListener('click', function() {
         const groupName = this.getAttribute('data-group');
-        if (confirm(`Вы уверены, что хотите удалить группу ${groupName} со всеми парами и студентами?`)) {
-          const form = document.getElementById(`deleteForm${groupName}`);
-          if (form) {
-            form.submit();
-          }
+        const formId = `deleteForm${groupName}`;
+        currentForm = document.getElementById(formId);
+
+        if (groupNameEl) {
+          groupNameEl.textContent = groupName;
+        }
+
+        if (modal) {
+          modal.style.display = 'flex';
         }
       });
     });
+
+    // Close modal functions
+    const closeModal = function() {
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeModal);
+    }
+
+    // When clicking outside the modal content, close it
+    if (modal) {
+      modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+    }
+
+    // Confirm delete
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', function() {
+        if (currentForm) {
+          currentForm.submit();
+        }
+      });
+    }
+
+    // Add animation for cards
+    const cards = document.querySelectorAll('.group-card');
+    cards.forEach((card, index) => {
+      setTimeout(() => {
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, index * 100);
+    });
   });
 </script>
+
+<style>
+  .groups-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .group-card {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .group-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .group-info {
+    flex: 1;
+  }
+
+  .group-name {
+    margin-bottom: var(--space-1);
+    color: var(--text-primary);
+  }
+
+  .group-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+  }
+
+  /* Modal animation */
+  .modal {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .modal-content {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .groups-container {
+      grid-template-columns: 1fr;
+    }
+
+    .group-card-header {
+      flex-direction: column;
+    }
+
+    .group-actions {
+      margin-top: var(--space-3);
+      width: 100%;
+    }
+  }
+</style>
 </body>
 </html>

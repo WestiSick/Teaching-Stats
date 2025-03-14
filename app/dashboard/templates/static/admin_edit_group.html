@@ -3,21 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактирование группы - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Редактирование группы - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Редактирование группы</h1>
 
-    <div class="teacher-info">
-        <h2>Преподаватель: {{.TeacherFIO}}</h2>
-        <h2>Группа: {{.GroupName}}</h2>
+    <div class="card teacher-info-card mb-6">
+        <div class="d-flex justify-between align-items-center">
+            <div>
+                <h3 class="teacher-name mb-2">Преподаватель: {{.TeacherFIO}}</h3>
+                <div class="group-badge">
+                    <span class="badge badge-primary">Группа: {{.GroupName}}</span>
+                </div>
+            </div>
+            <div class="group-stats">
+                <div class="stat-item mb-0">
+                    <div class="stat-value">{{len .Students}}</div>
+                    <div class="stat-label">студентов</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <h3>Студенты группы</h3>
+    <h2 class="section-title">Студенты группы</h2>
 
     {{if .Students}}
     <div class="table-container">
@@ -31,15 +46,23 @@
             <tbody>
             {{range .Students}}
             <tr>
-                <td>{{.FIO}}</td>
+                <td class="student-name">{{.FIO}}</td>
                 <td>
-                    <form method="POST" style="display:inline; margin: 0;" onsubmit="return confirm('Удалить студента?');">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="student_id" value="{{.ID}}">
-                        <button type="submit" class="btn-delete">Удалить</button>
-                    </form>
-                    <button class="btn-edit" data-student-id="{{.ID}}" data-student-fio="{{.FIO}}">Редактировать</button>
-                    <button class="btn-move" data-student-id="{{.ID}}">Переместить</button>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-edit edit-student-btn" data-student-id="{{.ID}}" data-student-fio="{{.FIO}}">
+                            <span>✏️</span> Редактировать
+                        </button>
+                        <button class="btn btn-sm btn-secondary move-student-btn" data-student-id="{{.ID}}">
+                            <span>↪️</span> Переместить
+                        </button>
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Удалить студента из группы?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="student_id" value="{{.ID}}">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <span>🗑️</span> Удалить
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {{end}}
@@ -47,73 +70,108 @@
         </table>
     </div>
     {{else}}
-    <p>В этой группе пока нет студентов.</p>
+    <div class="empty-state card text-center p-6">
+        <div class="empty-state-icon mb-4">👥</div>
+        <h3>В этой группе пока нет студентов</h3>
+        <p class="text-muted mb-4">Добавьте студентов с помощью формы ниже</p>
+    </div>
     {{end}}
 
-    <div id="editForm" class="student-action" style="display:none;">
-        <div class="section-title">Редактировать ФИО студента</div>
-        <form method="POST">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" id="edit_student_id" name="student_id" value="">
-            <label>
-                Новое ФИО:
-                <input type="text" id="new_fio" name="new_fio" required>
-            </label>
-            <div>
-                <button type="submit">Сохранить</button>
-                <button type="button" id="cancelEditBtn">Отмена</button>
-            </div>
-        </form>
+    <!-- Edit Student Form (Hidden by default) -->
+    <div id="editForm" class="card mt-6 student-action hidden">
+        <div class="card-header">
+            <h3 class="section-title">Редактировать ФИО студента</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" id="edit_student_id" name="student_id" value="">
+                <div class="form-group">
+                    <label for="new_fio">Новое ФИО:</label>
+                    <input type="text" id="new_fio" name="new_fio" class="form-control" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" id="cancelEditBtn" class="btn btn-secondary">Отмена</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div id="moveForm" class="student-action" style="display:none;">
-        <div class="section-title">Переместить студента в другую группу</div>
-        <form method="POST">
-            <input type="hidden" name="action" value="move">
-            <input type="hidden" id="move_student_id" name="student_id" value="">
-            <label>
-                Выберите группу:
-                <select name="new_group" required>
-                    {{range .Groups}}
-                    {{if ne . $.GroupName}}
-                    <option value="{{.}}">{{.}}</option>
-                    {{end}}
-                    {{end}}
-                </select>
-            </label>
-            <div>
-                <button type="submit">Переместить</button>
-                <button type="button" id="cancelMoveBtn">Отмена</button>
-            </div>
-        </form>
+    <!-- Move Student Form (Hidden by default) -->
+    <div id="moveForm" class="card mt-6 student-action hidden">
+        <div class="card-header">
+            <h3 class="section-title">Переместить студента в другую группу</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="action" value="move">
+                <input type="hidden" id="move_student_id" name="student_id" value="">
+                <div class="form-group">
+                    <label for="new_group">Выберите группу:</label>
+                    <select name="new_group" id="new_group" class="form-control" required>
+                        {{range .Groups}}
+                        {{if ne . $.GroupName}}
+                        <option value="{{.}}">{{.}}</option>
+                        {{end}}
+                        {{end}}
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Переместить</button>
+                    <button type="button" id="cancelMoveBtn" class="btn btn-secondary">Отмена</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div class="student-action">
-        <div class="section-title">Загрузить список студентов</div>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="upload">
-            <label>
-                Файл со списком (каждый студент с новой строки):
-                <input type="file" name="student_list" required>
-            </label>
-            <button type="submit">Загрузить</button>
-        </form>
+    <div class="card mt-6">
+        <div class="card-header">
+            <h3 class="section-title">Загрузить список студентов</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload">
+                <div class="form-group">
+                    <label for="student_list">Файл со списком (каждый студент с новой строки):</label>
+                    <input type="file" id="student_list" name="student_list" class="form-control" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <span>⬆️</span> Загрузить
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div class="student-action">
-        <div class="section-title">Добавить студента</div>
-        <form method="POST">
-            <input type="hidden" name="action" value="add_student">
-            <label>
-                ФИО студента:
-                <input type="text" name="student_fio" required>
-            </label>
-            <button type="submit">Добавить</button>
-        </form>
+    <div class="card mt-6">
+        <div class="card-header">
+            <h3 class="section-title">Добавить студента</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="action" value="add_student">
+                <div class="form-group">
+                    <label for="student_fio">ФИО студента:</label>
+                    <input type="text" id="student_fio" name="student_fio" class="form-control" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <span>➕</span> Добавить
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div class="btn-group">
-        <a href="/admin/groups?teacher_id={{.TeacherID}}" class="btn btn-admin">Назад к группам</a>
+    <div class="btn-group mt-6">
+        <a href="/admin/groups?teacher_id={{.TeacherID}}" class="btn btn-secondary">
+            <span>🔙</span> Назад к группам
+        </a>
+        <a href="/admin" class="btn btn-primary">
+            <span>🏠</span> В админ-панель
+        </a>
     </div>
 </div>
 
@@ -123,32 +181,155 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/groups.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Назначаем обработчики на кнопки редактирования
-        document.querySelectorAll('.btn-edit').forEach(button => {
+        // Buttons for editing students
+        document.querySelectorAll('.edit-student-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const studentId = this.getAttribute('data-student-id');
                 const studentFio = this.getAttribute('data-student-fio');
-                Groups.showEditForm(studentId, studentFio);
+                showEditForm(studentId, studentFio);
             });
         });
 
-        // Назначаем обработчики на кнопки перемещения
-        document.querySelectorAll('.btn-move').forEach(button => {
+        // Buttons for moving students
+        document.querySelectorAll('.move-student-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const studentId = this.getAttribute('data-student-id');
-                Groups.showMoveForm(studentId);
+                showMoveForm(studentId);
             });
         });
 
-        // Назначаем обработчики на кнопки отмены
-        document.getElementById('cancelEditBtn').addEventListener('click', Groups.hideEditForm);
-        document.getElementById('cancelMoveBtn').addEventListener('click', Groups.hideMoveForm);
+        // Cancel buttons
+        document.getElementById('cancelEditBtn').addEventListener('click', hideEditForm);
+        document.getElementById('cancelMoveBtn').addEventListener('click', hideMoveForm);
+
+        // Form functions
+        function showEditForm(studentId, studentFio) {
+            const editForm = document.getElementById('editForm');
+            const editStudentId = document.getElementById('edit_student_id');
+            const newFio = document.getElementById('new_fio');
+
+            hideMoveForm(); // Hide the other form
+
+            editStudentId.value = studentId;
+            newFio.value = studentFio;
+            editForm.classList.remove('hidden');
+
+            // Scroll to form
+            editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Focus on the input
+            setTimeout(() => {
+                newFio.focus();
+            }, 500);
+        }
+
+        function hideEditForm() {
+            document.getElementById('editForm').classList.add('hidden');
+        }
+
+        function showMoveForm(studentId) {
+            const moveForm = document.getElementById('moveForm');
+            const moveStudentId = document.getElementById('move_student_id');
+
+            hideEditForm(); // Hide the other form
+
+            moveStudentId.value = studentId;
+            moveForm.classList.remove('hidden');
+
+            // Scroll to form
+            moveForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function hideMoveForm() {
+            document.getElementById('moveForm').classList.add('hidden');
+        }
     });
 </script>
+
+<style>
+    .teacher-info-card {
+        position: relative;
+        overflow: hidden;
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .teacher-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .group-badge {
+        margin-top: var(--space-2);
+    }
+
+    .section-title {
+        position: relative;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-color), transparent);
+    }
+
+    .student-action {
+        transition: all 0.3s ease;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .student-name {
+        font-weight: 500;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+    }
+
+    .card-header {
+        padding-bottom: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: var(--space-4);
+    }
+
+    .card-body {
+        padding: var(--space-2);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+    }
+</style>
 </body>
 </html>

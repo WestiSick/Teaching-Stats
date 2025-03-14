@@ -3,76 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Оценки за лабораторные работы - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Лабораторные работы - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Оценки за лабораторные работы</h1>
 
-    <div class="settings-section">
-        <div class="settings-header">
-            <div class="group-info">
-                Предмет: {{.Summary.Subject}}, Группа: {{.Summary.GroupName}}
+    <div class="course-header card mb-6">
+        <div class="course-info">
+            <div class="course-badges">
+                <span class="badge badge-info">{{.Summary.Subject}}</span>
+                <span class="badge badge-primary">{{.Summary.GroupName}}</span>
             </div>
-            <div class="export-actions">
-                <div class="group-average">
-                    Средний балл: {{printf "%.2f" .Summary.GroupAverage}}
+
+            <div class="course-stats">
+                <div class="stat-item mb-0">
+                    <span class="stat-icon">🧪</span>
+                    <span class="stat-value">{{.Summary.TotalLabs}}</span>
+                    <span class="stat-label">Лабораторных работ</span>
                 </div>
-                <a href="/labs/export/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="export-btn">Экспортировать в Excel</a>
+
+                <div class="stat-item mb-0 high-percentage">
+                    <span class="stat-icon">📊</span>
+                    <span class="stat-value">{{printf "%.2f" .Summary.GroupAverage}}</span>
+                    <span class="stat-label">Средний балл группы</span>
+                </div>
             </div>
         </div>
 
-        <form method="POST">
-            <input type="hidden" name="action" value="update_settings">
-            <label>
-                Количество лабораторных работ:
-                <input type="number" name="total_labs" value="{{.Summary.TotalLabs}}" min="1" max="20">
-            </label>
-            <button type="submit">Сохранить настройки</button>
-        </form>
+        <div class="course-settings">
+            <form method="POST" class="settings-form">
+                <input type="hidden" name="action" value="update_settings">
+                <div class="form-group mb-0">
+                    <label for="total_labs">Количество лабораторных работ:</label>
+                    <div class="d-flex gap-2">
+                        <input type="number" id="total_labs" name="total_labs" value="{{.Summary.TotalLabs}}" min="1" max="20" class="form-control">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <h2>Оценки студентов</h2>
-
-    <form method="POST">
+    <form method="POST" id="gradesForm">
         <input type="hidden" name="action" value="update_grades">
 
         <div class="table-container">
-            <table>
+            <table class="labs-table">
                 <thead>
                 <tr>
-                    <th>Студент</th>
+                    <th class="student-col">Студент</th>
                     {{range $i := iter .Summary.TotalLabs}}
-                    <th>Лаб {{inc $i}}</th>
+                    <th class="lab-col">Лаб {{inc $i}}</th>
                     {{end}}
-                    <th>Средний балл</th>
+                    <th class="avg-col">Средний балл</th>
                 </tr>
                 </thead>
                 <tbody>
                 {{range .Summary.Students}}
                 <tr>
-                    <td>{{.StudentFIO}}</td>
+                    <td class="student-name">{{.StudentFIO}}</td>
                     {{$studentID := .StudentID}}
                     {{range $i, $grade := .Grades}}
-                    <td>
-                        <input type="number" class="grade-input" name="grade_{{$studentID}}_{{inc $i}}"
-                               value="{{if gt $grade 0}}{{$grade}}{{end}}" min="1" max="5">
+                    <td class="grade-cell">
+                        <input
+                                type="number"
+                                class="grade-input"
+                                name="grade_{{$studentID}}_{{inc $i}}"
+                                value="{{if gt $grade 0}}{{$grade}}{{end}}"
+                                min="1"
+                                max="5"
+                                onchange="validateGrade(this)"
+                                data-student-id="{{$studentID}}"
+                                data-lab-num="{{inc $i}}">
                     </td>
                     {{end}}
-                    <td class="student-average">{{printf "%.2f" .Average}}</td>
+                    <td class="average-cell">
+                        <div class="student-average
+                {{if le .Average 1.5}}avg-1
+                {{else if le .Average 2.5}}avg-2
+                {{else if le .Average 3.5}}avg-3
+                {{else if le .Average 4.5}}avg-4
+                {{else}}avg-5{{end}}">
+                            {{printf "%.2f" .Average}}
+                        </div>
+                    </td>
                 </tr>
                 {{end}}
                 </tbody>
             </table>
         </div>
 
-        <button type="submit" class="save-grades-btn">Сохранить оценки</button>
+        <div class="form-actions mt-6">
+            <button type="submit" class="btn btn-primary save-btn">
+                <span>💾</span> Сохранить оценки
+            </button>
+            <div class="grade-legend">
+                <div class="grade-key">
+                    <span class="grade grade-1">1</span> Неудовлетворительно
+                </div>
+                <div class="grade-key">
+                    <span class="grade grade-2">2</span> Плохо
+                </div>
+                <div class="grade-key">
+                    <span class="grade grade-3">3</span> Удовлетворительно
+                </div>
+                <div class="grade-key">
+                    <span class="grade grade-4">4</span> Хорошо
+                </div>
+                <div class="grade-key">
+                    <span class="grade grade-5">5</span> Отлично
+                </div>
+            </div>
+        </div>
     </form>
 
-    <a href="/labs" class="back-link">Назад к списку групп</a>
+    <div class="btn-group mt-6">
+        <a href="/labs/export/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-info">
+            <span>📊</span> Экспорт в Excel
+        </a>
+        <a href="/labs" class="btn btn-secondary">
+            <span>🔙</span> Назад к списку групп
+        </a>
+    </div>
+</div>
+
+<div id="saveNotification" class="notification">
+    <div class="notification-icon">✅</div>
+    <div class="notification-content">
+        <div class="notification-title">Сохранено</div>
+        <div class="notification-message">Все изменения успешно сохранены</div>
+    </div>
 </div>
 
 <div class="user-info">
@@ -81,8 +148,303 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script src="/templates/static/js/labs.js"></script>
+<script>
+    // Validate grade inputs
+    function validateGrade(input) {
+        const value = parseInt(input.value);
+        if (input.value !== '' && (isNaN(value) || value < 1 || value > 5)) {
+            alert('Оценка должна быть от 1 до 5');
+            input.value = '';
+            return false;
+        }
+
+        // Visual feedback for grade changes
+        input.classList.add('grade-changed');
+        setTimeout(() => {
+            input.classList.remove('grade-changed');
+        }, 1500);
+
+        return true;
+    }
+
+    // Form submission handling
+    document.getElementById('gradesForm').addEventListener('submit', function(e) {
+        // Show save notification after successful form submission
+        const notification = document.getElementById('saveNotification');
+        setTimeout(() => {
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }, 500);
+    });
+
+    // Highlight cells on hover (column/row highlighting)
+    document.querySelectorAll('.labs-table td, .labs-table th').forEach(cell => {
+        cell.addEventListener('mouseenter', function() {
+            const columnIndex = this.cellIndex;
+            const rowIndex = this.parentNode.rowIndex;
+
+            // Highlight column
+            document.querySelectorAll(`.labs-table tr td:nth-child(${columnIndex + 1}), .labs-table tr th:nth-child(${columnIndex + 1})`).forEach(cell => {
+                cell.classList.add('highlight-column');
+            });
+
+            // Highlight row
+            if (rowIndex > 0) { // Skip header row
+                document.querySelectorAll(`.labs-table tr:nth-child(${rowIndex + 1}) td`).forEach(cell => {
+                    cell.classList.add('highlight-row');
+                });
+            }
+        });
+
+        cell.addEventListener('mouseleave', function() {
+            // Remove all highlights
+            document.querySelectorAll('.highlight-column, .highlight-row').forEach(el => {
+                el.classList.remove('highlight-column', 'highlight-row');
+            });
+        });
+    });
+</script>
+
+<style>
+    .course-header {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .course-badges {
+        display: flex;
+        gap: var(--space-2);
+        margin-bottom: var(--space-4);
+    }
+
+    .course-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-4);
+    }
+
+    .stat-icon {
+        font-size: 1.2rem;
+        margin-right: var(--space-2);
+    }
+
+    .labs-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .student-col {
+        min-width: 200px;
+        position: sticky;
+        left: 0;
+        background-color: var(--bg-tertiary);
+        z-index: 10;
+    }
+
+    .lab-col {
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .avg-col {
+        min-width: 120px;
+        text-align: center;
+    }
+
+    .student-name {
+        position: sticky;
+        left: 0;
+        background-color: var(--bg-secondary);
+        z-index: 5;
+    }
+
+    .grade-cell {
+        text-align: center;
+        padding: 0.5rem;
+    }
+
+    .grade-input {
+        width: 50px;
+        text-align: center;
+        padding: 0.5rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        transition: all var(--transition-normal) ease;
+    }
+
+    .grade-input:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .grade-changed {
+        animation: pulse 1.5s ease;
+    }
+
+    .average-cell {
+        text-align: center;
+    }
+
+    .student-average {
+        display: inline-block;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-family: var(--font-mono);
+    }
+
+    .grade-1, .avg-1 {
+        background-color: var(--danger-light);
+        color: var(--danger);
+    }
+
+    .grade-2, .avg-2 {
+        background-color: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+
+    .grade-3, .avg-3 {
+        background-color: var(--warning-light);
+        color: var(--warning);
+    }
+
+    .grade-4, .avg-4 {
+        background-color: var(--success-light);
+        color: var(--success);
+    }
+
+    .grade-5, .avg-5 {
+        background-color: var(--info-light);
+        color: var(--info);
+    }
+
+    .avg-1, .avg-2, .avg-3, .avg-4, .avg-5 {
+        font-size: 0.9rem;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-4);
+    }
+
+    .grade-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-4);
+    }
+
+    .grade-key {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .notification {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background-color: var(--bg-tertiary);
+        border-left: 4px solid var(--success);
+        border-radius: var(--radius-md);
+        padding: var(--space-4);
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        transform: translateX(calc(100% + 30px));
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        z-index: 1000;
+    }
+
+    .notification.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .notification-icon {
+        font-size: 1.5rem;
+        color: var(--success);
+    }
+
+    .notification-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: var(--space-1);
+    }
+
+    .notification-message {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    /* Table highlighting */
+    .highlight-column {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    .highlight-row {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 5px rgba(99, 102, 241, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+        }
+    }
+
+    @media (min-width: 768px) {
+        .course-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-actions {
+            flex-direction: row;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .course-stats {
+            flex-direction: column;
+        }
+
+        .form-actions {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .grade-legend {
+            margin-top: var(--space-4);
+        }
+    }
+</style>
 </body>
 </html>

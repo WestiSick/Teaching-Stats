@@ -3,54 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Редактирование посещаемости - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Редактирование посещаемости - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Редактирование посещаемости</h1>
 
-  <div class="lesson-info">
-    <h2>Информация о занятии</h2>
-    <p><strong>Преподаватель:</strong> {{.TeacherFIO}}</p>
-    <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
-    <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
-    <p><strong>Группа:</strong> {{.Lesson.GroupName}}</p>
-    <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
-    <p><strong>Тип занятия:</strong> {{.Lesson.Type}}</p>
+  <div class="card lesson-info mb-6">
+    <div class="lesson-info-grid">
+      <div class="lesson-detail">
+        <div class="detail-label">Преподаватель:</div>
+        <div class="detail-value">{{.TeacherFIO}}</div>
+      </div>
+      <div class="lesson-detail">
+        <div class="detail-label">Предмет:</div>
+        <div class="detail-value">{{.Lesson.Subject}}</div>
+      </div>
+      <div class="lesson-detail">
+        <div class="detail-label">Тема:</div>
+        <div class="detail-value">{{.Lesson.Topic}}</div>
+      </div>
+      <div class="lesson-detail">
+        <div class="detail-label">Группа:</div>
+        <div class="detail-value">{{.Lesson.GroupName}}</div>
+      </div>
+      <div class="lesson-detail">
+        <div class="detail-label">Дата:</div>
+        <div class="detail-value">{{.Lesson.Date}}</div>
+      </div>
+      <div class="lesson-detail">
+        <div class="detail-label">Тип занятия:</div>
+        <div class="detail-value">{{.Lesson.Type}}</div>
+      </div>
+    </div>
   </div>
 
-  <form method="POST">
-    <div class="attendance-summary">
-      Присутствует: <span id="attendanceCount" class="attendance-count">0</span> из {{len .Students}} студентов
+  <form method="POST" id="attendanceForm">
+    <div class="card attendance-card">
+      <div class="attendance-header">
+        <div class="attendance-info">
+          <h2 class="mb-0">Список посещаемости</h2>
+          <div class="attendance-summary">
+            Присутствует: <span id="attendanceCount" class="attendance-count">0</span> из {{len .Students}} студентов
+          </div>
+        </div>
+
+        <div class="attendance-controls">
+          <button type="button" class="btn btn-sm btn-secondary" id="selectAllBtn">
+            <span>✓</span> Выбрать всех
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" id="deselectAllBtn">
+            <span>✗</span> Снять выделение
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" id="invertSelectionBtn">
+            <span>⇄</span> Инвертировать выбор
+          </button>
+        </div>
+      </div>
+
+      <div class="attendance-progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="student-list">
+        {{range .Students}}
+        <div class="student-row {{if .Attended}}student-present{{end}}">
+          <label class="student-checkbox">
+            <input type="checkbox" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} class="attendance-checkbox">
+            <span class="checkbox-custom"></span>
+          </label>
+          <div class="student-name">{{.FIO}}</div>
+          <div class="attendance-status">
+            <span class="status-present">Присутствует</span>
+            <span class="status-absent">Отсутствует</span>
+          </div>
+        </div>
+        {{end}}
+      </div>
     </div>
 
-    <div class="attendance-controls">
-      <button type="button" class="control-btn" id="selectAllBtn">Выбрать всех</button>
-      <button type="button" class="control-btn" id="deselectAllBtn">Снять выделение</button>
-      <button type="button" class="control-btn" id="invertSelectionBtn">Инвертировать выбор</button>
+    <div class="form-actions mt-6">
+      <button type="submit" class="btn btn-primary save-btn">
+        <span>💾</span> Сохранить изменения
+      </button>
+      <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-secondary">
+        <span>🔙</span> Отмена
+      </a>
     </div>
-
-    <ul class="student-list">
-      {{range .Students}}
-      <li class="student-item">
-        <label>
-          <input type="checkbox" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} class="attendance-checkbox">
-          <span class="student-name">{{.FIO}}</span>
-        </label>
-      </li>
-      {{end}}
-    </ul>
-
-    <button type="submit">Сохранить изменения</button>
   </form>
-
-  <div class="btn-group">
-    <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-attendance">Назад к посещаемости</a>
-    <a href="/admin" class="btn btn-admin">В админ-панель</a>
-  </div>
 </div>
 
 <div class="user-info">
@@ -59,25 +105,380 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/attendance.js"></script>
 <script>
-  // Инициализация при загрузке страницы
   document.addEventListener('DOMContentLoaded', function() {
-    // Назначаем обработчики кнопкам
-    document.getElementById('selectAllBtn').addEventListener('click', Attendance.selectAll);
-    document.getElementById('deselectAllBtn').addEventListener('click', Attendance.deselectAll);
-    document.getElementById('invertSelectionBtn').addEventListener('click', Attendance.invertSelection);
+    const checkboxes = document.querySelectorAll('.attendance-checkbox');
+    const attendanceCount = document.getElementById('attendanceCount');
+    const progressFill = document.getElementById('progressFill');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const invertSelectionBtn = document.getElementById('invertSelectionBtn');
 
-    // Назначаем обработчики на чекбоксы посещаемости
-    document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
-      checkbox.addEventListener('change', Attendance.updateAttendanceCount);
+    // Function to update attendance count and progress bar
+    function updateAttendanceCount() {
+      const total = checkboxes.length;
+      const checked = document.querySelectorAll('.attendance-checkbox:checked').length;
+
+      if (attendanceCount) {
+        attendanceCount.textContent = checked;
+      }
+
+      // Update progress bar
+      if (progressFill && total > 0) {
+        const percentage = (checked / total) * 100;
+        progressFill.style.width = `${percentage}%`;
+
+        // Update color based on percentage
+        if (percentage >= 80) {
+          progressFill.classList.remove('medium-progress', 'low-progress');
+          progressFill.classList.add('high-progress');
+        } else if (percentage >= 50) {
+          progressFill.classList.remove('high-progress', 'low-progress');
+          progressFill.classList.add('medium-progress');
+        } else {
+          progressFill.classList.remove('high-progress', 'medium-progress');
+          progressFill.classList.add('low-progress');
+        }
+      }
+
+      // Update the student rows classes
+      checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('.student-row');
+        if (checkbox.checked) {
+          row.classList.add('student-present');
+        } else {
+          row.classList.remove('student-present');
+        }
+      });
+    }
+
+    // Select all function
+    function selectAll() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+      });
+      updateAttendanceCount();
+    }
+
+    // Deselect all function
+    function deselectAll() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      updateAttendanceCount();
+    }
+
+    // Invert selection function
+    function invertSelection() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = !checkbox.checked;
+      });
+      updateAttendanceCount();
+    }
+
+    // Add event listeners
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', updateAttendanceCount);
     });
 
-    // Инициализируем счётчик посещаемости
-    Attendance.updateAttendanceCount();
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', selectAll);
+    }
+
+    if (deselectAllBtn) {
+      deselectAllBtn.addEventListener('click', deselectAll);
+    }
+
+    if (invertSelectionBtn) {
+      invertSelectionBtn.addEventListener('click', invertSelection);
+    }
+
+    // Initial update
+    updateAttendanceCount();
+
+    // Form submission animation
+    const form = document.getElementById('attendanceForm');
+    if (form) {
+      form.addEventListener('submit', function() {
+        const saveBtn = document.querySelector('.save-btn');
+        if (saveBtn) {
+          saveBtn.innerHTML = '<span class="loading-spinner"></span> Сохранение...';
+          saveBtn.disabled = true;
+        }
+      });
+    }
   });
 </script>
+
+<style>
+  .lesson-info {
+    padding: var(--space-6);
+  }
+
+  .lesson-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .detail-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  .detail-value {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .attendance-card {
+    padding: var(--space-4);
+  }
+
+  .attendance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .attendance-summary {
+    margin-top: var(--space-2);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .attendance-count {
+    font-weight: 700;
+    color: var(--accent-color);
+  }
+
+  .attendance-controls {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .attendance-progress-bar {
+    height: 6px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--space-4);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+  }
+
+  .high-progress {
+    background: linear-gradient(90deg, var(--success) 0%, #059669 100%);
+  }
+
+  .medium-progress {
+    background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
+  }
+
+  .low-progress {
+    background: linear-gradient(90deg, var(--danger) 0%, #b91c1c 100%);
+  }
+
+  .student-list {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: var(--space-2);
+  }
+
+  .student-row {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s ease;
+    margin-bottom: var(--space-2);
+    background-color: var(--bg-tertiary);
+  }
+
+  .student-row:hover {
+    background-color: rgba(55, 65, 81, 0.6);
+  }
+
+  .student-present {
+    border-left: 4px solid var(--success);
+  }
+
+  .student-row:not(.student-present) {
+    border-left: 4px solid var(--danger);
+  }
+
+  .student-checkbox {
+    display: flex;
+    align-items: center;
+    margin-right: var(--space-3);
+    position: relative;
+  }
+
+  .student-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
+
+  .checkbox-custom {
+    position: relative;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .student-checkbox input:checked ~ .checkbox-custom {
+    background-color: var(--success);
+    border-color: var(--success);
+  }
+
+  .checkbox-custom:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .student-checkbox input:checked ~ .checkbox-custom:after {
+    display: block;
+  }
+
+  .student-name {
+    flex: 1;
+    font-size: 0.95rem;
+  }
+
+  .attendance-status {
+    margin-left: var(--space-3);
+    font-size: 0.85rem;
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .status-present {
+    display: none;
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .status-absent {
+    display: inline;
+    color: var(--danger);
+    font-weight: 600;
+  }
+
+  .student-present .status-present {
+    display: inline;
+  }
+
+  .student-present .status-absent {
+    display: none;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-4);
+  }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: var(--space-2);
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Scrollbar styling */
+  .student-list::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .student-list::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 4px;
+  }
+
+  .student-list::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  .student-list::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+  }
+
+  @media (max-width: 768px) {
+    .lesson-info-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .attendance-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .attendance-controls {
+      margin-top: var(--space-3);
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .student-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .student-checkbox {
+      margin-right: 0;
+      margin-bottom: var(--space-2);
+    }
+
+    .attendance-status {
+      margin-left: 0;
+      margin-top: var(--space-2);
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+
+    .btn {
+      width: 100%;
+    }
+  }
+</style>
 </body>
 </html>

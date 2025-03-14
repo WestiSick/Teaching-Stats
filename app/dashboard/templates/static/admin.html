@@ -3,105 +3,183 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Админ-панель - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Админ-панель - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
-<div class="container">
-  <h1>Статистика всех преподавателей</h1>
+<div class="container admin-container">
+  <h1>Статистика преподавателей</h1>
 
-  <!-- Форма фильтрации -->
-  <form class="filter-form" method="GET">
-    <div class="form-group">
-      <label for="teacher_id">Преподаватель:</label>
-      <select name="teacher_id" id="teacher_id">
-        <option value="">Все</option>
-        {{range .TeacherList}}
-        <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.Filter.TeacherID}}selected{{end}}>{{.FIO}}</option>
-        {{end}}
-      </select>
+  <!-- Admin Dashboard Header with Stats -->
+  <div class="admin-dashboard-header">
+    <div class="admin-stats">
+      <div class="stat-card">
+        <div class="stat-icon">👨‍🏫</div>
+        <div class="stat-value">{{len .Teachers}}</div>
+        <div class="stat-label">Преподавателей</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">📚</div>
+        <div class="stat-value" id="totalLessonsValue">0</div>
+        <div class="stat-label">Всего пар</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-value" id="totalHoursValue">0</div>
+        <div class="stat-label">Всего часов</div>
+      </div>
     </div>
-
-    <div class="form-group">
-      <label for="subject">Предмет:</label>
-      <select name="subject" id="subject">
-        <option value="">Все</option>
-        {{range .SubjectList}}
-        <option value="{{.}}" {{if eq . $.Filter.Subject}}selected{{end}}>{{.}}</option>
-        {{end}}
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="start_date">С даты:</label>
-      <input type="date" name="start_date" id="start_date" value="{{.Filter.StartDate}}">
-    </div>
-
-    <div class="form-group">
-      <label for="end_date">По дату:</label>
-      <input type="date" name="end_date" id="end_date" value="{{.Filter.EndDate}}">
-    </div>
-
-    <div class="form-group">
-      <label for="sort_by">Сортировать:</label>
-      <select name="sort_by" id="sort_by">
-        <option value="fio" {{if eq .Filter.SortBy "fio"}}selected{{end}}>По ФИО</option>
-        <option value="lessons" {{if eq .Filter.SortBy "lessons"}}selected{{end}}>По количеству пар</option>
-        <option value="hours" {{if eq .Filter.SortBy "hours"}}selected{{end}}>По часам</option>
-      </select>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">Применить</button>
-      <a class="btn btn-success" href="/admin?export=true&teacher_id={{.Filter.TeacherID}}&subject={{.Filter.Subject}}&start_date={{.Filter.StartDate}}&end_date={{.Filter.EndDate}}&sort_by={{.Filter.SortBy}}">Выгрузить в Excel</a>
-    </div>
-  </form>
-
-  <!-- Таблица статистики -->
-  <div class="table-container">
-    <table>
-      <thead>
-      <tr>
-        <th>ФИО</th>
-        <th>Общее количество пар</th>
-        <th>Общее количество часов</th>
-        <th>Пары по предметам</th>
-        <th>Действия</th>
-      </tr>
-      </thead>
-      <tbody>
-      {{range .Teachers}}
-      <tr>
-        <td>{{.FIO}}</td>
-        <td>{{.Lessons}}</td>
-        <td>{{.Hours}}</td>
-        <td>
-          <ul>
-            {{range $subject, $count := .Subjects}}
-            <li>{{$subject}}: {{$count}}</li>
-            {{end}}
-          </ul>
-        </td>
-        <td>
-          <a href="/lessons/subject?subject={{range $subject, $_ := .Subjects}}{{$subject}}{{break}}{{end}}&teacher_id={{.ID}}">Посмотреть пары</a>
-          <a href="/admin/groups?teacher_id={{.ID}}">Управление группами</a>
-        </td>
-      </tr>
-      {{end}}
-      </tbody>
-    </table>
   </div>
 
-  <div class="nav-buttons">
-    <a class="nav-btn nav-btn-admin" href="/admin/groups">Управление группами</a>
-    <a class="nav-btn nav-btn-admin" href="/admin/attendance">Управление посещаемостью</a>
-    <a class="nav-btn nav-btn-admin" href="/admin/labs">Управление лабораторными</a>
-    <a class="nav-btn nav-btn-admin" href="/admin/users">Управление пользователями</a>
-    <a class="nav-btn nav-btn-admin" href="/admin/logs">Логи действий</a>
-    <a class="nav-btn nav-btn-admin" href="/tickets">Тикеты</a>
-    <a class="nav-btn nav-btn-logout" href="/logout">Выйти</a>
+  <!-- Filters -->
+  <div class="admin-filter-card card">
+    <h2 class="card-title">Фильтры</h2>
+
+    <form class="filter-form" method="GET">
+      <div class="form-group">
+        <label for="teacher_id">Преподаватель:</label>
+        <select name="teacher_id" id="teacher_id" class="form-control">
+          <option value="">Все</option>
+          {{range .TeacherList}}
+          <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.Filter.TeacherID}}selected{{end}}>{{.FIO}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="subject">Предмет:</label>
+        <select name="subject" id="subject" class="form-control">
+          <option value="">Все</option>
+          {{range .SubjectList}}
+          <option value="{{.}}" {{if eq . $.Filter.Subject}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="start_date">Начало периода:</label>
+        <input type="date" name="start_date" id="start_date" value="{{.Filter.StartDate}}" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="end_date">Конец периода:</label>
+        <input type="date" name="end_date" id="end_date" value="{{.Filter.EndDate}}" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="sort_by">Сортировать по:</label>
+        <select name="sort_by" id="sort_by" class="form-control">
+          <option value="fio" {{if eq .Filter.SortBy "fio"}}selected{{end}}>По ФИО</option>
+          <option value="lessons" {{if eq .Filter.SortBy "lessons"}}selected{{end}}>По количеству пар</option>
+          <option value="hours" {{if eq .Filter.SortBy "hours"}}selected{{end}}>По часам</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">
+          <span>🔍</span> Применить
+        </button>
+        <a href="/admin" class="btn btn-secondary">
+          <span>🔄</span> Сбросить
+        </a>
+        <a href="/admin?export=true&teacher_id={{.Filter.TeacherID}}&subject={{.Filter.Subject}}&start_date={{.Filter.StartDate}}&end_date={{.Filter.EndDate}}&sort_by={{.Filter.SortBy}}" class="btn btn-success">
+          <span>📊</span> Экспорт в Excel
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Teachers Table -->
+  <div class="card table-card">
+    <h2 class="card-title">Преподаватели</h2>
+
+    <div class="table-container">
+      <table>
+        <thead>
+        <tr>
+          <th>ФИО</th>
+          <th>Кол-во пар</th>
+          <th>Всего часов</th>
+          <th>Предметы</th>
+          <th>Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Teachers}}
+        <tr class="teacher-row" data-lessons="{{.Lessons}}" data-hours="{{.Hours}}">
+          <td>
+            <div class="teacher-name">{{.FIO}}</div>
+          </td>
+          <td>
+            <div class="badge badge-primary">{{.Lessons}}</div>
+          </td>
+          <td>
+            <div class="badge badge-info">{{.Hours}} ч.</div>
+          </td>
+          <td>
+            <div class="subject-list">
+              {{range $subject, $count := .Subjects}}
+              <div class="subject-badge">
+                <span class="subject-name">{{$subject}}</span>
+                <span class="subject-count">{{$count}}</span>
+              </div>
+              {{end}}
+            </div>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <a href="/lessons/subject?subject={{range $subject, $_ := .Subjects}}{{$subject}}{{break}}{{end}}&teacher_id={{.ID}}" class="btn btn-sm btn-secondary">
+                <span>👁️</span> Пары
+              </a>
+              <a href="/admin/groups?teacher_id={{.ID}}" class="btn btn-sm btn-primary">
+                <span>👥</span> Группы
+              </a>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Admin Navigation -->
+  <div class="admin-nav">
+    <a href="/admin/groups" class="admin-nav-btn">
+      <span class="admin-nav-icon">👥</span>
+      <span class="admin-nav-text">Управление группами</span>
+    </a>
+    <a href="/admin/attendance" class="admin-nav-btn">
+      <span class="admin-nav-icon">📋</span>
+      <span class="admin-nav-text">Управление посещаемостью</span>
+    </a>
+    <a href="/admin/labs" class="admin-nav-btn">
+      <span class="admin-nav-icon">🧪</span>
+      <span class="admin-nav-text">Управление лабораторными</span>
+    </a>
+    <a href="/admin/users" class="admin-nav-btn">
+      <span class="admin-nav-icon">👤</span>
+      <span class="admin-nav-text">Управление пользователями</span>
+    </a>
+    <a href="/admin/logs" class="admin-nav-btn">
+      <span class="admin-nav-icon">📝</span>
+      <span class="admin-nav-text">Логи действий</span>
+    </a>
+    <a href="/tickets" class="admin-nav-btn">
+      <span class="admin-nav-icon">🎫</span>
+      <span class="admin-nav-text">Тикеты</span>
+    </a>
+    <a href="/logout" class="admin-nav-btn danger">
+      <span class="admin-nav-icon">🚪</span>
+      <span class="admin-nav-text">Выйти</span>
+    </a>
   </div>
 </div>
 
@@ -111,7 +189,227 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Calculate total lessons and hours using JavaScript instead of template functions
+    let totalLessons = 0;
+    let totalHours = 0;
+    const teacherRows = document.querySelectorAll('.teacher-row');
+
+    teacherRows.forEach(row => {
+      totalLessons += parseInt(row.getAttribute('data-lessons') || 0);
+      totalHours += parseInt(row.getAttribute('data-hours') || 0);
+    });
+
+    // Update the totals in the UI
+    document.getElementById('totalLessonsValue').textContent = totalLessons;
+    document.getElementById('totalHoursValue').textContent = totalHours;
+
+    // Highlight active navigation item
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.admin-nav-btn').forEach(link => {
+      if (link.getAttribute('href') === currentPath) {
+        link.classList.add('active');
+      }
+    });
+
+    // Add animation to table rows
+    teacherRows.forEach((row, index) => {
+      setTimeout(() => {
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      }, index * 50);
+    });
+  });
+</script>
+
+<style>
+  .admin-container {
+    max-width: 1200px;
+  }
+
+  .admin-dashboard-header {
+    margin-bottom: var(--space-6);
+  }
+
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .stat-card {
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    text-align: center;
+    border: 1px solid var(--border-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .stat-icon {
+    font-size: 1.75rem;
+    margin-bottom: var(--space-2);
+    color: var(--accent-color);
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--space-1);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .admin-filter-card, .table-card {
+    margin-bottom: var(--space-6);
+  }
+
+  .card-title {
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  tbody tr {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .teacher-name {
+    font-weight: 600;
+  }
+
+  .subject-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .subject-badge {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .subject-count {
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .admin-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+  }
+
+  .admin-nav-btn {
+    padding: var(--space-4);
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all var(--transition-normal) ease;
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .admin-nav-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+    color: var(--accent-color);
+  }
+
+  .admin-nav-btn.active {
+    border-color: var(--accent-color);
+    background-color: rgba(99, 102, 241, 0.1);
+  }
+
+  .admin-nav-btn.danger:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .admin-nav-icon {
+    font-size: 2rem;
+    margin-bottom: var(--space-2);
+  }
+
+  .admin-nav-text {
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 768px) {
+    .admin-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-form {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+      flex-direction: column;
+    }
+
+    .admin-nav {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 </body>
 </html>

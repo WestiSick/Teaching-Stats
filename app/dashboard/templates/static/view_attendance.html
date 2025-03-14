@@ -3,25 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр посещаемости - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Просмотр посещаемости - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Просмотр посещаемости</h1>
-    <div class="lesson-info">
-        <h2>Информация о занятии</h2>
-        <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
-        <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
-        <p><strong>Группа:</strong> {{.Lesson.GroupName}}</p>
-        <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
-        <p><strong>Тип занятия:</strong> {{.Lesson.Type}}</p>
+
+    <div class="card lesson-info mb-6">
+        <div class="lesson-info-header mb-4">
+            <div class="lesson-status">
+                {{$percentage := .AttendancePercent}}
+                <div class="status-indicator {{if ge $percentage 80}}status-good{{else if ge $percentage 50}}status-medium{{else}}status-poor{{end}}"></div>
+                <span class="status-text">{{printf "%.1f%%" $percentage}} посещаемость</span>
+            </div>
+            <div class="lesson-date">
+                {{.Lesson.Date}}
+            </div>
+        </div>
+
+        <div class="lesson-details">
+            <div class="detail-row">
+                <div class="detail-label">Предмет:</div>
+                <div class="detail-value">{{.Lesson.Subject}}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Тема:</div>
+                <div class="detail-value">{{.Lesson.Topic}}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Группа:</div>
+                <div class="detail-value">{{.Lesson.GroupName}}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Тип занятия:</div>
+                <div class="detail-value">{{.Lesson.Type}}</div>
+            </div>
+        </div>
     </div>
 
     <div class="attendance-summary">
-        <h2>Статистика посещаемости</h2>
+        <h2 class="mb-4">Статистика посещаемости</h2>
         <div class="attendance-stats">
             <div class="stat-item present">
                 <div class="stat-value">{{.PresentStudents}}</div>
@@ -36,40 +63,63 @@
                 <div class="stat-label">Посещаемость</div>
             </div>
         </div>
-    </div>
 
-    <h2>Список студентов</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-            <tr>
-                <th>№</th>
-                <th>ФИО студента</th>
-                <th>Статус</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range $index, $student := .Students}}
-            <tr>
-                <td>{{inc $index}}</td>
-                <td>{{$student.FIO}}</td>
-                <td>
-                    {{if $student.Attended}}
-                    <span class="student-status status-present">Присутствовал</span>
-                    {{else}}
-                    <span class="student-status status-absent">Отсутствовал</span>
-                    {{end}}
-                </td>
-            </tr>
-            {{end}}
-            </tbody>
-        </table>
+        <div class="attendance-chart">
+            <div class="chart-bar">
+                <div class="chart-fill" style="width: {{printf "%.1f%%" .AttendancePercent}};"></div>
+        </div>
+        <div class="chart-labels">
+            <div class="chart-label">0%</div>
+            <div class="chart-label">25%</div>
+            <div class="chart-label">50%</div>
+            <div class="chart-label">75%</div>
+            <div class="chart-label">100%</div>
+        </div>
     </div>
+</div>
 
-    <div class="btn-group">
-        <a href="/attendance/edit/{{.Lesson.ID}}" class="btn btn-edit">Редактировать</a>
-        <a href="/attendance" class="btn btn-back">Назад к посещаемости</a>
-    </div>
+<h2 class="mt-6 mb-4">Список студентов</h2>
+<div class="table-container">
+    <table>
+        <thead>
+        <tr>
+            <th style="width: 50px;">№</th>
+            <th>ФИО студента</th>
+            <th style="width: 150px;">Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range $index, $student := .Students}}
+        <tr>
+            <td class="text-center">{{inc $index}}</td>
+            <td>{{$student.FIO}}</td>
+            <td>
+                {{if $student.Attended}}
+                <span class="student-status status-present">
+              <span class="status-icon">✓</span>
+              Присутствовал
+            </span>
+                {{else}}
+                <span class="student-status status-absent">
+              <span class="status-icon">✗</span>
+              Отсутствовал
+            </span>
+                {{end}}
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="btn-group mt-6">
+    <a href="/attendance/edit/{{.Lesson.ID}}" class="btn btn-edit">
+        <span>✏️</span> Редактировать
+    </a>
+    <a href="/attendance" class="btn btn-secondary">
+        <span>🔙</span> Назад к посещаемости
+    </a>
+</div>
 </div>
 
 <div class="user-info">
@@ -78,7 +128,7 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script>
     // Helper function to subtract numbers
@@ -90,6 +140,174 @@
     function inc(i) {
         return i + 1;
     }
+
+    // Simple animation for charts
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            document.querySelector('.chart-fill').style.transition = 'width 1s ease-out';
+            document.querySelector('.chart-fill').style.width = '{{printf "%.1f%%" .AttendancePercent}}';
+        }, 300);
+    });
 </script>
+
+<style>
+    .lesson-info {
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .lesson-info-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .lesson-status {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .status-good {
+        background-color: var(--success);
+    }
+
+    .status-medium {
+        background-color: var(--warning);
+    }
+
+    .status-poor {
+        background-color: var(--danger);
+    }
+
+    .status-text {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .lesson-date {
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .lesson-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--space-4);
+    }
+
+    .detail-row {
+        margin-bottom: var(--space-2);
+    }
+
+    .detail-label {
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-bottom: var(--space-1);
+    }
+
+    .detail-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .attendance-chart {
+        margin-top: var(--space-6);
+    }
+
+    .chart-bar {
+        width: 100%;
+        height: 24px;
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .chart-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 0;
+        border-radius: var(--radius-full);
+        background: linear-gradient(90deg,
+        var(--danger) 0%,
+        var(--warning) 50%,
+        var(--success) 100%
+        );
+    }
+
+    .chart-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: var(--space-2);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .student-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-full);
+        font-weight: 500;
+        text-align: center;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .status-icon {
+        margin-right: var(--space-2);
+        font-weight: bold;
+    }
+
+    /* Add a subtle animation effect */
+    .stat-item {
+        animation: fadeInUp 0.5s ease forwards;
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    .stat-item:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .stat-item:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .stat-item:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .lesson-info-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-2);
+        }
+
+        .lesson-details {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 </body>
 </html>

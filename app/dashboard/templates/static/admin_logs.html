@@ -3,84 +3,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Логи действий - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Логи действий - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
-  <h1>Логи действий преподавателей</h1>
+  <h1>Логи действий пользователей</h1>
 
-  <!-- User filter form -->
-  <div class="filter-section">
-    <div class="filter-header">Фильтры</div>
+  <!-- Logs filtering -->
+  <div class="card filter-section mb-6">
+    <div class="section-title mb-4">Фильтры</div>
     <form method="GET" class="filter-form">
-      <div class="filter-group">
+      <div class="form-group mb-0">
         <label for="user-filter">Пользователь:</label>
-        <select name="user_id" id="user-filter" class="filter-select">
+        <select name="user_id" id="user-filter" class="form-control">
           <option value="">-- Все пользователи --</option>
           {{range .UserList}}
           <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedUserID}}selected{{end}}>{{.FIO}}</option>
           {{end}}
         </select>
       </div>
+
       {{if .Pagination.CurrentPage}}
       <input type="hidden" name="page" value="{{.Pagination.CurrentPage}}">
       {{end}}
-      <div class="filter-actions">
-        <button type="submit" class="filter-btn apply-btn">Применить</button>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <span>🔍</span> Применить
+        </button>
         {{if .SelectedUserID}}
-        <a href="/admin/logs" class="filter-btn reset-btn">Сбросить</a>
+        <a href="/admin/logs" class="btn btn-secondary">
+          <span>🗑️</span> Сбросить
+        </a>
         {{end}}
       </div>
     </form>
   </div>
 
-  <div class="table-container">
-    <table>
-      <thead>
-      <tr>
-        <th>Пользователь</th>
-        <th>Действие</th>
-        <th>Подробности</th>
-        <th>Время</th>
-      </tr>
-      </thead>
-      <tbody>
-      {{range .Logs}}
-      <tr>
-        <td>{{.UserFIO}}</td>
-        <td>{{.Action}}</td>
-        <td>{{.Details}}</td>
-        <td>{{.Timestamp}}</td>
-      </tr>
-      {{end}}
-      </tbody>
-    </table>
+  <!-- Logs table -->
+  <div class="logs-container">
+    <div class="table-container">
+      <table class="logs-table">
+        <thead>
+        <tr>
+          <th>Пользователь</th>
+          <th>Действие</th>
+          <th>Подробности</th>
+          <th>Время</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{if .Logs}}
+        {{range .Logs}}
+        <tr class="log-entry">
+          <td class="user-col">
+            <div class="user-pill">{{.UserFIO}}</div>
+          </td>
+          <td class="action-col">
+            <div class="action-pill {{getActionClass .Action}}">{{.Action}}</div>
+          </td>
+          <td class="details-col">{{.Details}}</td>
+          <td class="time-col">{{.Timestamp}}</td>
+        </tr>
+        {{end}}
+        {{else}}
+        <tr>
+          <td colspan="4" class="empty-logs">
+            <div class="empty-state">
+              <div class="empty-icon">📜</div>
+              <div class="empty-message">Нет логов для отображения</div>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination controls -->
+    {{if .Logs}}
+    <div class="pagination-container mt-6">
+      <div class="pagination">
+        {{if .Pagination.HasPrev}}
+        <a href="/admin/logs?page={{.Pagination.PrevPage}}{{if .SelectedUserID}}&user_id={{.SelectedUserID}}{{end}}" class="pagination-link">
+          <span class="pagination-icon">←</span> Предыдущая
+        </a>
+        {{else}}
+        <span class="pagination-link disabled">
+          <span class="pagination-icon">←</span> Предыдущая
+        </span>
+        {{end}}
+
+        <span class="pagination-info">
+          Страница {{.Pagination.CurrentPage}} из {{.Pagination.TotalPages}}
+        </span>
+
+        {{if .Pagination.HasNext}}
+        <a href="/admin/logs?page={{.Pagination.NextPage}}{{if .SelectedUserID}}&user_id={{.SelectedUserID}}{{end}}" class="pagination-link">
+          Следующая <span class="pagination-icon">→</span>
+        </a>
+        {{else}}
+        <span class="pagination-link disabled">
+          Следующая <span class="pagination-icon">→</span>
+        </span>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
   </div>
 
-  <!-- Pagination -->
-  <div class="pagination">
-    {{if .Pagination.HasPrev}}
-    <a href="/admin/logs?page={{.Pagination.PrevPage}}{{if .SelectedUserID}}&user_id={{.SelectedUserID}}{{end}}" class="btn-page">&laquo; Предыдущая</a>
-    {{else}}
-    <span class="btn-page disabled">&laquo; Предыдущая</span>
-    {{end}}
-
-    <span class="page-info">Страница {{.Pagination.CurrentPage}} из {{.Pagination.TotalPages}}</span>
-
-    {{if .Pagination.HasNext}}
-    <a href="/admin/logs?page={{.Pagination.NextPage}}{{if .SelectedUserID}}&user_id={{.SelectedUserID}}{{end}}" class="btn-page">Следующая &raquo;</a>
-    {{else}}
-    <span class="btn-page disabled">Следующая &raquo;</span>
-    {{end}}
-  </div>
-
-  <div class="link-group">
-    <a class="btn btn-back" href="/admin">Назад к статистике</a>
-    <a class="btn btn-users" href="/admin/users">Управление пользователями</a>
-    <a class="btn btn-logout" href="/logout">Выйти</a>
+  <div class="btn-group mt-6">
+    <a href="/admin" class="btn btn-secondary">
+      <span>🏠</span> Назад в админ-панель
+    </a>
+    <a href="/admin/users" class="btn btn-primary">
+      <span>👤</span> Управление пользователями
+    </a>
+    <a href="/logout" class="btn btn-danger">
+      <span>🚪</span> Выйти
+    </a>
   </div>
 </div>
 
@@ -90,7 +137,273 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+<script>
+  // Function to determine action class
+  function getActionClass(action) {
+    // Map common actions to color classes
+    const actionClasses = {
+      'Registration': 'action-registration',
+      'Authentication': 'action-auth',
+      'Add': 'action-add',
+      'Create': 'action-add',
+      'Edit': 'action-edit',
+      'Update': 'action-edit',
+      'Delete': 'action-delete',
+      'Remove': 'action-delete',
+      'Export': 'action-export',
+      'Share': 'action-share',
+      'Upload': 'action-upload',
+      'Change Role': 'action-admin',
+      'Admin': 'action-admin'
+    };
+
+    // Check if action contains any of the keys
+    for (const [key, className] of Object.entries(actionClasses)) {
+      if (action.includes(key)) {
+        return className;
+      }
+    }
+
+    // Default class
+    return 'action-other';
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Apply action classes
+    document.querySelectorAll('.action-pill').forEach(pill => {
+      const action = pill.textContent.trim();
+      pill.classList.add(getActionClass(action));
+    });
+
+    // Animate log entries
+    const logEntries = document.querySelectorAll('.log-entry');
+    logEntries.forEach((entry, index) => {
+      entry.style.opacity = '0';
+      entry.style.transform = 'translateY(10px)';
+
+      setTimeout(() => {
+        entry.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        entry.style.opacity = '1';
+        entry.style.transform = 'translateY(0)';
+      }, 50 + (index * 30)); // Staggered animation
+    });
+  });
+</script>
+
+<style>
+  .filter-section {
+    background-color: var(--bg-tertiary);
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: flex-end;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .logs-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .user-col {
+    width: 15%;
+  }
+
+  .action-col {
+    width: 15%;
+  }
+
+  .time-col {
+    width: 15%;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .details-col {
+    width: 55%;
+  }
+
+  .user-pill {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    background-color: var(--bg-accent);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--accent-color);
+  }
+
+  .action-pill {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  /* Action type styling */
+  .action-registration {
+    background-color: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+  }
+
+  .action-auth {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+  }
+
+  .action-add {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+  }
+
+  .action-edit {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+  }
+
+  .action-delete {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+
+  .action-export {
+    background-color: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+  }
+
+  .action-share {
+    background-color: rgba(14, 165, 233, 0.15);
+    color: #0ea5e9;
+  }
+
+  .action-upload {
+    background-color: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+  }
+
+  .action-admin {
+    background-color: rgba(236, 72, 153, 0.15);
+    color: #ec4899;
+  }
+
+  .action-other {
+    background-color: rgba(75, 85, 99, 0.15);
+    color: #4b5563;
+  }
+
+  /* Empty state */
+  .empty-logs {
+    padding: var(--space-8) !important;
+    text-align: center;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .empty-message {
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+
+  /* Pagination */
+  .pagination-container {
+    display: flex;
+    justify-content: center;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .pagination-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0.5rem 1rem;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: all var(--transition-normal) ease;
+  }
+
+  .pagination-link:hover:not(.disabled) {
+    background-color: var(--accent-color);
+    color: white;
+    text-decoration: none;
+  }
+
+  .pagination-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pagination-info {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .pagination-icon {
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 768px) {
+    .filter-form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-form .form-group {
+      margin-bottom: var(--space-4);
+    }
+
+    .logs-table {
+      display: block;
+      overflow-x: auto;
+    }
+
+    .logs-table th,
+    .logs-table td {
+      min-width: 120px;
+    }
+
+    .pagination {
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+  }
+</style>
 </body>
 </html>

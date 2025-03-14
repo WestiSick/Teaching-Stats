@@ -3,78 +3,217 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Редактирование группы {{.GroupName}} - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Редактирование группы - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
-  <h1>Редактирование группы: {{.GroupName}}</h1>
+  <h1>Редактирование группы</h1>
 
-  <div class="table-container">
-    <table>
-      <thead>
-      <tr>
-        <th>ФИО студента</th>
-        <th>Действия</th>
-      </tr>
-      </thead>
-      <tbody>
-      {{range .Students}}
-      <tr>
-        <td>
-          <form method="POST" style="display:inline; margin: 0;">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="student_id" value="{{.ID}}">
-            <input type="text" name="new_fio" value="{{.FIO}}" style="width: 100%;">
-            <button type="submit">Сохранить</button>
-          </form>
-        </td>
-        <td>
-          <form method="POST" style="display:inline; margin: 0;" onsubmit="return confirm('Переместить студента в другую группу?');">
-            <input type="hidden" name="action" value="move">
-            <input type="hidden" name="student_id" value="{{.ID}}">
-            <select name="new_group">
-              {{range $.Groups}}
-              {{if ne . $.GroupName}}
-              <option value="{{.}}">{{.}}</option>
-              {{end}}
-              {{end}}
-            </select>
-            <button type="submit">Переместить</button>
-          </form>
-          <form method="POST" style="display:inline; margin: 0;" onsubmit="return confirm('Удалить студента из группы?');">
-            <input type="hidden" name="action" value="delete">
-            <input type="hidden" name="student_id" value="{{.ID}}">
-            <button type="submit" class="btn-delete">Удалить</button>
-          </form>
-        </td>
-      </tr>
+  <div class="group-header card mb-6">
+    <div class="group-title">
+      <h2 class="mb-1">{{.GroupName}}</h2>
+      <div class="group-meta">
+        <span class="badge badge-primary">{{len .Students}} студентов</span>
+      </div>
+    </div>
+
+    <div class="group-actions">
+      <div class="search-container">
+        <input type="text" id="searchStudent" placeholder="Поиск студента..." class="search-input">
+        <span class="search-icon">🔍</span>
+      </div>
+
+      <button type="button" id="addStudentBtn" class="btn btn-primary">
+        <span>➕</span> Добавить студента
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="students">
+      <span>👥</span> Список студентов
+    </button>
+    <button class="tab-btn" data-tab="upload">
+      <span>📤</span> Загрузить список
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <!-- Students List Tab -->
+    <div class="tab-pane active" id="students-tab">
+      {{if .Students}}
+      <div class="table-container">
+        <table id="studentsTable">
+          <thead>
+          <tr>
+            <th style="width: 60px;">№</th>
+            <th>ФИО студента</th>
+            <th style="width: 220px;">Действия</th>
+          </tr>
+          </thead>
+          <tbody>
+          {{range $index, $student := .Students}}
+          <tr data-student-id="{{$student.ID}}" data-student-fio="{{$student.FIO}}">
+            <td class="text-center">{{inc $index}}</td>
+            <td>{{$student.FIO}}</td>
+            <td>
+              <div class="action-buttons">
+                <button type="button" class="btn btn-sm btn-edit edit-student-btn">
+                  <span>✏️</span> Изменить
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary move-student-btn">
+                  <span>➡️</span> Переместить
+                </button>
+                <button type="button" class="btn btn-sm btn-danger delete-student-btn">
+                  <span>🗑️</span> Удалить
+                </button>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="empty-state card text-center p-6">
+        <div class="empty-state-icon mb-4">👥</div>
+        <h3>В этой группе пока нет студентов</h3>
+        <p class="text-muted mb-4">Добавьте студентов с помощью кнопки выше или загрузите список файлом</p>
+      </div>
       {{end}}
-      </tbody>
-    </table>
+    </div>
+
+    <!-- Upload Tab -->
+    <div class="tab-pane" id="upload-tab">
+      <div class="card p-6">
+        <h3>Загрузить список студентов</h3>
+        <p class="text-muted mb-4">Загрузите текстовый файл со списком студентов (один студент на строку)</p>
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+          <input type="hidden" name="action" value="upload">
+          <div class="form-group">
+            <label for="student_list">Выберите файл:</label>
+            <input type="file" name="student_list" id="student_list" accept=".txt" required>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <span>📤</span> Загрузить список
+          </button>
+        </form>
+
+        <div class="upload-info mt-4">
+          <h4>Формат файла</h4>
+          <p class="text-muted">Файл должен быть в формате TXT с кодировкой UTF-8.</p>
+          <div class="example-code">
+            <pre>Иванов Иван Иванович
+Петров Петр Петрович
+Сидоров Сидор Сидорович</pre>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="upload-form">
-    <h2>Добавить список студентов из файла</h2>
-    <form method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="action" value="upload">
-      <input type="file" name="student_list" accept=".txt" required>
-      <button type="submit">Загрузить</button>
-    </form>
-  </div>
+  <!-- Add Student Form -->
+  <div id="addStudentForm" class="action-form card p-6" style="display: none;">
+    <div class="form-header">
+      <h3>Добавить студента</h3>
+      <button type="button" class="close-form-btn" id="closeAddForm">×</button>
+    </div>
 
-  <div class="add-student-form">
-    <h2>Добавить студента вручную</h2>
     <form method="POST">
       <input type="hidden" name="action" value="add_student">
-      <input type="text" name="student_fio" placeholder="ФИО студента" required>
-      <button type="submit">Добавить</button>
+      <div class="form-group">
+        <label for="student_fio">ФИО студента:</label>
+        <input type="text" id="student_fio" name="student_fio" required class="form-control">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Добавить</button>
+        <button type="button" class="btn btn-secondary" id="cancelAddBtn">Отмена</button>
+      </div>
     </form>
   </div>
 
-  <a class="back-link" href="/groups">Назад</a>
+  <!-- Edit Student Form -->
+  <div id="editStudentForm" class="action-form card p-6" style="display: none;">
+    <div class="form-header">
+      <h3>Изменить ФИО студента</h3>
+      <button type="button" class="close-form-btn" id="closeEditForm">×</button>
+    </div>
+
+    <form method="POST">
+      <input type="hidden" name="action" value="update">
+      <input type="hidden" id="edit_student_id" name="student_id" value="">
+      <div class="form-group">
+        <label for="new_fio">Новое ФИО:</label>
+        <input type="text" id="new_fio" name="new_fio" required class="form-control">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <button type="button" class="btn btn-secondary" id="cancelEditBtn">Отмена</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Move Student Form -->
+  <div id="moveStudentForm" class="action-form card p-6" style="display: none;">
+    <div class="form-header">
+      <h3>Переместить студента в другую группу</h3>
+      <button type="button" class="close-form-btn" id="closeMoveForm">×</button>
+    </div>
+
+    <form method="POST">
+      <input type="hidden" name="action" value="move">
+      <input type="hidden" id="move_student_id" name="student_id" value="">
+      <div class="form-group">
+        <label for="new_group">Выберите группу:</label>
+        <select id="new_group" name="new_group" required class="form-control">
+          {{range .Groups}}
+          {{if ne . $.GroupName}}
+          <option value="{{.}}">{{.}}</option>
+          {{end}}
+          {{end}}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Переместить</button>
+        <button type="button" class="btn btn-secondary" id="cancelMoveBtn">Отмена</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+        <button type="button" class="close-btn" id="closeDeleteModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Вы уверены, что хотите удалить студента <span id="deleteStudentName" class="font-bold"></span>?</p>
+        <p class="text-danger mt-2">Это действие нельзя отменить.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
+        <form method="POST" id="deleteForm">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" id="delete_student_id" name="student_id" value="">
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-group mt-6">
+    <a href="/groups" class="btn btn-secondary">
+      <span>🔙</span> Назад к группам
+    </a>
+  </div>
 </div>
 
 <div class="user-info">
@@ -83,8 +222,350 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/groups.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to increment index
+    function inc(i) {
+      return i + 1;
+    }
+
+    // Tab switching
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Remove active class from all tabs and panes
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+
+        // Add active class to current tab and pane
+        this.classList.add('active');
+        const tabId = this.getAttribute('data-tab');
+        document.getElementById(`${tabId}-tab`).classList.add('active');
+      });
+    });
+
+    // Search functionality
+    const searchInput = document.getElementById('searchStudent');
+    const studentsTable = document.getElementById('studentsTable');
+
+    if (searchInput && studentsTable) {
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = studentsTable.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+          const studentName = row.cells[1].textContent.toLowerCase();
+          if (studentName.includes(searchTerm)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // Add Student Form
+    const addStudentBtn = document.getElementById('addStudentBtn');
+    const addStudentForm = document.getElementById('addStudentForm');
+    const closeAddForm = document.getElementById('closeAddForm');
+    const cancelAddBtn = document.getElementById('cancelAddBtn');
+
+    function showAddForm() {
+      addStudentForm.style.display = 'block';
+      addStudentForm.classList.add('form-visible');
+      document.getElementById('student_fio').focus();
+    }
+
+    function hideAddForm() {
+      addStudentForm.classList.remove('form-visible');
+      setTimeout(() => {
+        addStudentForm.style.display = 'none';
+      }, 300);
+    }
+
+    if (addStudentBtn) addStudentBtn.addEventListener('click', showAddForm);
+    if (closeAddForm) closeAddForm.addEventListener('click', hideAddForm);
+    if (cancelAddBtn) cancelAddBtn.addEventListener('click', hideAddForm);
+
+    // Edit Student Form
+    const editStudentForm = document.getElementById('editStudentForm');
+    const closeEditForm = document.getElementById('closeEditForm');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const editButtons = document.querySelectorAll('.edit-student-btn');
+
+    function showEditForm(studentId, studentFio) {
+      document.getElementById('edit_student_id').value = studentId;
+      document.getElementById('new_fio').value = studentFio;
+
+      editStudentForm.style.display = 'block';
+      editStudentForm.classList.add('form-visible');
+      document.getElementById('new_fio').focus();
+    }
+
+    function hideEditForm() {
+      editStudentForm.classList.remove('form-visible');
+      setTimeout(() => {
+        editStudentForm.style.display = 'none';
+      }, 300);
+    }
+
+    editButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const row = this.closest('tr');
+        const studentId = row.getAttribute('data-student-id');
+        const studentFio = row.getAttribute('data-student-fio');
+        showEditForm(studentId, studentFio);
+      });
+    });
+
+    if (closeEditForm) closeEditForm.addEventListener('click', hideEditForm);
+    if (cancelEditBtn) cancelEditBtn.addEventListener('click', hideEditForm);
+
+    // Move Student Form
+    const moveStudentForm = document.getElementById('moveStudentForm');
+    const closeMoveForm = document.getElementById('closeMoveForm');
+    const cancelMoveBtn = document.getElementById('cancelMoveBtn');
+    const moveButtons = document.querySelectorAll('.move-student-btn');
+
+    function showMoveForm(studentId) {
+      document.getElementById('move_student_id').value = studentId;
+
+      moveStudentForm.style.display = 'block';
+      moveStudentForm.classList.add('form-visible');
+    }
+
+    function hideMoveForm() {
+      moveStudentForm.classList.remove('form-visible');
+      setTimeout(() => {
+        moveStudentForm.style.display = 'none';
+      }, 300);
+    }
+
+    moveButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const row = this.closest('tr');
+        const studentId = row.getAttribute('data-student-id');
+        showMoveForm(studentId);
+      });
+    });
+
+    if (closeMoveForm) closeMoveForm.addEventListener('click', hideMoveForm);
+    if (cancelMoveBtn) cancelMoveBtn.addEventListener('click', hideMoveForm);
+
+    // Delete Student Confirmation
+    const deleteModal = document.getElementById('deleteModal');
+    const closeDeleteModal = document.getElementById('closeDeleteModal');
+    const cancelDelete = document.getElementById('cancelDelete');
+    const deleteButtons = document.querySelectorAll('.delete-student-btn');
+    const deleteStudentName = document.getElementById('deleteStudentName');
+    const deleteStudentId = document.getElementById('delete_student_id');
+
+    function showDeleteConfirmation(studentId, studentFio) {
+      deleteStudentId.value = studentId;
+      deleteStudentName.textContent = studentFio;
+
+      deleteModal.style.display = 'flex';
+    }
+
+    function hideDeleteConfirmation() {
+      deleteModal.style.display = 'none';
+    }
+
+    deleteButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const row = this.closest('tr');
+        const studentId = row.getAttribute('data-student-id');
+        const studentFio = row.getAttribute('data-student-fio');
+        showDeleteConfirmation(studentId, studentFio);
+      });
+    });
+
+    if (closeDeleteModal) closeDeleteModal.addEventListener('click', hideDeleteConfirmation);
+    if (cancelDelete) cancelDelete.addEventListener('click', hideDeleteConfirmation);
+
+    // Close modal on click outside
+    window.addEventListener('click', function(event) {
+      if (event.target === deleteModal) {
+        hideDeleteConfirmation();
+      }
+    });
+  });
+</script>
+
+<style>
+  .group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-6);
+  }
+
+  .group-meta {
+    margin-top: var(--space-2);
+  }
+
+  .group-actions {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .search-container {
+    position: relative;
+  }
+
+  .search-input {
+    padding-left: 2.5rem;
+    width: 240px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--space-6);
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+  }
+
+  .tab-btn {
+    padding: var(--space-3) var(--space-4);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .tab-btn.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+  }
+
+  .tab-btn:hover:not(.active) {
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+  }
+
+  .tab-content {
+    margin-bottom: var(--space-6);
+  }
+
+  .tab-pane {
+    display: none;
+  }
+
+  .tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .action-form {
+    margin-bottom: var(--space-6);
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .form-visible {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+  }
+
+  .close-form-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .close-form-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+  }
+
+  .example-code {
+    background-color: var(--bg-tertiary);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .group-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-4);
+    }
+
+    .group-actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .search-container {
+      width: 100%;
+    }
+
+    .search-input {
+      width: 100%;
+    }
+
+    .action-buttons {
+      flex-wrap: wrap;
+    }
+  }
+</style>
 </body>
 </html>

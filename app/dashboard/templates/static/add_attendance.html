@@ -3,38 +3,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Добавить посещаемость - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Добавить посещаемость - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Добавить посещаемость</h1>
-  <form method="POST" id="attendanceForm">
-    <label>
-      Предмет:
-      <select name="subject" id="subject">
-        <option value="">Выберите предмет</option>
-        {{range .Subjects}}
-        <option value="{{.}}">{{.}}</option>
-        {{end}}
-      </select>
-    </label>
 
-    <label>
-      Пара:
-      <select name="lesson_id" id="lesson_id">
-        <option value="">Выберите пару</option>
-      </select>
-    </label>
+  <div class="card">
+    <form method="POST" id="attendanceForm">
+      <div class="form-steps">
+        <div class="step active" id="step1">
+          <div class="step-number">1</div>
+          <div class="step-title">Выбор занятия</div>
+        </div>
+        <div class="step" id="step2">
+          <div class="step-number">2</div>
+          <div class="step-title">Отметка присутствующих</div>
+        </div>
+        <div class="step" id="step3">
+          <div class="step-number">3</div>
+          <div class="step-title">Подтверждение</div>
+        </div>
+      </div>
 
-    <div id="students"></div>
+      <div class="form-section" id="section1">
+        <div class="form-group">
+          <label for="subject">Предмет:</label>
+          <select name="subject" id="subject" class="form-control" required>
+            <option value="">Выберите предмет</option>
+            {{range .Subjects}}
+            <option value="{{.}}">{{.}}</option>
+            {{end}}
+          </select>
+        </div>
 
-    <button type="submit" id="saveBtn" class="hidden">Сохранить</button>
-  </form>
+        <div class="form-group">
+          <label for="lesson_id">Занятие:</label>
+          <select name="lesson_id" id="lesson_id" class="form-control" required disabled>
+            <option value="">Сначала выберите предмет</option>
+          </select>
+          <div class="form-text">После выбора предмета здесь появятся доступные занятия</div>
+        </div>
 
-  <a href="/attendance" class="back-link">Назад</a>
+        <div class="form-actions">
+          <button type="button" id="nextToStudents" class="btn btn-primary" disabled>
+            Далее - Отметить студентов
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section hidden" id="section2">
+        <div class="attendance-header">
+          <div id="lessonInfo" class="lesson-info">
+            <span id="lessonDate" class="lesson-date"></span>
+            <span id="lessonGroup" class="lesson-group"></span>
+          </div>
+
+          <div class="attendance-controls">
+            <button type="button" id="selectAllBtn" class="btn btn-sm btn-secondary">
+              Выбрать всех
+            </button>
+            <button type="button" id="deselectAllBtn" class="btn btn-sm btn-secondary">
+              Снять выделение
+            </button>
+            <button type="button" id="invertSelectionBtn" class="btn btn-sm btn-secondary">
+              Инвертировать выбор
+            </button>
+          </div>
+        </div>
+
+        <div class="attendance-summary">
+          Отмечено: <span id="attendanceCount">0</span> из <span id="totalStudents">0</span> студентов
+        </div>
+
+        <div id="students" class="students-container">
+          <div class="loading-indicator">
+            <div class="spinner"></div>
+            <div>Загрузка списка студентов...</div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="backToLessons" class="btn btn-secondary">
+            Назад
+          </button>
+          <button type="button" id="nextToConfirm" class="btn btn-primary" disabled>
+            Далее - Проверка
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section hidden" id="section3">
+        <div class="confirmation-box">
+          <div class="confirmation-icon">✓</div>
+          <div class="confirmation-title">Подтверждение отметки посещаемости</div>
+          <div class="confirmation-details">
+            <p>Предмет: <span id="confirmSubject" class="confirm-value"></span></p>
+            <p>Занятие: <span id="confirmLesson" class="confirm-value"></span></p>
+            <p>Группа: <span id="confirmGroup" class="confirm-value"></span></p>
+            <p>Присутствует: <span id="confirmAttended" class="confirm-value"></span> из <span id="confirmTotal" class="confirm-value"></span> студентов</p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="backToStudents" class="btn btn-secondary">
+            Назад
+          </button>
+          <button type="submit" id="saveBtn" class="btn btn-success">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="btn-group mt-6">
+    <a href="/attendance" class="btn btn-secondary">
+      <span>🔙</span> Назад к посещаемости
+    </a>
+  </div>
 </div>
 
 <div class="user-info">
@@ -43,8 +136,546 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script src="/templates/static/js/attendance.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const teacherId = document.querySelector('.user-info') ?
+            document.querySelector('.user-info').textContent.match(/ID: (\d+)/) : null;
+
+    const subjectSelect = document.getElementById('subject');
+    const lessonSelect = document.getElementById('lesson_id');
+    const studentsContainer = document.getElementById('students');
+    const nextToStudentsBtn = document.getElementById('nextToStudents');
+    const nextToConfirmBtn = document.getElementById('nextToConfirm');
+    const backToLessonsBtn = document.getElementById('backToLessons');
+    const backToStudentsBtn = document.getElementById('backToStudents');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const invertSelectionBtn = document.getElementById('invertSelectionBtn');
+    const section1 = document.getElementById('section1');
+    const section2 = document.getElementById('section2');
+    const section3 = document.getElementById('section3');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const attendanceCount = document.getElementById('attendanceCount');
+    const totalStudents = document.getElementById('totalStudents');
+
+    // Confirmation fields
+    const confirmSubject = document.getElementById('confirmSubject');
+    const confirmLesson = document.getElementById('confirmLesson');
+    const confirmGroup = document.getElementById('confirmGroup');
+    const confirmAttended = document.getElementById('confirmAttended');
+    const confirmTotal = document.getElementById('confirmTotal');
+
+    // Load lessons when subject is selected
+    if (subjectSelect) {
+      subjectSelect.addEventListener('change', function() {
+        const subject = this.value;
+        if (subject) {
+          lessonSelect.disabled = true;
+          lessonSelect.innerHTML = '<option value="">Загрузка занятий...</option>';
+
+          // Fetch lessons for this subject
+          fetch(`/api/lessons?subject=${encodeURIComponent(subject)}`, {
+            headers: { 'X-Teacher-ID': teacherId ? teacherId[1] : '' }
+          })
+                  .then(response => response.json())
+                  .then(lessons => {
+                    lessonSelect.innerHTML = '<option value="">Выберите занятие</option>';
+                    lessons.forEach(lesson => {
+                      const option = document.createElement('option');
+                      option.value = lesson.id;
+                      option.textContent = `${lesson.date} - ${lesson.group_name}`;
+                      option.dataset.date = lesson.date;
+                      option.dataset.group = lesson.group_name;
+                      lessonSelect.appendChild(option);
+                    });
+                    lessonSelect.disabled = false;
+                    checkLessonSelection();
+                  })
+                  .catch(error => {
+                    console.error('Error loading lessons:', error);
+                    lessonSelect.innerHTML = '<option value="">Ошибка загрузки занятий</option>';
+                    lessonSelect.disabled = false;
+                  });
+        } else {
+          lessonSelect.innerHTML = '<option value="">Сначала выберите предмет</option>';
+          lessonSelect.disabled = true;
+          nextToStudentsBtn.disabled = true;
+        }
+      });
+    }
+
+    // Enable/disable next button based on lesson selection
+    if (lessonSelect) {
+      lessonSelect.addEventListener('change', checkLessonSelection);
+    }
+
+    function checkLessonSelection() {
+      if (lessonSelect.value) {
+        nextToStudentsBtn.disabled = false;
+
+        // Set lesson info
+        const selectedOption = lessonSelect.options[lessonSelect.selectedIndex];
+        if (selectedOption.dataset.date && selectedOption.dataset.group) {
+          document.getElementById('lessonDate').textContent = formatDate(selectedOption.dataset.date);
+          document.getElementById('lessonGroup').textContent = selectedOption.dataset.group;
+        }
+      } else {
+        nextToStudentsBtn.disabled = true;
+      }
+    }
+
+    // Format date helper
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('ru-RU');
+    }
+
+    // Load students when moving to step 2
+    if (nextToStudentsBtn) {
+      nextToStudentsBtn.addEventListener('click', function() {
+        if (lessonSelect.value) {
+          // Show loading state
+          studentsContainer.innerHTML = `
+            <div class="loading-indicator">
+              <div class="spinner"></div>
+              <div>Загрузка списка студентов...</div>
+            </div>`;
+
+          // Go to step 2
+          goToStep(2);
+
+          // Fetch students for this lesson
+          fetch(`/api/students?lesson_id=${lessonSelect.value}`, {
+            headers: { 'X-Teacher-ID': teacherId ? teacherId[1] : '' }
+          })
+                  .then(response => response.json())
+                  .then(students => {
+                    loadStudents(students);
+                    updateAttendanceCounters();
+                  })
+                  .catch(error => {
+                    console.error('Error loading students:', error);
+                    studentsContainer.innerHTML = `
+              <div class="error-message">
+                Ошибка загрузки списка студентов. <button type="button" class="retry-btn">Повторить</button>
+              </div>`;
+
+                    document.querySelector('.retry-btn').addEventListener('click', function() {
+                      nextToStudentsBtn.click();
+                    });
+                  });
+        }
+      });
+    }
+
+    // Load students into container
+    function loadStudents(students) {
+      studentsContainer.innerHTML = '';
+
+      if (students.length === 0) {
+        studentsContainer.innerHTML = `
+          <div class="empty-message">
+            Нет студентов для этого занятия
+          </div>`;
+        return;
+      }
+
+      // Update total count
+      totalStudents.textContent = students.length;
+
+      // Create student list
+      students.forEach(student => {
+        const studentItem = document.createElement('div');
+        studentItem.className = 'student-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'attended';
+        checkbox.value = student.id;
+        checkbox.id = `student-${student.id}`;
+        checkbox.className = 'attendance-checkbox';
+        checkbox.addEventListener('change', updateAttendanceCounters);
+
+        const label = document.createElement('label');
+        label.htmlFor = `student-${student.id}`;
+        label.className = 'student-name';
+        label.textContent = student.fio;
+
+        studentItem.appendChild(checkbox);
+        studentItem.appendChild(label);
+        studentsContainer.appendChild(studentItem);
+      });
+
+      // Enable next button
+      nextToConfirmBtn.disabled = false;
+    }
+
+    // Update attendance counters
+    function updateAttendanceCounters() {
+      const total = document.querySelectorAll('.attendance-checkbox').length;
+      const checked = document.querySelectorAll('.attendance-checkbox:checked').length;
+
+      attendanceCount.textContent = checked;
+      totalStudents.textContent = total;
+
+      // Update confirm page
+      if (confirmAttended && confirmTotal) {
+        confirmAttended.textContent = checked;
+        confirmTotal.textContent = total;
+      }
+    }
+
+    // Navigation between steps
+    if (backToLessonsBtn) {
+      backToLessonsBtn.addEventListener('click', function() {
+        goToStep(1);
+      });
+    }
+
+    if (nextToConfirmBtn) {
+      nextToConfirmBtn.addEventListener('click', function() {
+        // Fill confirmation details
+        const subjectText = subjectSelect.options[subjectSelect.selectedIndex].text;
+        const lessonText = lessonSelect.options[lessonSelect.selectedIndex].text;
+        const groupText = document.getElementById('lessonGroup').textContent;
+
+        confirmSubject.textContent = subjectText;
+        confirmLesson.textContent = lessonText;
+        confirmGroup.textContent = groupText;
+
+        goToStep(3);
+      });
+    }
+
+    if (backToStudentsBtn) {
+      backToStudentsBtn.addEventListener('click', function() {
+        goToStep(2);
+      });
+    }
+
+    function goToStep(stepNumber) {
+      // Hide all sections
+      section1.classList.add('hidden');
+      section2.classList.add('hidden');
+      section3.classList.add('hidden');
+
+      // Deactivate all steps
+      step1.classList.remove('active', 'completed');
+      step2.classList.remove('active', 'completed');
+      step3.classList.remove('active', 'completed');
+
+      // Show selected section and mark steps
+      if (stepNumber === 1) {
+        section1.classList.remove('hidden');
+        step1.classList.add('active');
+      } else if (stepNumber === 2) {
+        section2.classList.remove('hidden');
+        step1.classList.add('completed');
+        step2.classList.add('active');
+      } else if (stepNumber === 3) {
+        section3.classList.remove('hidden');
+        step1.classList.add('completed');
+        step2.classList.add('completed');
+        step3.classList.add('active');
+      }
+    }
+
+    // Attendance controls
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', function() {
+        document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
+          checkbox.checked = true;
+        });
+        updateAttendanceCounters();
+      });
+    }
+
+    if (deselectAllBtn) {
+      deselectAllBtn.addEventListener('click', function() {
+        document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
+          checkbox.checked = false;
+        });
+        updateAttendanceCounters();
+      });
+    }
+
+    if (invertSelectionBtn) {
+      invertSelectionBtn.addEventListener('click', function() {
+        document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
+          checkbox.checked = !checkbox.checked;
+        });
+        updateAttendanceCounters();
+      });
+    }
+  });
+</script>
+
+<style>
+  .form-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+    position: relative;
+  }
+
+  .form-steps::before {
+    content: "";
+    position: absolute;
+    top: 25px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--border-color);
+    z-index: 1;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    text-align: center;
+  }
+
+  .step-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.25rem;
+    margin-bottom: var(--space-2);
+    color: var(--text-muted);
+    transition: all var(--transition-normal) ease;
+  }
+
+  .step-title {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    transition: color var(--transition-normal) ease;
+  }
+
+  .step.active .step-number {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+  }
+
+  .step.active .step-title {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .step.completed .step-number {
+    background-color: var(--success);
+    border-color: var(--success);
+    color: white;
+  }
+
+  .step.completed .step-title {
+    color: var(--success);
+  }
+
+  .form-section {
+    transition: all var(--transition-normal) ease;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .attendance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .lesson-info {
+    display: flex;
+    gap: var(--space-3);
+    font-weight: 500;
+  }
+
+  .lesson-date {
+    color: var(--text-accent);
+  }
+
+  .lesson-group {
+    color: var(--text-secondary);
+  }
+
+  .attendance-controls {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .attendance-summary {
+    background-color: var(--bg-tertiary);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    font-weight: 500;
+  }
+
+  .students-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: var(--space-6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+  }
+
+  .student-item {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color var(--transition-fast) ease;
+  }
+
+  .student-item:last-child {
+    border-bottom: none;
+  }
+
+  .student-item:hover {
+    background-color: var(--bg-tertiary);
+  }
+
+  .student-name {
+    margin-left: var(--space-3);
+    cursor: pointer;
+  }
+
+  .loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8);
+    color: var(--text-muted);
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(99, 102, 241, 0.1);
+    border-left-color: var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--space-4);
+  }
+
+  .error-message {
+    text-align: center;
+    padding: var(--space-6);
+    color: var(--danger);
+  }
+
+  .empty-message {
+    text-align: center;
+    padding: var(--space-6);
+    color: var(--text-muted);
+  }
+
+  .retry-btn {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .confirmation-box {
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    text-align: center;
+  }
+
+  .confirmation-icon {
+    font-size: 3rem;
+    color: var(--success);
+    margin-bottom: var(--space-4);
+  }
+
+  .confirmation-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+  }
+
+  .confirmation-details {
+    text-align: left;
+    margin: 0 auto;
+    max-width: 400px;
+  }
+
+  .confirmation-details p {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .confirmation-details p:last-child {
+    border-bottom: none;
+  }
+
+  .confirm-value {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 768px) {
+    .form-steps {
+      flex-direction: column;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
+    .form-steps::before {
+      display: none;
+    }
+
+    .step {
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: var(--space-3);
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      font-size: 1rem;
+      margin-bottom: 0;
+    }
+
+    .attendance-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
 </body>
 </html>
