@@ -5,282 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Редактирование посещаемости - Teaching Stats</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    /* Reset styles */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      color: rgba(243, 244, 246, 1);
-      padding: 2rem 1rem;
-      position: relative;
-    }
-
-    .container {
-      background-color: rgba(17, 24, 39, 1);
-      border-radius: 0.75rem;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-      padding: 2rem;
-      width: 100%;
-      max-width: 800px;
-    }
-
-    .user-info {
-      position: fixed;
-      bottom: 1rem;
-      right: 1rem;
-      background: rgba(26, 32, 44, 0.9);
-      padding: 0.75rem 1rem;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      color: rgba(243, 244, 246, 1);
-      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-      z-index: 100;
-    }
-
-    h1 {
-      text-align: center;
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-      color: rgba(243, 244, 246, 1);
-      font-weight: 700;
-    }
-
-    h2 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: rgba(209, 213, 219, 1);
-      font-weight: 500;
-    }
-
-    .lesson-info {
-      background-color: rgba(26, 32, 44, 1);
-      padding: 1.25rem;
-      border-radius: 0.5rem;
-      margin-bottom: 1.5rem;
-      border: 1px solid rgba(55, 65, 81, 1);
-    }
-
-    .lesson-info p {
-      margin-bottom: 0.5rem;
-      font-size: 0.875rem;
-      color: rgba(209, 213, 219, 1);
-    }
-
-    .lesson-info p strong {
-      color: rgba(243, 244, 246, 1);
-      font-weight: 500;
-      margin-right: 0.5rem;
-    }
-
-    .attendance-summary {
-      background-color: rgba(26, 32, 44, 1);
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-      border: 1px solid rgba(55, 65, 81, 1);
-      font-size: 0.875rem;
-    }
-
-    .attendance-count {
-      color: rgba(167, 139, 250, 1);
-      font-weight: 600;
-    }
-
-    .attendance-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .control-btn {
-      padding: 0.625rem 1rem;
-      background-color: rgba(55, 65, 81, 1);
-      color: rgba(243, 244, 246, 1);
-      border: none;
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      flex: 1;
-      min-width: 120px;
-      text-align: center;
-    }
-
-    .control-btn:hover {
-      background-color: rgba(75, 85, 99, 1);
-      transform: translateY(-2px);
-    }
-
-    .student-list {
-      list-style-type: none;
-      margin-bottom: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .student-item {
-      padding: 1rem;
-      border: 1px solid rgba(55, 65, 81, 1);
-      border-radius: 0.5rem;
-      background-color: rgba(26, 32, 44, 1);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .student-item:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    .student-name {
-      font-weight: 500;
-      color: rgba(243, 244, 246, 1);
-      font-size: 0.875rem;
-    }
-
-    label {
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      user-select: none;
-      width: 100%;
-    }
-
-    input[type="checkbox"] {
-      width: 1.125rem;
-      height: 1.125rem;
-      border-radius: 0.25rem;
-      border: 1px solid rgba(55, 65, 81, 1);
-      appearance: none;
-      background-color: rgba(17, 24, 39, 1);
-      position: relative;
-      cursor: pointer;
-      margin-right: 0.75rem;
-    }
-
-    input[type="checkbox"]:checked {
-      background-color: rgba(167, 139, 250, 1);
-    }
-
-    input[type="checkbox"]:checked::after {
-      content: '';
-      position: absolute;
-      width: 0.25rem;
-      height: 0.5rem;
-      border: solid white;
-      border-width: 0 0.125rem 0.125rem 0;
-      top: 0.2rem;
-      left: 0.375rem;
-      transform: rotate(45deg);
-    }
-
-    input[type="checkbox"]:focus {
-      outline: 2px solid rgba(167, 139, 250, 0.5);
-    }
-
-    button[type="submit"] {
-      display: block;
-      width: 100%;
-      padding: 0.875rem;
-      background-color: rgba(167, 139, 250, 1);
-      color: rgba(17, 24, 39, 1);
-      border: none;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin-bottom: 1.5rem;
-    }
-
-    button[type="submit"]:hover {
-      background-color: rgba(139, 92, 246, 1);
-      transform: translateY(-2px);
-      box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
-    }
-
-    .btn-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-top: 1.5rem;
-    }
-
-    .btn {
-      flex: 1 1 auto;
-      padding: 0.75rem 1.25rem;
-      border-radius: 0.375rem;
-      text-decoration: none;
-      font-size: 0.75rem;
-      transition: all 0.3s ease;
-      text-align: center;
-      font-weight: 500;
-      min-width: 120px;
-    }
-
-    .btn-attendance {
-      background-color: rgba(124, 58, 237, 1);
-      color: white;
-    }
-
-    .btn-attendance:hover {
-      background-color: rgba(109, 40, 217, 1);
-      transform: translateY(-2px);
-      box-shadow: 0px 4px 10px rgba(124, 58, 237, 0.3);
-    }
-
-    .btn-admin {
-      background-color: rgba(59, 130, 246, 1);
-      color: white;
-    }
-
-    .btn-admin:hover {
-      background-color: rgba(37, 99, 235, 1);
-      transform: translateY(-2px);
-      box-shadow: 0px 4px 10px rgba(37, 99, 235, 0.3);
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        padding: 1.5rem;
-      }
-
-      h1 {
-        font-size: 1.25rem;
-      }
-
-      h2 {
-        font-size: 1rem;
-      }
-
-      .student-item {
-        padding: 0.75rem;
-      }
-
-      .btn-group {
-        flex-direction: column;
-      }
-
-      .btn {
-        width: 100%;
-      }
-    }
-  </style>
+  <!-- Подключаем внешние стили -->
+  <link rel="stylesheet" href="/templates/static/css/main.css">
+  <link rel="stylesheet" href="/templates/static/css/components.css">
+  <link rel="stylesheet" href="/templates/static/css/tables.css">
+  <link rel="stylesheet" href="/templates/static/css/layout.css">
+  <link rel="stylesheet" href="/templates/static/css/utils.css">
 </head>
 <body>
 <div class="container">
@@ -302,16 +32,16 @@
     </div>
 
     <div class="attendance-controls">
-      <button type="button" class="control-btn" onclick="selectAll()">Выбрать всех</button>
-      <button type="button" class="control-btn" onclick="deselectAll()">Снять выделение</button>
-      <button type="button" class="control-btn" onclick="invertSelection()">Инвертировать выбор</button>
+      <button type="button" class="control-btn" id="selectAllBtn">Выбрать всех</button>
+      <button type="button" class="control-btn" id="deselectAllBtn">Снять выделение</button>
+      <button type="button" class="control-btn" id="invertSelectionBtn">Инвертировать выбор</button>
     </div>
 
     <ul class="student-list">
       {{range .Students}}
       <li class="student-item">
         <label>
-          <input type="checkbox" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} onchange="updateAttendanceCount()">
+          <input type="checkbox" name="attended" value="{{.ID}}" {{if .Attended}}checked{{end}} class="attendance-checkbox">
           <span class="student-name">{{.FIO}}</span>
         </label>
       </li>
@@ -333,34 +63,25 @@
   {{end}}
 </div>
 
+<!-- Подключаем внешние скрипты -->
+<script src="/templates/static/js/main.js"></script>
+<script src="/templates/static/js/attendance.js"></script>
 <script>
-  function updateAttendanceCount() {
-    const checkboxes = document.querySelectorAll('input[name="attended"]:checked');
-    const totalCount = document.querySelectorAll('input[name="attended"]').length;
-    const countElement = document.getElementById('attendanceCount');
-    countElement.textContent = checkboxes.length;
-  }
+  // Инициализация при загрузке страницы
+  document.addEventListener('DOMContentLoaded', function() {
+    // Назначаем обработчики кнопкам
+    document.getElementById('selectAllBtn').addEventListener('click', Attendance.selectAll);
+    document.getElementById('deselectAllBtn').addEventListener('click', Attendance.deselectAll);
+    document.getElementById('invertSelectionBtn').addEventListener('click', Attendance.invertSelection);
 
-  function selectAll() {
-    const checkboxes = document.querySelectorAll('input[name="attended"]');
-    checkboxes.forEach(checkbox => checkbox.checked = true);
-    updateAttendanceCount();
-  }
+    // Назначаем обработчики на чекбоксы посещаемости
+    document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', Attendance.updateAttendanceCount);
+    });
 
-  function deselectAll() {
-    const checkboxes = document.querySelectorAll('input[name="attended"]');
-    checkboxes.forEach(checkbox => checkbox.checked = false);
-    updateAttendanceCount();
-  }
-
-  function invertSelection() {
-    const checkboxes = document.querySelectorAll('input[name="attended"]');
-    checkboxes.forEach(checkbox => checkbox.checked = !checkbox.checked);
-    updateAttendanceCount();
-  }
-
-  // Initialize attendance count on page load
-  document.addEventListener('DOMContentLoaded', updateAttendanceCount);
+    // Инициализируем счётчик посещаемости
+    Attendance.updateAttendanceCount();
+  });
 </script>
 </body>
 </html>

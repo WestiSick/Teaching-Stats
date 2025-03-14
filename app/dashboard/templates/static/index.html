@@ -5,45 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teaching Stats - Главная</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Подключаем внешние стили -->
+  <link rel="stylesheet" href="/templates/static/css/main.css">
+  <link rel="stylesheet" href="/templates/static/css/components.css">
+  <link rel="stylesheet" href="/templates/static/css/layout.css">
+  <link rel="stylesheet" href="/templates/static/css/utils.css">
   <style>
-    /* Reset styles */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      color: rgba(243, 244, 246, 1);
-    }
-
+    /* Специфические стили только для главной страницы */
     .container {
-      background-color: rgba(17, 24, 39, 1);
-      border-radius: 0.75rem;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-      padding: 2.5rem;
       text-align: center;
       max-width: 400px;
       width: 90%;
-    }
-
-    h1 {
-      margin-bottom: 1.5rem;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: rgba(243, 244, 246, 1);
-    }
-
-    p {
-      margin-bottom: 2rem;
-      font-size: 1rem;
-      color: rgba(156, 163, 175, 1);
     }
 
     .button-container {
@@ -58,57 +30,13 @@
       text-transform: uppercase;
       letter-spacing: 2.5px;
       font-weight: 500;
-      text-decoration: none;
-      border: none;
       border-radius: 45px;
-      box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.2);
-      transition: all 0.3s ease 0s;
-      cursor: pointer;
-      outline: none;
-    }
-
-    .btn-login {
-      background-color: rgba(167, 139, 250, 1);
-      color: rgba(17, 24, 39, 1);
-    }
-
-    .btn-login:hover {
-      background-color: rgba(139, 92, 246, 1);
-      box-shadow: 0px 15px 20px rgba(139, 92, 246, 0.4);
-      color: rgba(17, 24, 39, 1);
-      transform: translateY(-7px);
-    }
-
-    .btn-register {
-      background-color: transparent;
-      color: rgba(243, 244, 246, 1);
-      border: 1px solid rgba(167, 139, 250, 1);
-    }
-
-    .btn-register:hover {
-      background-color: rgba(167, 139, 250, 0.1);
-      box-shadow: 0px 15px 20px rgba(139, 92, 246, 0.2);
-      transform: translateY(-7px);
     }
 
     @media (min-width: 768px) {
       .button-container {
         flex-direction: row;
         justify-content: center;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .container {
-        padding: 2rem;
-      }
-
-      h1 {
-        font-size: 1.5rem;
-      }
-
-      .btn {
-        width: 100%;
       }
     }
   </style>
@@ -118,9 +46,12 @@
   <h1>Добро пожаловать в Teaching Stats!</h1>
   <p>Пожалуйста, войдите в систему или зарегистрируйтесь:</p>
   <div class="button-container">
-    <a class="btn btn-login" href="/login">Вход</a>
-    <a class="btn btn-register" href="/register">Регистрация</a>
+    <a class="btn btn-primary" href="/login">Вход</a>
+    <a class="btn btn-secondary" href="/register">Регистрация</a>
   </div>
 </div>
+
+<!-- Подключаем внешние скрипты -->
+<script src="/templates/static/js/main.js"></script>
 </body>
 </html>

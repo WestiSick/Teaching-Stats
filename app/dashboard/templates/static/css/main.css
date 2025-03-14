@@ -1,0 +1,138 @@
+/* main.css - Основные стили для приложения */
+
+/* Сброс стилей */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Основные стили для body */
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: rgba(243, 244, 246, 1);
+    padding: 2rem 1rem;
+    position: relative;
+}
+
+/* Контейнер для содержимого */
+.container {
+    background-color: rgba(17, 24, 39, 1);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    padding: 2rem;
+    width: 100%;
+    max-width: 800px;
+}
+
+/* Информация о пользователе */
+.user-info {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(26, 32, 44, 0.9);
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: rgba(243, 244, 246, 1);
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+/* Заголовки */
+h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: rgba(243, 244, 246, 1);
+    font-weight: 700;
+}
+
+h2 {
+    font-size: 1.1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: rgba(209, 213, 219, 1);
+    font-weight: 500;
+}
+
+h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: rgba(209, 213, 219, 1);
+    font-weight: 500;
+}
+
+p {
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    color: rgba(209, 213, 219, 1);
+}
+
+/* Ссылки */
+a {
+    color: rgba(167, 139, 250, 1);
+    text-decoration: none;
+    transition: color 0.3s;
+    font-size: 0.875rem;
+}
+
+a:hover {
+    color: rgba(139, 92, 246, 1);
+    text-decoration: underline;
+}
+
+/* Секция с информацией */
+.info-section {
+    background-color: rgba(26, 32, 44, 1);
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(55, 65, 81, 1);
+}
+
+/* Ссылка "Назад" */
+.back-link {
+    display: block;
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: rgba(167, 139, 250, 1);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.back-link:hover {
+    color: rgba(139, 92, 246, 1);
+    text-decoration: underline;
+}
+
+/* Медиа-запросы для адаптивного дизайна */
+@media (max-width: 768px) {
+    .container {
+        padding: 1.5rem;
+    }
+
+    h1 {
+        font-size: 1.25rem;
+    }
+
+    h2 {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 1.5rem;
+    }
+
+    h1 {
+        font-size: 1.25rem;
+    }
+}

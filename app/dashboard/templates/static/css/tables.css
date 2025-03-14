@@ -1,0 +1,166 @@
+/* tables.css - Стили для таблиц */
+
+/* Контейнер таблицы */
+.table-container {
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+}
+
+/* Основные стили таблицы */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+/* Заголовки таблицы */
+table th {
+    background-color: rgba(26, 32, 44, 1);
+    color: rgba(156, 163, 175, 1);
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 500;
+    border: 1px solid rgba(55, 65, 81, 1);
+}
+
+/* Ячейки таблицы */
+table td {
+    padding: 0.75rem;
+    border: 1px solid rgba(55, 65, 81, 1);
+    color: rgba(243, 244, 246, 1);
+}
+
+/* Эффект наведения на строку */
+table tr:hover {
+    background-color: rgba(26, 32, 44, 0.5);
+}
+
+/* Стили для строк с действиями */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Пустое состояние таблицы */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(156, 163, 175, 1);
+    font-style: italic;
+}
+
+/* Стили для ячейки с ссылкой */
+.link-url {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: rgba(167, 139, 250, 1);
+    word-break: break-all;
+    max-width: 250px;
+}
+
+/* Стили для grade (оценки) */
+.grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.grade-1 {
+    background-color: rgba(239, 68, 68, 1);
+    color: white;
+}
+
+.grade-2 {
+    background-color: rgba(249, 115, 22, 1);
+    color: white;
+}
+
+.grade-3 {
+    background-color: rgba(251, 191, 36, 1);
+    color: rgba(17, 24, 39, 1);
+}
+
+.grade-4 {
+    background-color: rgba(52, 211, 153, 1);
+    color: rgba(17, 24, 39, 1);
+}
+
+.grade-5 {
+    background-color: rgba(59, 130, 246, 1);
+    color: white;
+}
+
+/* Стиль для ввода оценки */
+.grade-input {
+    width: 40px;
+    padding: 0.375rem;
+    border-radius: 0.25rem;
+    border: 1px solid rgba(55, 65, 81, 1);
+    background-color: rgba(17, 24, 39, 1);
+    color: rgba(243, 244, 246, 1);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.grade-input:focus {
+    border-color: rgba(167, 139, 250, 1);
+    outline: none;
+}
+
+/* Стиль для среднего балла */
+.student-average {
+    font-weight: 600;
+    color: rgba(52, 211, 153, 1);
+}
+
+/* Статус посещаемости студента */
+.student-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    display: inline-block;
+    min-width: 120px;
+    font-size: 0.75rem;
+}
+
+.status-present {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: rgba(52, 211, 153, 1);
+}
+
+.status-absent {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: rgba(239, 68, 68, 1);
+}
+
+/* Адаптивные стили для маленьких устройств */
+@media (max-width: 768px) {
+    table th,
+    table td {
+        padding: 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .grade {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.75rem;
+    }
+
+    .grade-input {
+        width: 30px;
+        padding: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .link-url {
+        max-width: 150px;
+    }
+}

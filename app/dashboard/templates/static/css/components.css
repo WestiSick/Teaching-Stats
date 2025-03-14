@@ -1,0 +1,271 @@
+/* components.css - Стили для компонентов интерфейса */
+
+/* Кнопки */
+.btn {
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-size: 0.875rem;
+    text-align: center;
+    border: none;
+}
+
+/* Первичная кнопка */
+.btn-primary {
+    background-color: rgba(167, 139, 250, 1);
+    color: rgba(17, 24, 39, 1);
+}
+
+.btn-primary:hover {
+    background-color: rgba(139, 92, 246, 1);
+    transform: translateY(-3px);
+    box-shadow: 0px 8px 15px rgba(139, 92, 246, 0.3);
+}
+
+/* Вторичная кнопка */
+.btn-secondary {
+    background-color: rgba(55, 65, 81, 1);
+    color: rgba(243, 244, 246, 1);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(75, 85, 99, 1);
+    transform: translateY(-3px);
+    box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Кнопка с предупреждением */
+.btn-warning {
+    background-color: rgba(251, 146, 60, 1);
+    color: rgba(17, 24, 39, 1);
+}
+
+.btn-warning:hover {
+    background-color: rgba(234, 88, 12, 1);
+    transform: translateY(-3px);
+    box-shadow: 0px 8px 15px rgba(234, 88, 12, 0.3);
+}
+
+/* Кнопка опасности */
+.btn-danger {
+    background-color: rgba(239, 68, 68, 1);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: rgba(220, 38, 38, 1);
+    transform: translateY(-3px);
+    box-shadow: 0px 8px 15px rgba(220, 38, 38, 0.3);
+}
+
+/* Кнопка админки */
+.btn-admin {
+    background-color: rgba(124, 58, 237, 1);
+    color: white;
+}
+
+.btn-admin:hover {
+    background-color: rgba(109, 40, 217, 1);
+    transform: translateY(-3px);
+    box-shadow: 0px 8px 15px rgba(124, 58, 237, 0.3);
+}
+
+/* Кнопка редактирования */
+.btn-edit {
+    background-color: rgba(52, 211, 153, 1);
+    color: rgba(17, 24, 39, 1);
+}
+
+.btn-edit:hover {
+    background-color: rgba(16, 185, 129, 1);
+    transform: translateY(-2px);
+    box-shadow: 0px 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+/* Элементы формы */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+input[type="file"],
+select {
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(55, 65, 81, 1);
+    background-color: rgba(17, 24, 39, 1);
+    color: rgba(243, 244, 246, 1);
+    font-size: 0.875rem;
+    width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+input[type="file"]:focus,
+select:focus {
+    border-color: rgba(167, 139, 250, 1);
+    outline: none;
+}
+
+/* Стилизация для date picker */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+    cursor: pointer;
+}
+
+/* Группа формы */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: rgba(209, 213, 219, 1);
+}
+
+/* Оформление для input file */
+input[type="file"] {
+    padding: 0.5rem;
+}
+
+input[type="file"]::file-selector-button {
+    background-color: rgba(55, 65, 81, 1);
+    color: rgba(243, 244, 246, 1);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-right: 1rem;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background-color: rgba(75, 85, 99, 1);
+}
+
+/* Группа кнопок */
+.btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}
+
+/* Статусные индикаторы */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-active {
+    background-color: rgba(52, 211, 153, 0.2);
+    color: rgba(52, 211, 153, 1);
+}
+
+.badge-expired {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: rgba(239, 68, 68, 1);
+}
+
+.badge-permanent {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: rgba(59, 130, 246, 1);
+}
+
+/* Модальные окна */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: rgba(26, 32, 44, 1);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(55, 65, 81, 1);
+}
+
+.modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgba(243, 244, 246, 1);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: rgba(156, 163, 175, 1);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close-btn:hover {
+    color: rgba(243, 244, 246, 1);
+}
+
+.modal-body {
+    margin-bottom: 1.5rem;
+    color: rgba(209, 213, 219, 1);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+/* Адаптивные стили для маленьких устройств */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="file"],
+    select,
+    button {
+        font-size: 0.875rem;
+        padding: 0.625rem;
+    }
+
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .modal-content {
+        padding: 1.5rem;
+        width: 95%;
+    }
+}
