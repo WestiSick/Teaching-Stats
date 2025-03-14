@@ -207,6 +207,8 @@
             text-align: center;
             min-width: 120px;
             flex: 1;
+            border: none;
+            cursor: pointer;
         }
 
         .btn-edit {
@@ -484,9 +486,9 @@
             <form id="shareForm" class="modal-form" action="/labs/share/{{.Summary.Subject}}/{{.Summary.GroupName}}" method="POST">
                 <div class="form-group">
                     <label class="form-label">Срок действия ссылки:</label>
-                    <select name="expiration" class="form-select">
+                    <select name="expiration" id="expirationSelect" class="form-select" required>
                         <option value="1">1 день</option>
-                        <option value="7" selected>7 дней</option>
+                        <option value="7">7 дней</option>
                         <option value="30">30 дней</option>
                         <option value="90">90 дней</option>
                         <option value="0">Бессрочно</option>
@@ -541,11 +543,22 @@
     shareForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const formData = new FormData(shareForm);
+        // Получаем значение срока действия явно
+        const expirationSelect = document.getElementById('expirationSelect');
+        const expirationValue = expirationSelect.value;
+
+        // Используем URLSearchParams вместо FormData
+        const params = new URLSearchParams();
+        params.append('expiration', expirationValue);
+
+        console.log('Sending expiration value:', expirationValue);
 
         fetch(shareForm.action, {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
         })
             .then(response => response.json())
             .then(data => {

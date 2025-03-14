@@ -139,6 +139,8 @@ func main() {
 	router.HandleFunc("/labs/export/{subject}/{group}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.ExportLabGradesHandler))).Methods("GET")
 	router.HandleFunc("/labs/share/{subject}/{group}", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.ShareLabGradesHandler))).Methods("POST")
 	router.HandleFunc("/s/{token}", labHandler.SharedLabViewHandler).Methods("GET")
+	router.HandleFunc("/labs/links", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.ManageSharedLinksHandler))).Methods("GET")
+	router.HandleFunc("/labs/links/delete", handlers2.AuthMiddleware(handlers2.SubscriberMiddleware(database, labHandler.DeleteSharedLinkHandler))).Methods("POST")
 
 	// Admin labs management routes
 	router.HandleFunc("/admin/labs", handlers2.AdminMiddleware(database, adminHandler.AdminLabsHandler)).Methods("GET", "POST")

@@ -102,3 +102,15 @@ type SharedLabLink struct {
 	ExpiresAt   *time.Time
 	AccessCount int
 }
+
+type SharedLinkDisplay struct {
+	Token       string
+	TeacherID   int
+	GroupName   string
+	Subject     string
+	CreatedAt   time.Time
+	ExpiresAt   *time.Time
+	AccessCount int
+	BaseURL     string
+	IsExpired   bool
+}

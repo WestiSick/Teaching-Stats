@@ -71,6 +71,36 @@
             margin-bottom: 1rem;
         }
 
+        /* Action bar styles */
+        .action-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1.5rem;
+        }
+
+        .manage-links-btn {
+            display: inline-flex;
+            align-items: center;
+            background-color: rgba(167, 139, 250, 1);
+            color: white;
+            padding: 0.625rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .manage-links-btn:hover {
+            background-color: rgba(139, 92, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .manage-links-btn .icon {
+            margin-right: 0.5rem;
+        }
+
         /* Subject section */
         .subject-section {
             margin-bottom: 2rem;
@@ -195,7 +225,7 @@
                 min-width: 120px;
             }
         }
-        
+
         .view-button {
             padding: 0.625rem 0.875rem;
             border: none;
@@ -221,6 +251,13 @@
 <body>
 <div class="container">
     <h1>Лабораторные работы</h1>
+
+    <div class="action-bar">
+        <a href="/labs/links" class="manage-links-btn">
+            <span class="icon">🔗</span>
+            Управление общими ссылками
+        </a>
+    </div>
 
     {{if .SubjectGroups}}
     {{range .SubjectGroups}}

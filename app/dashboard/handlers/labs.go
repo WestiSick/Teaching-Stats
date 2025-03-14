@@ -4,11 +4,17 @@ import (
 	"TeacherJournal/app/dashboard/db"
 	"TeacherJournal/app/dashboard/models"
 	"TeacherJournal/config"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/tealeg/xlsx"
@@ -348,16 +354,78 @@ func (h *LabHandler) ShareLabGradesHandler(w http.ResponseWriter, r *http.Reques
 
 	// For POST requests, generate a new shareable link
 	if r.Method == "POST" {
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Error parsing form", http.StatusBadRequest)
-			return
+		// Логируем ContentType для диагностики
+		log.Printf("Request Content-Type: %s", r.Header.Get("Content-Type"))
+
+		// Обрабатываем разные типы форм
+		var expStr string
+
+		// Проверяем Content-Type
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+			// Парсим данные формы URL-encoded
+			if err := r.ParseForm(); err != nil {
+				log.Printf("Error parsing form: %v", err)
+			} else {
+				// Получаем все параметры для диагностики
+				log.Printf("All form values: %v", r.Form)
+				expStr = r.FormValue("expiration")
+			}
+		} else if strings.Contains(contentType, "multipart/form-data") {
+			// Парсим multipart форму
+			if err := r.ParseMultipartForm(10 << 20); err != nil {
+				log.Printf("Error parsing multipart form: %v", err)
+			} else {
+				// Получаем все параметры для диагностики
+				log.Printf("All multipart form values: %v", r.MultipartForm.Value)
+				if values, ok := r.MultipartForm.Value["expiration"]; ok && len(values) > 0 {
+					expStr = values[0]
+				}
+			}
+		} else {
+			// Для всех остальных случаев
+			if err := r.ParseForm(); err != nil {
+				log.Printf("Error parsing request body: %v", err)
+			} else {
+				// Пробуем получить из Query-параметров и обычных параметров формы
+				expStr = r.URL.Query().Get("expiration")
+				if expStr == "" {
+					expStr = r.FormValue("expiration")
+				}
+			}
+
+			// Если все еще не получили значение, читаем тело запроса
+			if expStr == "" {
+				bodyBytes, err := io.ReadAll(r.Body)
+				if err != nil {
+					log.Printf("Error reading request body: %v", err)
+				} else {
+					// Восстанавливаем тело запроса для последующего использования
+					r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+					bodyStr := string(bodyBytes)
+					log.Printf("Request body: %s", bodyStr)
+
+					// Попробуем извлечь значение из raw body
+					if params, err := url.ParseQuery(bodyStr); err == nil {
+						if values, ok := params["expiration"]; ok && len(values) > 0 {
+							expStr = values[0]
+						}
+					}
+				}
+			}
 		}
+
+		// Логируем найденное значение
+		log.Printf("Found expiration value after checking all possible sources: %s", expStr)
 
 		// Parse expiration days
 		expirationDays := 7 // Default to 7 days
-		if expStr := r.FormValue("expiration"); expStr != "" {
+		if expStr != "" {
 			if exp, err := strconv.Atoi(expStr); err == nil {
 				expirationDays = exp
+				log.Printf("Using expiration days: %d", expirationDays)
+			} else {
+				log.Printf("Error parsing expiration value: %v", err)
 			}
 		}
 
@@ -373,7 +441,7 @@ func (h *LabHandler) ShareLabGradesHandler(w http.ResponseWriter, r *http.Reques
 
 		// Log the action
 		db.LogAction(h.DB, userInfo.ID, "Share Lab Grades",
-			fmt.Sprintf("Created shared link for %s, %s", subject, groupName))
+			fmt.Sprintf("Created shared link for %s, %s with expiration days: %d", subject, groupName, expirationDays))
 
 		// Return the URL as JSON
 		w.Header().Set("Content-Type", "application/json")
@@ -447,4 +515,110 @@ func getBaseURL(r *http.Request) string {
 		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s", scheme, r.Host)
+}
+
+// Структура для отображения ссылок на странице управления
+
+// ManageSharedLinksHandler обрабатывает просмотр и управление созданными ссылками
+func (h *LabHandler) ManageSharedLinksHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Получаем все ссылки, созданные преподавателем
+	links, err := db.GetTeacherSharedLinks(h.DB, userInfo.ID)
+	if err != nil {
+		HandleError(w, err, "Ошибка при получении списка ссылок", http.StatusInternalServerError)
+		return
+	}
+
+	// Базовый URL для формирования полных ссылок
+	baseURL := getBaseURL(r)
+
+	// Подготавливаем данные для отображения
+	var displayLinks []models.SharedLinkDisplay
+	now := time.Now()
+
+	for _, link := range links {
+		isExpired := false
+		if link.ExpiresAt != nil && link.ExpiresAt.Before(now) {
+			isExpired = true
+		}
+
+		displayLink := models.SharedLinkDisplay{
+			Token:       link.Token,
+			TeacherID:   link.TeacherID,
+			GroupName:   link.GroupName,
+			Subject:     link.Subject,
+			CreatedAt:   link.CreatedAt,
+			ExpiresAt:   link.ExpiresAt,
+			AccessCount: link.AccessCount,
+			BaseURL:     baseURL,
+			IsExpired:   isExpired,
+		}
+
+		displayLinks = append(displayLinks, displayLink)
+	}
+
+	data := struct {
+		User  db.UserInfo
+		Links []models.SharedLinkDisplay
+	}{
+		User:  userInfo,
+		Links: displayLinks,
+	}
+
+	renderTemplate(w, h.Tmpl, "manage_shared_links.html", data)
+}
+
+// DeleteSharedLinkHandler обрабатывает удаление ссылки
+func (h *LabHandler) DeleteSharedLinkHandler(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := db.GetUserInfo(h.DB, r, config.Store, config.SessionName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		HandleError(w, err, "Ошибка при обработке формы", http.StatusBadRequest)
+		return
+	}
+
+	token := r.FormValue("token")
+	if token == "" {
+		http.Error(w, "Не указан токен", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем, что ссылка принадлежит этому преподавателю
+	var link models.SharedLabLink
+	result := h.DB.Where("token = ? AND teacher_id = ?", token, userInfo.ID).First(&link)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			http.Error(w, "Ссылка не найдена или доступ запрещен", http.StatusNotFound)
+		} else {
+			HandleError(w, result.Error, "Ошибка при проверке ссылки", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Удаляем ссылку
+	if err := db.DeleteSharedLabLink(h.DB, userInfo.ID, token); err != nil {
+		HandleError(w, err, "Ошибка при удалении ссылки", http.StatusInternalServerError)
+		return
+	}
+
+	// Логируем действие
+	db.LogAction(h.DB, userInfo.ID, "Удаление общей ссылки",
+		fmt.Sprintf("Удалена ссылка для %s, %s", link.Subject, link.GroupName))
+
+	// Перенаправляем обратно на страницу управления
+	http.Redirect(w, r, "/labs/links", http.StatusSeeOther)
 }
