@@ -65,7 +65,7 @@ func main() {
 	tmpl = tmpl.Funcs(createTemplateHelperFunctions())
 
 	// Parse the templates
-	tmpl, err = tmpl.ParseGlob("app/dashboard/templates/*.html")
+	tmpl, err = tmpl.ParseGlob("app/dashboard/templates/static/*.html")
 	if err != nil {
 		log.Fatal(err)
 	}
