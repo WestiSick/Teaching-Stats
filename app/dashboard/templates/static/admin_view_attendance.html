@@ -3,27 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр посещаемости - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Просмотр посещаемости - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Просмотр посещаемости</h1>
 
-    <div class="lesson-info">
-        <h2>Информация о занятии</h2>
-        <p><strong>Преподаватель:</strong> {{.TeacherFIO}}</p>
-        <p><strong>Предмет:</strong> {{.Lesson.Subject}}</p>
-        <p><strong>Тема:</strong> {{.Lesson.Topic}}</p>
-        <p><strong>Группа:</strong> {{.Lesson.GroupName}}</p>
-        <p><strong>Дата:</strong> {{.Lesson.Date}}</p>
-        <p><strong>Тип занятия:</strong> {{.Lesson.Type}}</p>
+    <div class="card lesson-info mb-6">
+        <div class="lesson-info-grid">
+            <div class="lesson-detail">
+                <div class="detail-label">Преподаватель:</div>
+                <div class="detail-value">{{.TeacherFIO}}</div>
+            </div>
+            <div class="lesson-detail">
+                <div class="detail-label">Предмет:</div>
+                <div class="detail-value">{{.Lesson.Subject}}</div>
+            </div>
+            <div class="lesson-detail">
+                <div class="detail-label">Тема:</div>
+                <div class="detail-value">{{.Lesson.Topic}}</div>
+            </div>
+            <div class="lesson-detail">
+                <div class="detail-label">Группа:</div>
+                <div class="detail-value">{{.Lesson.GroupName}}</div>
+            </div>
+            <div class="lesson-detail">
+                <div class="detail-label">Дата:</div>
+                <div class="detail-value">{{.Lesson.Date}}</div>
+            </div>
+            <div class="lesson-detail">
+                <div class="detail-label">Тип занятия:</div>
+                <div class="detail-value">{{.Lesson.Type}}</div>
+            </div>
+        </div>
     </div>
 
     <div class="attendance-summary">
-        <h2>Статистика посещаемости</h2>
+        <h2 class="section-title">Статистика посещаемости</h2>
         <div class="attendance-stats">
             <div class="stat-item present">
                 <div class="stat-value">{{.PresentStudents}}</div>
@@ -38,41 +60,51 @@
                 <div class="stat-label">Посещаемость</div>
             </div>
         </div>
-    </div>
 
-    <h2>Список студентов</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-            <tr>
-                <th>№</th>
-                <th>ФИО студента</th>
-                <th>Статус</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{range $index, $student := .Students}}
-            <tr>
-                <td>{{inc $index}}</td>
-                <td>{{$student.FIO}}</td>
-                <td>
-                    {{if $student.Attended}}
-                    <span class="student-status status-present">Присутствовал</span>
-                    {{else}}
-                    <span class="student-status status-absent">Отсутствовал</span>
-                    {{end}}
-                </td>
-            </tr>
-            {{end}}
-            </tbody>
-        </table>
+        <div class="attendance-progress-bar mt-6">
+            <div class="progress-fill {{if ge .AttendancePercent 80}}high-progress{{else if ge .AttendancePercent 50}}medium-progress{{else}}low-progress{{end}}" style="width: {{printf "%.1f%%" .AttendancePercent}}"></div>
     </div>
+</div>
 
-    <div class="btn-group">
-        <a href="/admin/attendance/edit/{{.Lesson.ID}}" class="btn btn-edit">Редактировать</a>
-        <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-attendance">Назад к посещаемости</a>
-        <a href="/admin" class="btn btn-admin">В админ-панель</a>
-    </div>
+<h2 class="section-title mb-4">Список студентов</h2>
+<div class="table-container">
+    <table>
+        <thead>
+        <tr>
+            <th style="width: 60px;">№</th>
+            <th>ФИО студента</th>
+            <th style="width: 150px;">Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range $index, $student := .Students}}
+        <tr>
+            <td class="text-center">{{inc $index}}</td>
+            <td>{{$student.FIO}}</td>
+            <td>
+                {{if $student.Attended}}
+                <span class="student-status status-present">Присутствовал</span>
+                {{else}}
+                <span class="student-status status-absent">Отсутствовал</span>
+                {{end}}
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="btn-group mt-6">
+    <a href="/admin/attendance/edit/{{.Lesson.ID}}" class="btn btn-edit">
+        <span>✏️</span> Редактировать
+    </a>
+    <a href="/admin/attendance?teacher_id={{.TeacherID}}" class="btn btn-secondary">
+        <span>🔙</span> Назад к посещаемости
+    </a>
+    <a href="/admin" class="btn btn-primary">
+        <span>🏠</span> В админ-панель
+    </a>
+</div>
 </div>
 
 <div class="user-info">
@@ -81,7 +113,7 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script>
     // Helper function to subtract numbers
@@ -93,6 +125,94 @@
     function inc(i) {
         return i + 1;
     }
+
+    // Animate progress bar
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            const progressBar = document.querySelector('.progress-fill');
+            if (progressBar) {
+                progressBar.style.transition = 'width 1s ease-out';
+            }
+        }, 300);
+    });
 </script>
+
+<style>
+    .lesson-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--space-4);
+    }
+
+    .lesson-detail {
+        margin-bottom: var(--space-3);
+    }
+
+    .detail-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: var(--space-1);
+    }
+
+    .detail-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .section-title {
+        position: relative;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-color), transparent);
+    }
+
+    .attendance-progress-bar {
+        height: 8px;
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 0;
+        transition: width 0.3s ease;
+    }
+
+    .high-progress {
+        background: linear-gradient(90deg, var(--success), #059669);
+    }
+
+    .medium-progress {
+        background: linear-gradient(90deg, var(--warning), #d97706);
+    }
+
+    .low-progress {
+        background: linear-gradient(90deg, var(--danger), #b91c1c);
+    }
+
+    @media (max-width: 768px) {
+        .lesson-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .attendance-stats {
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+    }
+</style>
 </body>
 </html>

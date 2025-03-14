@@ -3,48 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лабораторные работы - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Лабораторные работы - Teacher Journal</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
     <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
+    <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Лабораторные работы</h1>
 
-    <div class="action-bar">
-        <a href="/labs/links" class="manage-links-btn">
-            <span class="icon">🔗</span>
-            Управление общими ссылками
-        </a>
+    <div class="d-flex justify-between align-items-center mb-6">
+        <div class="section-info">
+            <p class="text-muted">Управляйте лабораторными работами и оценками студентов</p>
+        </div>
+        <div>
+            <a href="/labs/links" class="btn btn-primary">
+                <span>🔗</span> Управление общими ссылками
+            </a>
+        </div>
     </div>
 
     {{if .SubjectGroups}}
-    {{range .SubjectGroups}}
-    <div class="subject-section">
-        <h2>{{.Subject}}</h2>
-        {{$currentSubject := .Subject}}
-        {{range .Groups}}
-        <div class="group-item">
-            <div>
-                <span class="group-name">{{.Name}}</span>
-                <span class="student-count">({{.StudentCount}} студентов)</span>
+    <div class="subjects-container">
+        {{range .SubjectGroups}}
+        <div class="card subject-card mb-6 fade-in">
+            <div class="card-header">
+                <h2 class="section-title mb-0">{{.Subject}}</h2>
             </div>
-            <div>
-                <a href="/labs/view/{{$currentSubject}}/{{.Name}}" class="view-button">Просмотр</a>
-                <a href="/labs/grades/{{$currentSubject}}/{{.Name}}" class="lab-button">Сдача лабораторных</a>
-                <a href="/labs/export/{{$currentSubject}}/{{.Name}}" class="export-button">Экспортировать в Excel</a>
+            <div class="card-body p-0">
+                {{$currentSubject := .Subject}}
+                {{range .Groups}}
+                <div class="group-row">
+                    <div class="group-info">
+                        <div class="group-title">{{.Name}}</div>
+                        <div class="student-count">{{.StudentCount}} студентов</div>
+                    </div>
+                    <div class="group-actions">
+                        <a href="/labs/view/{{$currentSubject}}/{{.Name}}" class="btn btn-sm btn-secondary">
+                            <span>👁️</span> Просмотр
+                        </a>
+                        <a href="/labs/grades/{{$currentSubject}}/{{.Name}}" class="btn btn-sm btn-edit">
+                            <span>🧪</span> Сдача лабораторных
+                        </a>
+                        <a href="/labs/export/{{$currentSubject}}/{{.Name}}" class="btn btn-sm btn-info">
+                            <span>📊</span> Экспорт
+                        </a>
+                    </div>
+                </div>
+                {{end}}
             </div>
         </div>
         {{end}}
     </div>
-    {{end}}
     {{else}}
-    <p>У вас нет групп с предметами для сдачи лабораторных работ.</p>
+    <div class="empty-state card text-center p-6">
+        <div class="empty-state-icon mb-4">🧪</div>
+        <h3>У вас нет групп с лабораторными работами</h3>
+        <p class="text-muted mb-4">Добавьте новые занятия с типом "Лабораторная работа" для ваших групп</p>
+        <a href="/lesson/add" class="btn btn-primary">
+            <span>📝</span> Добавить занятие
+        </a>
+    </div>
     {{end}}
 
-    <a href="/dashboard" class="back-link">Назад</a>
+    <div class="btn-group mt-6">
+        <a href="/dashboard" class="btn btn-secondary">
+            <span>🏠</span> Вернуться на главную
+        </a>
+    </div>
 </div>
 
 <div class="user-info">
@@ -53,8 +82,119 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script src="/templates/static/js/labs.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate cards with staggered timing
+        const cards = document.querySelectorAll('.subject-card');
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+</script>
+
+<style>
+    .section-info {
+        font-size: 0.95rem;
+    }
+
+    .subjects-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-6);
+    }
+
+    .subject-card {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .card-header {
+        padding: var(--space-4) var(--space-6);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-title {
+        position: relative;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .group-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-4) var(--space-6);
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s ease;
+    }
+
+    .group-row:last-child {
+        border-bottom: none;
+    }
+
+    .group-row:hover {
+        background-color: var(--bg-tertiary);
+    }
+
+    .group-info {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+    }
+
+    .group-title {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .student-count {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .group-actions {
+        display: flex;
+        gap: var(--space-2);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+    }
+
+    @media (max-width: 768px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-4);
+        }
+
+        .group-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-4);
+        }
+
+        .group-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            gap: var(--space-2);
+        }
+
+        .group-actions .btn:last-child {
+            grid-column: 1 / -1;
+        }
+    }
+</style>
 </body>
 </html>

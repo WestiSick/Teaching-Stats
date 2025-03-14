@@ -3,68 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр лабораторных работ - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Просмотр лабораторных работ - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
-    <style>
-        /* Стили, специфичные для этой страницы */
-        .shared-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background-color: rgba(167, 139, 250, 0.9);
-            color: white;
-            padding: 0.4rem 0.8rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .expiration-info {
-            text-align: center;
-            font-size: 0.8rem;
-            color: rgba(209, 213, 219, 0.8);
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(55, 65, 81, 0.5);
-        }
-
-        .teacher-info {
-            text-align: center;
-            font-size: 0.875rem;
-            color: rgba(156, 163, 175, 1);
-            margin-top: 1.5rem;
-        }
-    </style>
 </head>
 <body>
 <div class="container">
-    <div class="shared-badge">Общий доступ</div>
+    <div class="shared-badge">
+        <span class="badge-icon">🔗</span>
+        <span class="badge-text">Общий доступ</span>
+    </div>
+
     <h1>Просмотр лабораторных работ</h1>
-    <div class="info-section">
-        <div class="group-info">
-            <div class="group-name">
-                Предмет: {{.Summary.Subject}}, Группа: {{.Summary.GroupName}}
+
+    <div class="card course-info-card mb-6">
+        <div class="d-flex justify-between align-items-center">
+            <div>
+                <div class="course-badges">
+                    <span class="badge badge-info">{{.Summary.Subject}}</span>
+                    <span class="badge badge-primary">{{.Summary.GroupName}}</span>
+                </div>
             </div>
-            <div class="group-average">
-                Средний балл: {{printf "%.2f" .Summary.GroupAverage}}
+            <div class="course-stats">
+                <div class="stat-item mb-0
+            {{if le .Summary.GroupAverage 1.5}}stat-poor
+            {{else if le .Summary.GroupAverage 2.5}}stat-below-average
+            {{else if le .Summary.GroupAverage 3.5}}stat-average
+            {{else if le .Summary.GroupAverage 4.5}}stat-good
+            {{else}}stat-excellent{{end}}">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value">{{printf "%.2f" .Summary.GroupAverage}}</div>
+                    <div class="stat-label">средний балл группы</div>
+                </div>
             </div>
-        </div>
-        <div>
-            Количество лабораторных работ: {{.Summary.TotalLabs}}
         </div>
     </div>
-    <h2>Оценки студентов</h2>
+
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="section-title mb-0">Информация о лабораторных</h3>
+        </div>
+        <div class="card-body">
+            <div class="info-box">
+                <div class="info-row">
+                    <div class="info-label">Количество лабораторных работ:</div>
+                    <div class="info-value">{{.Summary.TotalLabs}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title mb-4">Оценки студентов</h2>
     <div class="table-container">
-        <table>
+        <table class="labs-table">
             <thead>
             <tr>
                 <th>Студент</th>
                 {{range $i := iter .Summary.TotalLabs}}
-                <th>Лаб {{inc $i}}</th>
+                <th class="text-center">Лаб {{inc $i}}</th>
                 {{end}}
-                <th>Средний балл</th>
+                <th class="text-center">Средний балл</th>
             </tr>
             </thead>
             <tbody>
@@ -72,33 +74,342 @@
             <tr>
                 <td>{{.StudentFIO}}</td>
                 {{range .Grades}}
-                <td>
+                <td class="text-center">
                     {{if gt . 0}}
                     <span class="grade grade-{{.}}">{{.}}</span>
                     {{else}}
-                    -
+                    <span class="no-grade">-</span>
                     {{end}}
                 </td>
                 {{end}}
-                <td>{{printf "%.2f" .Average}}</td>
+                <td class="text-center">
+                    <div class="student-average
+              {{if le .Average 1.5}}avg-1
+              {{else if le .Average 2.5}}avg-2
+              {{else if le .Average 3.5}}avg-3
+              {{else if le .Average 4.5}}avg-4
+              {{else}}avg-5{{end}}">
+                        {{printf "%.2f" .Average}}
+                    </div>
+                </td>
             </tr>
             {{end}}
             </tbody>
         </table>
     </div>
 
-    <div class="teacher-info">
-        Предоставлено преподавателем: {{.TeacherName}}
-    </div>
+    <div class="shared-footer">
+        <div class="teacher-info">
+            <span class="teacher-icon">👨‍🏫</span>
+            <span class="teacher-name">Предоставлено преподавателем: {{.TeacherName}}</span>
+        </div>
 
-    {{if .ExpirationDate}}
-    <div class="expiration-info">
-        Срок действия ссылки до: {{.ExpirationDate}}
+        {{if .ExpirationDate}}
+        <div class="expiration-info">
+            <span class="expiration-icon">⏱️</span>
+            <span class="expiration-text">Срок действия ссылки до: {{.ExpirationDate}}</span>
+        </div>
+        {{end}}
     </div>
-    {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+<script>
+    // Helper functions
+    function inc(i) {
+        return i + 1;
+    }
+
+    function iter(count) {
+        return Array.from({length: count}, (_, i) => i);
+    }
+
+    // Highlight cells on hover (column/row highlighting)
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.labs-table td, .labs-table th').forEach(cell => {
+            cell.addEventListener('mouseenter', function() {
+                const columnIndex = this.cellIndex;
+                const rowIndex = this.parentNode.rowIndex;
+
+                // Highlight column
+                document.querySelectorAll(`.labs-table tr td:nth-child(${columnIndex + 1}), .labs-table tr th:nth-child(${columnIndex + 1})`).forEach(cell => {
+                    cell.classList.add('highlight-column');
+                });
+
+                // Highlight row
+                if (rowIndex > 0) { // Skip header row
+                    document.querySelectorAll(`.labs-table tr:nth-child(${rowIndex + 1}) td`).forEach(cell => {
+                        cell.classList.add('highlight-row');
+                    });
+                }
+            });
+
+            cell.addEventListener('mouseleave', function() {
+                // Remove all highlights
+                document.querySelectorAll('.highlight-column, .highlight-row').forEach(el => {
+                    el.classList.remove('highlight-column', 'highlight-row');
+                });
+            });
+        });
+    });
+</script>
+
+<style>
+    .shared-badge {
+        position: absolute;
+        top: var(--space-4);
+        right: var(--space-4);
+        display: flex;
+        align-items: center;
+        padding: var(--space-2) var(--space-3);
+        background-color: rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: var(--radius-full);
+        font-weight: 500;
+        color: #a78bfa;
+        gap: var(--space-2);
+        backdrop-filter: blur(4px);
+        animation: fadeInDown 0.5s ease;
+    }
+
+    .badge-icon {
+        font-size: 1.1rem;
+    }
+
+    .course-info-card {
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .course-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+    }
+
+    .section-title {
+        position: relative;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-color), transparent);
+    }
+
+    .card-header {
+        padding-bottom: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: var(--space-4);
+    }
+
+    .card-body {
+        padding: var(--space-2);
+    }
+
+    .info-box {
+        padding: var(--space-3);
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .info-label {
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .grade {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 50%;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .grade-1 {
+        background: linear-gradient(135deg, var(--danger) 0%, #b91c1c 100%);
+        color: white;
+    }
+
+    .grade-2 {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+    }
+
+    .grade-3 {
+        background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+        color: white;
+    }
+
+    .grade-4 {
+        background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        color: white;
+    }
+
+    .grade-5 {
+        background: linear-gradient(135deg, var(--info) 0%, #0284c7 100%);
+        color: white;
+    }
+
+    .no-grade {
+        color: var(--text-muted);
+        font-size: 1.2rem;
+    }
+
+    .student-average {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+    }
+
+    .avg-1 {
+        background-color: var(--danger-light);
+        color: var(--danger);
+    }
+
+    .avg-2 {
+        background-color: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+
+    .avg-3 {
+        background-color: var(--warning-light);
+        color: var(--warning);
+    }
+
+    .avg-4 {
+        background-color: var(--success-light);
+        color: var(--success);
+    }
+
+    .avg-5 {
+        background-color: var(--info-light);
+        color: var(--info);
+    }
+
+    /* Stats coloring */
+    .stat-poor {
+        color: var(--danger);
+    }
+
+    .stat-below-average {
+        color: #f97316;
+    }
+
+    .stat-average {
+        color: var(--warning);
+    }
+
+    .stat-good {
+        color: var(--success);
+    }
+
+    .stat-excellent {
+        color: var(--info);
+    }
+
+    .shared-footer {
+        margin-top: var(--space-8);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-3);
+    }
+
+    .teacher-info, .expiration-info {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .teacher-icon, .expiration-icon {
+        font-size: 1.2rem;
+    }
+
+    .teacher-name {
+        font-weight: 500;
+    }
+
+    /* Table highlighting */
+    .highlight-column {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    .highlight-row {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .course-stats {
+            margin-top: var(--space-4);
+        }
+
+        .info-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-2);
+        }
+
+        .shared-badge {
+            position: relative;
+            top: auto;
+            right: auto;
+            margin-bottom: var(--space-4);
+            align-self: flex-end;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+    }
+</style>
 </body>
 </html>

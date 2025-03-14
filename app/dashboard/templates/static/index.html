@@ -3,52 +3,186 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teaching Stats - Главная</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Teacher Journal - Главная</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
-  <style>
-    /* Специфические стили только для главной страницы */
-    .container {
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-    }
-
-    .button-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .btn {
-      padding: 1.1em 2em;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 2.5px;
-      font-weight: 500;
-      border-radius: 45px;
-    }
-
-    @media (min-width: 768px) {
-      .button-container {
-        flex-direction: row;
-        justify-content: center;
-      }
-    }
-  </style>
 </head>
-<body>
-<div class="container">
-  <h1>Добро пожаловать в Teaching Stats!</h1>
-  <p>Пожалуйста, войдите в систему или зарегистрируйтесь:</p>
-  <div class="button-container">
-    <a class="btn btn-primary" href="/login">Вход</a>
-    <a class="btn btn-secondary" href="/register">Регистрация</a>
+<body class="landing-page">
+<div class="auth-container text-center">
+  <div class="auth-logo mb-6">
+    <div class="logo-icon">📊</div>
+    <h1 class="logo-title">Teacher Journal</h1>
+    <p class="logo-subtitle">Система учета и анализа учебной деятельности</p>
+  </div>
+
+  <div class="welcome-message mb-6">
+    <p>Добро пожаловать в систему для преподавателей, разработанную для удобного учета пар, посещаемости и лабораторных работ.</p>
+  </div>
+
+  <div class="auth-buttons">
+    <a href="/login" class="btn btn-primary btn-lg">
+      <span>🔐</span> Вход в систему
+    </a>
+    <a href="/register" class="btn btn-secondary btn-lg">
+      <span>📝</span> Регистрация
+    </a>
+  </div>
+
+  <div class="features-section mt-8">
+    <div class="feature-item">
+      <div class="feature-icon">📆</div>
+      <div class="feature-title">Учет пар</div>
+      <div class="feature-description">Добавляйте и отслеживайте проведенные занятия по предметам и группам</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">✓</div>
+      <div class="feature-title">Посещаемость</div>
+      <div class="feature-description">Ведите учет посещаемости студентов с удобной визуализацией</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🧪</div>
+      <div class="feature-title">Лабораторные</div>
+      <div class="feature-description">Фиксируйте сдачу лабораторных работ и отслеживайте успеваемость</div>
+    </div>
   </div>
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+
+<style>
+  body.landing-page {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .auth-container {
+    width: 100%;
+    max-width: 800px;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--border-color);
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .logo-icon {
+    font-size: 4rem;
+    margin-bottom: var(--space-2);
+    color: var(--accent-color);
+  }
+
+  .logo-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+  }
+
+  .logo-subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .welcome-message {
+    color: var(--text-secondary);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .auth-buttons {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+
+  .btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+  }
+
+  .features-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-6);
+    margin-top: var(--space-8);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--border-color);
+  }
+
+  .feature-item {
+    text-align: center;
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-tertiary);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-3);
+    color: var(--accent-color);
+  }
+
+  .feature-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+  }
+
+  .feature-description {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .auth-container {
+      padding: var(--space-6);
+      margin: var(--space-4);
+    }
+
+    .auth-buttons {
+      flex-direction: column;
+    }
+
+    .features-section {
+      grid-template-columns: 1fr;
+    }
+
+    .logo-title {
+      font-size: 2rem;
+    }
+  }
+</style>
 </body>
 </html>

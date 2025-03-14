@@ -3,69 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление группами преподавателей - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Управление группами преподавателей - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
-<div class="container" id="main-container">
+<div class="container">
     <h1>Управление группами преподавателей</h1>
 
-    <form method="GET">
-        <label>
-            Выберите преподавателя:
-            <select name="teacher_id" onchange="this.form.submit()">
-                <option value="">-- Выберите преподавателя --</option>
-                {{range .TeacherList}}
-                <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedTeacherID}}selected{{end}}>{{.FIO}}</option>
-                {{end}}
-            </select>
-        </label>
-    </form>
-
-    {{if .SelectedTeacherID}}
-    <h2>Группы преподавателя: {{.SelectedTeacher.FIO}}</h2>
-
-    <div class="btn-group">
-        <a href="/admin/groups/add/{{.SelectedTeacher.ID}}" class="btn btn-add">Добавить новую группу</a>
+    <div class="card filter-section mb-6">
+        <form method="GET" class="d-flex gap-4 flex-wrap align-items-end">
+            <div class="form-group mb-0 flex-grow">
+                <label for="teacher_id">Выберите преподавателя:</label>
+                <select name="teacher_id" id="teacher_id" class="form-control" onchange="this.form.submit()">
+                    <option value="">-- Выберите преподавателя --</option>
+                    {{range .TeacherList}}
+                    <option value="{{.ID}}" {{if eq (printf "%d" .ID) $.SelectedTeacherID}}selected{{end}}>{{.FIO}}</option>
+                    {{end}}
+                </select>
+            </div>
+        </form>
     </div>
 
-    <div class="group-list">
+    {{if .SelectedTeacherID}}
+    <div class="teacher-section mb-6">
+        <div class="section-header d-flex justify-between align-items-center mb-4">
+            <h2 class="mb-0">
+                <span class="teacher-name">{{.SelectedTeacher.FIO}}</span>
+                <div class="badge badge-primary">Группы преподавателя</div>
+            </h2>
+        </div>
+
+        <div class="btn-group mb-4">
+            <a href="/admin/groups/add/{{.SelectedTeacher.ID}}" class="btn btn-primary">
+                <span>➕</span> Добавить новую группу
+            </a>
+        </div>
+
         {{if .Groups}}
-        {{range .Groups}}
-        <div class="group-item">
-            <div class="group-header">
-                <div>
-                    <span class="group-name">{{.Name}}</span>
-                    <span class="student-count">({{.StudentCount}} студентов)</span>
-                    <span class="toggle-students" data-container="students-{{.Name}}">Показать/скрыть студентов</span>
+        <div class="groups-container">
+            {{range .Groups}}
+            <div class="card group-card fade-in">
+                <div class="group-card-header">
+                    <div class="group-info">
+                        <h3 class="group-name mb-1">{{.Name}}</h3>
+                        <span class="badge badge-info">{{.StudentCount}} студентов</span>
+                    </div>
+                    <div class="group-toggle-container">
+                        <button type="button" class="btn btn-sm btn-secondary toggle-students" data-container="students-{{.Name}}">
+                            <span>👁️</span> Показать/скрыть студентов
+                        </button>
+                        <a href="/admin/groups/edit/{{$.SelectedTeacher.ID}}/{{.Name}}" class="btn btn-sm btn-edit">
+                            <span>✏️</span> Редактировать
+                        </a>
+                    </div>
                 </div>
-                <div>
-                    <a href="/admin/groups/edit/{{$.SelectedTeacher.ID}}/{{.Name}}" class="btn btn-admin">Редактировать</a>
-                </div>
-            </div>
-            <div id="students-{{.Name}}" class="students-container">
-                <ul class="student-list">
+
+                <div id="students-{{.Name}}" class="students-container hidden">
                     {{if .Students}}
-                    {{range .Students}}
-                    <li>{{.FIO}}</li>
-                    {{end}}
+                    <div class="table-container mt-4">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th style="width: 50px;">№</th>
+                                <th>ФИО студента</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {{range $index, $student := .Students}}
+                            <tr>
+                                <td class="text-center">{{inc $index}}</td>
+                                <td>{{.FIO}}</td>
+                            </tr>
+                            {{end}}
+                            </tbody>
+                        </table>
+                    </div>
                     {{else}}
-                    <li>Нет студентов в этой группе</li>
+                    <div class="empty-state p-4 text-center">
+                        <p class="text-muted">Нет студентов в этой группе</p>
+                    </div>
                     {{end}}
-                </ul>
+                </div>
             </div>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state card text-center p-6">
+            <div class="empty-state-icon mb-4">👥</div>
+            <h3>У этого преподавателя пока нет групп</h3>
+            <p class="text-muted mb-4">Добавьте группу с помощью кнопки выше</p>
         </div>
         {{end}}
-        {{else}}
-        <p>У этого преподавателя пока нет групп.</p>
-        {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state card text-center p-6">
+        <div class="empty-state-icon mb-4">👨‍🏫</div>
+        <h3>Выберите преподавателя</h3>
+        <p class="text-muted mb-4">Для просмотра и управления группами выберите преподавателя из списка выше</p>
     </div>
     {{end}}
 
     <div class="btn-group">
-        <a href="/admin" class="btn btn-admin">Назад в админ-панель</a>
+        <a href="/admin" class="btn btn-secondary">
+            <span>🏠</span> Назад в админ-панель
+        </a>
     </div>
 </div>
 
@@ -75,8 +121,117 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script src="/templates/static/js/groups.js"></script>
+<script>
+    // Helper function to increment index
+    function inc(i) {
+        return i + 1;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle students visibility
+        document.querySelectorAll('.toggle-students').forEach(button => {
+            button.addEventListener('click', function() {
+                const containerId = this.getAttribute('data-container');
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.classList.toggle('hidden');
+
+                    // Change button text based on state
+                    if (container.classList.contains('hidden')) {
+                        this.innerHTML = '<span>👁️</span> Показать студентов';
+                    } else {
+                        this.innerHTML = '<span>👁️</span> Скрыть студентов';
+                    }
+                }
+            });
+        });
+
+        // Add animation for cards
+        const cards = document.querySelectorAll('.group-card');
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+</script>
+
+<style>
+    .teacher-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-right: var(--space-2);
+    }
+
+    .group-card {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        margin-bottom: var(--space-4);
+    }
+
+    .group-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+
+    .group-info {
+        flex: 1;
+    }
+
+    .group-name {
+        color: var(--text-primary);
+        margin-bottom: var(--space-1);
+    }
+
+    .group-toggle-container {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+    }
+
+    .students-container {
+        margin-top: var(--space-3);
+        animation: fadeIn 0.3s ease;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .group-card-header {
+            flex-direction: column;
+        }
+
+        .group-toggle-container {
+            width: 100%;
+            margin-top: var(--space-2);
+        }
+    }
+</style>
 </body>
 </html>

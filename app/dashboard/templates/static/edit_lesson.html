@@ -3,63 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактировать пару - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Редактирование пары - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
-    <h1>Редактировать пару</h1>
-    <form method="POST">
-        <label>
-            Группа:
-            <input type="text" name="group" value="{{.Lesson.GroupName}}" list="groupList" required>
-            <datalist id="groupList">
-                {{range .Groups}}
-                <option value="{{.}}">
-                    {{end}}
-            </datalist>
-        </label>
+    <h1>Редактирование пары</h1>
 
-        <label>
-            Предмет:
-            <input type="text" name="subject" value="{{.Lesson.Subject}}" list="subjectList" required>
-            <datalist id="subjectList">
-                {{range .Subjects}}
-                <option value="{{.}}">
-                    {{end}}
-            </datalist>
-        </label>
+    <div class="card p-6">
+        <form method="POST" id="editLessonForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="group">Группа:</label>
+                    <input
+                            type="text"
+                            id="group"
+                            name="group"
+                            value="{{.Lesson.GroupName}}"
+                            list="groupList"
+                            required
+                            class="form-control">
+                    <datalist id="groupList">
+                        {{range .Groups}}
+                        <option value="{{.}}">
+                            {{end}}
+                    </datalist>
+                </div>
 
-        <label>
-            Тема:
-            <input type="text" name="topic" value="{{.Lesson.Topic}}" required>
-        </label>
+                <div class="form-group">
+                    <label for="subject">Предмет:</label>
+                    <input
+                            type="text"
+                            id="subject"
+                            name="subject"
+                            value="{{.Lesson.Subject}}"
+                            list="subjectList"
+                            required
+                            class="form-control">
+                    <datalist id="subjectList">
+                        {{range .Subjects}}
+                        <option value="{{.}}">
+                            {{end}}
+                    </datalist>
+                </div>
 
-        <label>
-            Часы:
-            <input name="hours" type="number" value="{{.Lesson.Hours}}" required>
-        </label>
+                <div class="form-group">
+                    <label for="topic">Тема:</label>
+                    <input
+                            type="text"
+                            id="topic"
+                            name="topic"
+                            value="{{.Lesson.Topic}}"
+                            required
+                            class="form-control">
+                </div>
 
-        <label>
-            Дата:
-            <input name="date" type="date" value="{{.Lesson.Date}}" required>
-        </label>
+                <div class="form-group">
+                    <label for="hours">Часы:</label>
+                    <input
+                            type="number"
+                            id="hours"
+                            name="hours"
+                            value="{{.Lesson.Hours}}"
+                            min="1"
+                            max="12"
+                            required
+                            class="form-control">
+                    <div class="form-text">Продолжительность занятия в академических часах</div>
+                </div>
 
-        <label>
-            Тип занятия:
-            <select name="type" required>
-                <option value="Лекция" {{if eq .Lesson.Type "Лекция"}}selected{{end}}>Лекция</option>
-                <option value="Лабораторная работа" {{if eq .Lesson.Type "Лабораторная работа"}}selected{{end}}>Лабораторная работа</option>
-                <option value="Практика" {{if eq .Lesson.Type "Практика"}}selected{{end}}>Практика</option>
-            </select>
-        </label>
+                <div class="form-group">
+                    <label for="date">Дата:</label>
+                    <input
+                            type="date"
+                            id="date"
+                            name="date"
+                            value="{{.Lesson.Date}}"
+                            required
+                            class="form-control">
+                </div>
 
-        <button type="submit">Сохранить</button>
-    </form>
+                <div class="form-group">
+                    <label for="type">Тип занятия:</label>
+                    <select id="type" name="type" required class="form-control">
+                        <option value="Лекция" {{if eq .Lesson.Type "Лекция"}}selected{{end}}>Лекция</option>
+                        <option value="Лабораторная работа" {{if eq .Lesson.Type "Лабораторная работа"}}selected{{end}}>Лабораторная работа</option>
+                        <option value="Практика" {{if eq .Lesson.Type "Практика"}}selected{{end}}>Практика</option>
+                    </select>
+                </div>
+            </div>
 
-    <a class="back-link" href="/dashboard">Назад</a>
+            <div class="type-info-container" id="typeInfo">
+                <div class="type-info lecture-info {{if ne .Lesson.Type "Лекция"}}hidden{{end}}" id="lectureInfo">
+                <div class="info-icon">📚</div>
+                <div class="info-content">
+                    <h3>Лекция</h3>
+                    <p>Теоретическое занятие, на котором преподаватель объясняет материал. Обычно проводится для всей группы.</p>
+                </div>
+            </div>
+            <div class="type-info lab-info {{if ne .Lesson.Type "Лабораторная работа"}}hidden{{end}}" id="labInfo">
+            <div class="info-icon">🧪</div>
+            <div class="info-content">
+                <h3>Лабораторная работа</h3>
+                <p>Практическое занятие, где студенты выполняют эксперименты или решают задачи. Обычно требует оценивания.</p>
+            </div>
+    </div>
+    <div class="type-info practice-info {{if ne .Lesson.Type "Практика"}}hidden{{end}}" id="practiceInfo">
+    <div class="info-icon">✏️</div>
+    <div class="info-content">
+        <h3>Практика</h3>
+        <p>Занятие для закрепления теоретических знаний через практические задания и дискуссии.</p>
+    </div>
+</div>
+</div>
+
+<div class="form-actions">
+    <button type="submit" class="btn btn-primary">
+        <span>💾</span> Сохранить изменения
+    </button>
+    <a href="/dashboard" class="btn btn-secondary">
+        <span>🔙</span> Отмена
+    </a>
+</div>
+</form>
+</div>
 </div>
 
 <div class="user-info">
@@ -68,7 +140,155 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('type');
+        const lectureInfo = document.getElementById('lectureInfo');
+        const labInfo = document.getElementById('labInfo');
+        const practiceInfo = document.getElementById('practiceInfo');
+
+        // Update info box when lesson type changes
+        function updateTypeInfo() {
+            const selectedType = typeSelect.value;
+
+            // Hide all info boxes
+            lectureInfo.classList.add('hidden');
+            labInfo.classList.add('hidden');
+            practiceInfo.classList.add('hidden');
+
+            // Show selected info box
+            if (selectedType === 'Лекция') {
+                lectureInfo.classList.remove('hidden');
+            } else if (selectedType === 'Лабораторная работа') {
+                labInfo.classList.remove('hidden');
+            } else if (selectedType === 'Практика') {
+                practiceInfo.classList.remove('hidden');
+            }
+        }
+
+        // Add event listener
+        if (typeSelect) {
+            typeSelect.addEventListener('change', updateTypeInfo);
+        }
+
+        // Form validation
+        const form = document.getElementById('editLessonForm');
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const dateInput = document.getElementById('date');
+                const hoursInput = document.getElementById('hours');
+
+                // Validate date
+                if (dateInput && !dateInput.value) {
+                    e.preventDefault();
+                    dateInput.classList.add('input-error');
+                    alert('Пожалуйста, укажите дату занятия');
+                    return false;
+                }
+
+                // Validate hours
+                if (hoursInput) {
+                    const hours = parseInt(hoursInput.value);
+                    if (isNaN(hours) || hours < 1 || hours > 12) {
+                        e.preventDefault();
+                        hoursInput.classList.add('input-error');
+                        alert('Количество часов должно быть от 1 до 12');
+                        return false;
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--space-4);
+    }
+
+    .type-info-container {
+        margin: var(--space-6) 0;
+    }
+
+    .type-info {
+        display: flex;
+        gap: var(--space-4);
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .info-icon {
+        font-size: 2rem;
+    }
+
+    .info-content h3 {
+        margin-top: 0;
+        margin-bottom: var(--space-2);
+    }
+
+    .info-content p {
+        color: var(--text-muted);
+        margin-bottom: 0;
+    }
+
+    .lecture-info {
+        background-color: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .lab-info {
+        background-color: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .practice-info {
+        background-color: rgba(245, 158, 11, 0.1);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .input-error {
+        border-color: var(--danger) !important;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .type-info {
+            flex-direction: column;
+        }
+
+        .info-icon {
+            text-align: center;
+            margin-bottom: var(--space-2);
+        }
+    }
+</style>
 </body>
 </html>

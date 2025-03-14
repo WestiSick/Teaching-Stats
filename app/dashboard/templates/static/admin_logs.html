@@ -66,7 +66,7 @@
             <div class="user-pill">{{.UserFIO}}</div>
           </td>
           <td class="action-col">
-            <div class="action-pill {{getActionClass .Action}}">{{.Action}}</div>
+            <div class="action-pill" data-action="{{.Action}}">{{.Action}}</div>
           </td>
           <td class="details-col">{{.Details}}</td>
           <td class="time-col">{{.Timestamp}}</td>
@@ -173,7 +173,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     // Apply action classes
     document.querySelectorAll('.action-pill').forEach(pill => {
-      const action = pill.textContent.trim();
+      const action = pill.getAttribute('data-action') || pill.textContent.trim();
       pill.classList.add(getActionClass(action));
     });
 

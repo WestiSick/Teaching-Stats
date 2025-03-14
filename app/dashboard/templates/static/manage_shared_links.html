@@ -3,23 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Управление общими ссылками - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Управление общими ссылками - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Управление общими ссылками</h1>
 
-  <div class="info-box">
-    <p class="info-text">
-      Здесь вы можете управлять ссылками для общего доступа к оценкам за лабораторные работы.
-      Эти ссылки можно передать студентам, родителям или коллегам для просмотра результатов без необходимости входа в систему.
-    </p>
+  <div class="card info-card mb-6">
+    <div class="card-icon">ℹ️</div>
+    <div class="card-content">
+      <h3 class="mb-2">Общие ссылки для доступа</h3>
+      <p class="text-muted mb-0">
+        Здесь вы можете управлять ссылками для общего доступа к оценкам за лабораторные работы.
+        Эти ссылки можно передать студентам, родителям или коллегам для просмотра результатов без необходимости входа в систему.
+      </p>
+    </div>
   </div>
 
-  <div class="table-container">
+  <div class="table-container mb-6">
     <table>
       <thead>
       <tr>
@@ -36,62 +43,84 @@
       <tbody>
       {{if .Links}}
       {{range .Links}}
-      <tr>
+      <tr class="link-row fade-in">
         <td>{{.Subject}}</td>
         <td>{{.GroupName}}</td>
         <td>
-          <div class="link-url">{{.BaseURL}}/s/{{.Token}}</div>
+          <div class="link-url">
+            <div class="link-text">{{.BaseURL}}/s/{{.Token}}</div>
+            <button type="button" class="btn btn-sm btn-icon copy-btn" data-copy-text="{{.BaseURL}}/s/{{.Token}}" title="Копировать ссылку">
+              <span>📋</span>
+            </button>
+          </div>
         </td>
         <td>
           {{if not .ExpiresAt}}
-          <span class="badge badge-permanent">Бессрочная</span>
+          <span class="badge badge-success">Бессрочная</span>
           {{else if .IsExpired}}
-          <span class="badge badge-expired">Истекла</span>
+          <span class="badge badge-danger">Истекла</span>
           {{else}}
-          <span class="badge badge-active">Активна</span>
+          <span class="badge badge-primary">Активна</span>
           {{end}}
         </td>
         <td>{{.CreatedAt.Format "02.01.2006"}}</td>
         <td>
           {{if not .ExpiresAt}}
-          Бессрочно
+          <span class="text-muted">Бессрочно</span>
           {{else}}
           {{.ExpiresAt.Format "02.01.2006"}}
           {{end}}
         </td>
-        <td>{{.AccessCount}}</td>
+        <td class="text-center">
+          <div class="view-count">{{.AccessCount}}</div>
+        </td>
         <td>
-          <div class="actions">
-            <a href="/s/{{.Token}}" target="_blank" class="btn btn-secondary btn-sm">Просмотр</a>
-            <button class="btn btn-danger btn-sm delete-btn" data-token="{{.Token}}">Удалить</button>
+          <div class="action-buttons">
+            <a href="/s/{{.Token}}" target="_blank" class="btn btn-sm btn-secondary">
+              <span>👁️</span> Просмотр
+            </a>
+            <button class="btn btn-sm btn-danger delete-btn" data-token="{{.Token}}">
+              <span>🗑️</span> Удалить
+            </button>
           </div>
         </td>
       </tr>
       {{end}}
       {{else}}
       <tr>
-        <td colspan="8" class="empty-state">У вас пока нет созданных ссылок для общего доступа</td>
+        <td colspan="8" class="empty-state">
+          <div class="empty-state-content">
+            <div class="empty-state-icon">🔗</div>
+            <h3>У вас пока нет созданных ссылок</h3>
+            <p class="text-muted">Создайте ссылку для общего доступа к оценкам студентов</p>
+          </div>
+        </td>
       </tr>
       {{end}}
       </tbody>
     </table>
   </div>
 
-  <a href="/labs" class="back-link">Назад к лабораторным работам</a>
+  <div class="btn-group">
+    <a href="/labs" class="btn btn-secondary">
+      <span>🔙</span> Назад к лабораторным работам
+    </a>
+  </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h3 class="modal-title">Подтверждение удаления</h3>
-      <button class="close-btn">&times;</button>
+      <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+      <button type="button" class="close-btn" id="closeModal">&times;</button>
     </div>
     <div class="modal-body">
-      <p>Вы уверены, что хотите удалить эту ссылку для общего доступа? Это действие нельзя отменить.</p>
+      <p>Вы уверены, что хотите удалить эту ссылку для общего доступа?</p>
+      <p class="text-danger mt-2">Это действие нельзя отменить.</p>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" id="cancelDelete">Отмена</button>
+      <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
       <form id="deleteForm" method="POST" action="/labs/links/delete">
         <input type="hidden" id="deleteToken" name="token" value="">
         <button type="submit" class="btn btn-danger">Удалить</button>
@@ -106,24 +135,181 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/modals.js"></script>
-<script src="/templates/static/js/labs.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация модального окна для удаления
-    Modal.init('deleteModal');
+    // Copy functionality
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const textToCopy = this.getAttribute('data-copy-text');
+        if (textToCopy) {
+          navigator.clipboard.writeText(textToCopy)
+                  .then(() => {
+                    // Show feedback
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<span>✓</span>';
+                    this.classList.add('copied');
 
-    // Обработчики для кнопок удаления
-    document.querySelectorAll('.delete-btn').forEach(button => {
-      button.addEventListener('click', function() {
-        const token = this.getAttribute('data-token');
-        document.getElementById('deleteToken').value = token;
-        Modal.open('deleteModal');
+                    setTimeout(() => {
+                      this.innerHTML = originalText;
+                      this.classList.remove('copied');
+                    }, 2000);
+                  })
+                  .catch(err => {
+                    console.error('Could not copy text: ', err);
+                  });
+        }
       });
+    });
+
+    // Delete modal functionality
+    const deleteModal = document.getElementById('deleteModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const cancelDeleteBtn = document.getElementById('cancelDelete');
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteTokenInput = document.getElementById('deleteToken');
+
+    // Open modal
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const token = this.getAttribute('data-token');
+        if (token && deleteTokenInput) {
+          deleteTokenInput.value = token;
+        }
+        if (deleteModal) {
+          deleteModal.style.display = 'flex';
+        }
+      });
+    });
+
+    // Close modal functions
+    const closeModal = function() {
+      if (deleteModal) {
+        deleteModal.style.display = 'none';
+      }
+    };
+
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeModal);
+
+    // Close modal on outside click
+    window.addEventListener('click', function(event) {
+      if (event.target === deleteModal) {
+        closeModal();
+      }
+    });
+
+    // Animate rows
+    document.querySelectorAll('.link-row').forEach((row, index) => {
+      setTimeout(() => {
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      }, index * 100);
     });
   });
 </script>
+
+<style>
+  .info-card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    background-color: rgba(99, 102, 241, 0.1);
+    border-left: 4px solid var(--accent-color);
+  }
+
+  .card-icon {
+    font-size: 2rem;
+    margin-top: var(--space-1);
+  }
+
+  .link-row {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .link-url {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    max-width: 250px;
+  }
+
+  .link-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    flex: 1;
+  }
+
+  .copy-btn {
+    padding: 0.3rem;
+    min-width: auto;
+  }
+
+  .copied {
+    background-color: var(--success) !important;
+    color: white !important;
+  }
+
+  .view-count {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .empty-state {
+    padding: var(--space-8) !important;
+  }
+
+  .empty-state-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  @media (max-width: 1024px) {
+    .link-url {
+      max-width: 150px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .card-icon {
+      display: none;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      min-width: 800px;
+    }
+  }
+</style>
 </body>
 </html>

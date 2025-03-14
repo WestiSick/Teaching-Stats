@@ -3,57 +3,89 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Управление пользователями - Teaching Stats</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Подключаем внешние стили -->
+  <title>Управление пользователями - Teacher Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Include our modern dark CSS -->
+  <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+  <!-- Include any existing CSS as a fallback -->
   <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
   <h1>Управление пользователями</h1>
 
-  <div class="table-container">
-    <table>
-      <thead>
-      <tr>
-        <th>ФИО</th>
-        <th>Логин</th>
-        <th>Роль</th>
-        <th>Действия</th>
-      </tr>
-      </thead>
-      <tbody>
-      {{range .Users}}
-      <tr>
-        <td>{{.FIO}}</td>
-        <td>{{.Login}}</td>
-        <td>
-          <form method="POST" class="role-form">
-            <input type="hidden" name="action" value="update_role">
-            <input type="hidden" name="user_id" value="{{.ID}}">
-            <select name="role" class="role-select" data-user-id="{{.ID}}">
-              <option value="teacher" {{if eq .Role "teacher"}}selected{{end}}>Преподаватель</option>
-              <option value="admin" {{if eq .Role "admin"}}selected{{end}}>Администратор</option>
-              <option value="free" {{if eq .Role "free"}}selected{{end}}>Free</option>
-            </select>
-          </form>
-        </td>
-        <td>
-          <form method="POST" class="delete-user-form" id="deleteUserForm{{.ID}}">
-            <input type="hidden" name="action" value="delete">
-            <input type="hidden" name="user_id" value="{{.ID}}">
-            <button type="button" class="delete-user-btn" data-user-id="{{.ID}}">Удалить</button>
-          </form>
-        </td>
-      </tr>
-      {{end}}
-      </tbody>
-    </table>
+  <div class="card mb-6">
+    <div class="card-header">
+      <h2 class="section-title">Список пользователей</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+        <tr>
+          <th>ФИО</th>
+          <th>Логин</th>
+          <th>Роль</th>
+          <th>Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Users}}
+        <tr class="user-row fade-in">
+          <td class="user-name">{{.FIO}}</td>
+          <td class="user-login font-mono">{{.Login}}</td>
+          <td>
+            <form method="POST" class="role-form">
+              <input type="hidden" name="action" value="update_role">
+              <input type="hidden" name="user_id" value="{{.ID}}">
+              <select name="role" class="role-select form-control" data-user-id="{{.ID}}">
+                <option value="teacher" {{if eq .Role "teacher"}}selected{{end}}>Преподаватель</option>
+                <option value="admin" {{if eq .Role "admin"}}selected{{end}}>Администратор</option>
+                <option value="free" {{if eq .Role "free"}}selected{{end}}>Free</option>
+              </select>
+            </form>
+          </td>
+          <td>
+            <form method="POST" class="delete-user-form" id="deleteUserForm{{.ID}}">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="user_id" value="{{.ID}}">
+              <button type="button" class="btn btn-sm btn-danger delete-user-btn" data-user-id="{{.ID}}">
+                <span>🗑️</span> Удалить
+              </button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="link-group">
-    <a class="btn btn-admin" href="/admin">Назад к статистике</a>
-    <a class="btn btn-logout" href="/logout">Выйти</a>
+  <div class="btn-group">
+    <a class="btn btn-secondary" href="/admin">
+      <span>📊</span> Назад к статистике
+    </a>
+    <a class="btn btn-danger" href="/logout">
+      <span>🚪</span> Выйти
+    </a>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+      <button type="button" class="close-btn" id="closeModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>Вы уверены, что хотите удалить пользователя <span id="deleteUserName" class="font-bold"></span>?</p>
+      <p class="text-danger mt-2">Это действие не может быть отменено.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
+      <button type="button" class="btn btn-danger" id="confirmDelete">Удалить</button>
+    </div>
   </div>
 </div>
 
@@ -63,12 +95,11 @@
   {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script>
-  // Обработчики для изменения роли пользователя
   document.addEventListener('DOMContentLoaded', function() {
-    // Автоматическая отправка формы при изменении роли
+    // Automatic form submission when role is changed
     document.querySelectorAll('.role-select').forEach(select => {
       select.addEventListener('change', function() {
         const form = this.closest('.role-form');
@@ -78,19 +109,136 @@
       });
     });
 
-    // Обработчик для удаления пользователя с подтверждением
+    // Delete user functionality
+    const deleteModal = document.getElementById('deleteModal');
+    const deleteUserName = document.getElementById('deleteUserName');
+    const closeModal = document.getElementById('closeModal');
+    const cancelDelete = document.getElementById('cancelDelete');
+    const confirmDelete = document.getElementById('confirmDelete');
+    let currentDeleteForm = null;
+
+    // Show delete confirmation modal
     document.querySelectorAll('.delete-user-btn').forEach(button => {
       button.addEventListener('click', function() {
         const userId = this.getAttribute('data-user-id');
-        if (confirm('Вы уверены, что хотите удалить пользователя?')) {
-          const form = document.getElementById(`deleteUserForm${userId}`);
-          if (form) {
-            form.submit();
-          }
+        const formId = `deleteUserForm${userId}`;
+        currentDeleteForm = document.getElementById(formId);
+
+        // Get user name for confirmation message
+        const userRow = this.closest('.user-row');
+        const userName = userRow.querySelector('.user-name').textContent;
+
+        if (deleteUserName) {
+          deleteUserName.textContent = userName;
+        }
+
+        if (deleteModal) {
+          deleteModal.style.display = 'flex';
         }
       });
     });
+
+    // Close modal functions
+    const hideModal = function() {
+      if (deleteModal) {
+        deleteModal.style.display = 'none';
+      }
+    };
+
+    if (closeModal) closeModal.addEventListener('click', hideModal);
+    if (cancelDelete) cancelDelete.addEventListener('click', hideModal);
+
+    // Confirm delete action
+    if (confirmDelete) {
+      confirmDelete.addEventListener('click', function() {
+        if (currentDeleteForm) {
+          currentDeleteForm.submit();
+        }
+        hideModal();
+      });
+    }
+
+    // Click outside modal to close
+    window.addEventListener('click', function(event) {
+      if (event.target === deleteModal) {
+        hideModal();
+      }
+    });
+
+    // Add fade-in animation to rows
+    const userRows = document.querySelectorAll('.user-row');
+    userRows.forEach((row, index) => {
+      setTimeout(() => {
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      }, index * 50);
+    });
   });
 </script>
+
+<style>
+  .user-row {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .user-name {
+    font-weight: 500;
+  }
+
+  .user-login {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+  }
+
+  .role-select {
+    min-width: 150px;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .card-header {
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--space-4);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Modal animation */
+  .modal {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .modal-content {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .role-select {
+      width: 100%;
+    }
+  }
+</style>
 </body>
 </html>

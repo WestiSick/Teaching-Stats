@@ -3,137 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подписка - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Подписка - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
-    <style>
-        /* Специфические стили для страницы подписки */
-        .subscription-plans {
-            display: flex;
-            justify-content: space-around;
-            margin: 2rem 0;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-        }
-
-        .plan {
-            background: rgba(26, 32, 44, 1);
-            border: 1px solid rgba(55, 65, 81, 1);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            width: 45%;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .plan:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .plan h2 {
-            color: rgba(167, 139, 250, 1);
-            margin-bottom: 0.75rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .plan-price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 1rem 0;
-            color: rgba(243, 244, 246, 1);
-        }
-
-        .plan-features {
-            list-style-type: none;
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-
-        .plan-features li {
-            margin-bottom: 0.75rem;
-            padding-left: 1.5rem;
-            position: relative;
-            font-size: 0.875rem;
-            color: rgba(209, 213, 219, 1);
-        }
-
-        .plan-features li:before {
-            content: "✓";
-            color: rgba(52, 211, 153, 1);
-            position: absolute;
-            left: 0;
-            font-weight: 700;
-        }
-
-        .special-note {
-            font-weight: 600;
-            color: rgba(167, 139, 250, 1);
-        }
-
-        @media (max-width: 768px) {
-            .subscription-plans {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .plan {
-                width: 100%;
-            }
-
-            .plan-price {
-                font-size: 1.25rem;
-            }
-        }
-    </style>
 </head>
 <body>
 <div class="container">
-    <h1>Доступ к Teaching Stats</h1>
-    <p class="subtitle">Для использования функций приложения необходимо приобрести подписку</p>
+    <h1>Доступ к Teacher Journal</h1>
+
+    <div class="subscription-intro">
+        <p class="intro-text">Для использования всех функций приложения выберите подходящий план подписки</p>
+    </div>
 
     <div class="subscription-plans">
-        <div class="plan">
-            <h2>Месячная подписка</h2>
-            <div class="plan-price">500 ₽/мес</div>
-            <ul class="plan-features">
-                <li>Полный доступ ко всем функциям</li>
-                <li>Неограниченное количество групп</li>
-                <li>Учет посещаемости</li>
-                <li>Экспорт в Excel</li>
-                <li>Отслеживание лабораторных работ</li>
-            </ul>
-            <a href="#" class="btn btn-primary cursor-not-allowed">Оформить подписку</a>
+        <div class="plan monthly-plan">
+            <div class="plan-badge">
+                <span>Месячная</span>
+            </div>
+            <div class="plan-header">
+                <h2 class="plan-title">Месячная подписка</h2>
+                <div class="plan-price">500 ₽<span class="price-period">/мес</span></div>
+            </div>
+            <div class="plan-content">
+                <ul class="plan-features">
+                    <li>Полный доступ ко всем функциям</li>
+                    <li>Неограниченное количество групп</li>
+                    <li>Учет посещаемости</li>
+                    <li>Экспорт в Excel</li>
+                    <li>Отслеживание лабораторных работ</li>
+                </ul>
+                <button class="btn btn-primary w-full plan-button" disabled>
+                    <span>💳</span> Оформить подписку
+                </button>
+            </div>
         </div>
-        <div class="plan">
-            <h2>Годовая подписка</h2>
-            <div class="plan-price">4800 ₽/год</div>
-            <ul class="plan-features">
-                <li>Полный доступ ко всем функциям</li>
-                <li>Неограниченное количество групп</li>
-                <li>Учет посещаемости</li>
-                <li>Экспорт в Excel</li>
-                <li>Отслеживание лабораторных работ</li>
-                <li class="special-note">Экономия 20%</li>
-            </ul>
-            <a href="#" class="btn btn-primary cursor-not-allowed">Оформить подписку</a>
+
+        <div class="plan yearly-plan">
+            <div class="plan-badge recommended">
+                <span>Рекомендуемый</span>
+            </div>
+            <div class="plan-header">
+                <h2 class="plan-title">Годовая подписка</h2>
+                <div class="plan-price">4800 ₽<span class="price-period">/год</span></div>
+                <div class="plan-discount">
+                    <span class="discount-badge">-20%</span>
+                    <span class="discount-text">Выгода 1200 ₽</span>
+                </div>
+            </div>
+            <div class="plan-content">
+                <ul class="plan-features">
+                    <li>Полный доступ ко всем функциям</li>
+                    <li>Неограниченное количество групп</li>
+                    <li>Учет посещаемости</li>
+                    <li>Экспорт в Excel</li>
+                    <li>Отслеживание лабораторных работ</li>
+                    <li class="highlighted-feature">Экономия 20%</li>
+                </ul>
+                <button class="btn btn-primary w-full plan-button" disabled>
+                    <span>💳</span> Оформить подписку
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="payment-note">
-        <p><strong>Важно:</strong> Оплата подписки временно недоступна. Пожалуйста, попробуйте позже или свяжитесь с администратором системы.</p>
+    <div class="info-cards">
+        <div class="info-card payment-note">
+            <div class="info-card-icon">⚠️</div>
+            <div class="info-card-content">
+                <h3 class="info-card-title">Важно</h3>
+                <p class="info-card-text">Оплата подписки временно недоступна. Пожалуйста, попробуйте позже или свяжитесь с администратором системы.</p>
+            </div>
+        </div>
+
+        <div class="info-card support-ticket">
+            <div class="info-card-icon">🎫</div>
+            <div class="info-card-content">
+                <h3 class="info-card-title">Есть вопросы?</h3>
+                <p class="info-card-text">Создайте тикет в нашей системе поддержки, и мы вам обязательно поможем!</p>
+                <a href="/tickets" class="btn btn-secondary mt-4">
+                    <span>🎫</span> Перейти в тикеты
+                </a>
+            </div>
+        </div>
     </div>
 
-    <div class="support-ticket">
-        <p><strong>Есть вопросы?</strong> Создайте тикет в нашей системе поддержки, и мы вам обязательно поможем!</p>
-        <a href="/tickets" class="btn-tickets">Перейти в тикеты</a>
-    </div>
-
-    <div class="button-group">
-        <a href="/logout" class="btn btn-logout">Выйти</a>
+    <div class="btn-group mt-6">
+        <a href="/dashboard" class="btn btn-secondary">
+            <span>🏠</span> Вернуться на главную
+        </a>
+        <a href="/logout" class="btn btn-danger">
+            <span>🚪</span> Выйти
+        </a>
     </div>
 </div>
 
@@ -143,7 +107,203 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
+
+<style>
+    .subscription-intro {
+        text-align: center;
+        margin-bottom: var(--space-8);
+    }
+
+    .intro-text {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .subscription-plans {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--space-6);
+        margin-bottom: var(--space-8);
+    }
+
+    .plan {
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+    }
+
+    .plan:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .plan-badge {
+        position: absolute;
+        top: var(--space-4);
+        right: var(--space-4);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        background-color: var(--bg-accent);
+        color: var(--accent-color);
+    }
+
+    .plan-badge.recommended {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+    }
+
+    .plan-header {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(79, 70, 229, 0.1) 100%);
+        padding: var(--space-6) var(--space-4);
+        text-align: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .yearly-plan .plan-header {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%);
+    }
+
+    .plan-title {
+        font-size: 1.25rem;
+        margin-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .plan-price {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .price-period {
+        font-size: 1rem;
+        font-weight: 400;
+        color: var(--text-muted);
+    }
+
+    .plan-discount {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+    }
+
+    .discount-badge {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-full);
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .discount-text {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .plan-content {
+        padding: var(--space-6) var(--space-4);
+    }
+
+    .plan-features {
+        list-style-type: none;
+        margin-bottom: var(--space-6);
+    }
+
+    .plan-features li {
+        position: relative;
+        padding-left: var(--space-6);
+        padding-bottom: var(--space-3);
+        margin-bottom: var(--space-2);
+        color: var(--text-secondary);
+        border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+    }
+
+    .plan-features li:last-child {
+        margin-bottom: 0;
+        border-bottom: none;
+    }
+
+    .plan-features li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: var(--accent-color);
+        font-weight: 700;
+    }
+
+    .highlighted-feature {
+        color: var(--accent-color) !important;
+        font-weight: 600;
+    }
+
+    .plan-button {
+        width: 100%;
+    }
+
+    .info-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--space-4);
+        margin-bottom: var(--space-6);
+    }
+
+    .info-card {
+        display: flex;
+        gap: var(--space-4);
+        padding: var(--space-4) var(--space-6);
+        border-radius: var(--radius-md);
+        align-items: flex-start;
+    }
+
+    .payment-note {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .support-ticket {
+        background-color: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .info-card-icon {
+        font-size: 1.5rem;
+        margin-top: var(--space-1);
+    }
+
+    .info-card-title {
+        font-size: 1.1rem;
+        margin-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .info-card-text {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+
+    @media (max-width: 768px) {
+        .info-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .plan-header, .plan-content {
+            padding: var(--space-4);
+        }
+    }
+</style>
 </body>
 </html>

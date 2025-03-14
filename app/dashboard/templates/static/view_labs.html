@@ -3,37 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр лабораторных работ - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Просмотр лабораторных работ - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Просмотр лабораторных работ</h1>
-    <div class="info-section">
-        <div class="group-info">
-            <div class="group-name">
-                Предмет: {{.Summary.Subject}}, Группа: {{.Summary.GroupName}}
+
+    <div class="card course-info-card mb-6">
+        <div class="d-flex justify-between align-items-center">
+            <div>
+                <div class="course-badges">
+                    <span class="badge badge-info">{{.Summary.Subject}}</span>
+                    <span class="badge badge-primary">{{.Summary.GroupName}}</span>
+                </div>
             </div>
-            <div class="group-average">
-                Средний балл: {{printf "%.2f" .Summary.GroupAverage}}
+            <div class="course-stats">
+                <div class="stat-item mb-0
+            {{if le .Summary.GroupAverage 1.5}}stat-poor
+            {{else if le .Summary.GroupAverage 2.5}}stat-below-average
+            {{else if le .Summary.GroupAverage 3.5}}stat-average
+            {{else if le .Summary.GroupAverage 4.5}}stat-good
+            {{else}}stat-excellent{{end}}">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value">{{printf "%.2f" .Summary.GroupAverage}}</div>
+                    <div class="stat-label">средний балл группы</div>
+                </div>
             </div>
-        </div>
-        <div>
-            Количество лабораторных работ: {{.Summary.TotalLabs}}
         </div>
     </div>
-    <h2>Оценки студентов</h2>
+
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="section-title mb-0">Информация о лабораторных</h3>
+        </div>
+        <div class="card-body">
+            <div class="info-box">
+                <div class="info-row">
+                    <div class="info-label">Количество лабораторных работ:</div>
+                    <div class="info-value">{{.Summary.TotalLabs}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title mb-4">Оценки студентов</h2>
     <div class="table-container">
-        <table>
+        <table class="labs-table">
             <thead>
             <tr>
                 <th>Студент</th>
                 {{range $i := iter .Summary.TotalLabs}}
-                <th>Лаб {{inc $i}}</th>
+                <th class="text-center">Лаб {{inc $i}}</th>
                 {{end}}
-                <th>Средний балл</th>
+                <th class="text-center">Средний балл</th>
             </tr>
             </thead>
             <tbody>
@@ -41,25 +69,43 @@
             <tr>
                 <td>{{.StudentFIO}}</td>
                 {{range .Grades}}
-                <td>
+                <td class="text-center">
                     {{if gt . 0}}
                     <span class="grade grade-{{.}}">{{.}}</span>
                     {{else}}
-                    -
+                    <span class="no-grade">-</span>
                     {{end}}
                 </td>
                 {{end}}
-                <td>{{printf "%.2f" .Average}}</td>
+                <td class="text-center">
+                    <div class="student-average
+              {{if le .Average 1.5}}avg-1
+              {{else if le .Average 2.5}}avg-2
+              {{else if le .Average 3.5}}avg-3
+              {{else if le .Average 4.5}}avg-4
+              {{else}}avg-5{{end}}">
+                        {{printf "%.2f" .Average}}
+                    </div>
+                </td>
             </tr>
             {{end}}
             </tbody>
         </table>
     </div>
-    <div class="btn-group">
-        <a href="/labs/grades/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-edit">Редактировать</a>
-        <a href="/labs/export/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-export">Экспорт в Excel</a>
-        <button id="shareButton" class="btn btn-share">Поделиться</button>
-        <a href="/labs" class="btn btn-back">Назад к списку</a>
+
+    <div class="btn-group mt-6">
+        <a href="/labs/grades/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-edit">
+            <span>✏️</span> Редактировать
+        </a>
+        <a href="/labs/export/{{.Summary.Subject}}/{{.Summary.GroupName}}" class="btn btn-info">
+            <span>📊</span> Экспорт в Excel
+        </a>
+        <button id="shareButton" class="btn btn-primary">
+            <span>🔗</span> Поделиться
+        </button>
+        <a href="/labs" class="btn btn-secondary">
+            <span>🔙</span> Назад к списку
+        </a>
     </div>
 </div>
 
@@ -68,13 +114,13 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3 class="modal-title">Создать ссылку для общего доступа</h3>
-            <button class="close-btn">&times;</button>
+            <button type="button" class="close-btn" id="closeModal">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="shareForm" class="modal-form" action="/labs/share/{{.Summary.Subject}}/{{.Summary.GroupName}}" method="POST">
+            <form id="shareForm" action="/labs/share/{{.Summary.Subject}}/{{.Summary.GroupName}}" method="POST">
                 <div class="form-group">
-                    <label class="form-label">Срок действия ссылки:</label>
-                    <select name="expiration" id="expirationSelect" class="form-select" required>
+                    <label for="expirationSelect">Срок действия ссылки:</label>
+                    <select name="expiration" id="expirationSelect" class="form-control" required>
                         <option value="1">1 день</option>
                         <option value="7">7 дней</option>
                         <option value="30">30 дней</option>
@@ -82,13 +128,30 @@
                         <option value="0">Бессрочно</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-share">Создать ссылку</button>
+                <div class="form-actions mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <span>🔗</span> Создать ссылку
+                    </button>
+                </div>
             </form>
 
-            <div id="shareUrlContainer" class="share-url-container">
-                <p>Ссылка для общего доступа:</p>
-                <div id="shareUrl" class="share-url"></div>
-                <button id="copyButton" class="copy-btn">Копировать ссылку</button>
+            <div id="shareUrlContainer" class="share-url-container" style="display: none;">
+                <div class="url-box mt-4">
+                    <div class="url-box-header">
+                        <h4 class="mb-2">Ссылка для общего доступа:</h4>
+                    </div>
+                    <div class="url-box-content">
+                        <div class="url-display">
+                            <code id="shareUrl" class="share-url"></code>
+                            <button id="copyButton" class="btn btn-sm btn-secondary copy-btn">
+                                <span>📋</span> Копировать
+                            </button>
+                        </div>
+                        <div class="url-info mt-2">
+                            Скопируйте эту ссылку и отправьте студентам для просмотра оценок
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -100,9 +163,382 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
-<script src="/templates/static/js/modals.js"></script>
-<script src="/templates/static/js/labs.js"></script>
+<script>
+    // Helper functions
+    function inc(i) {
+        return i + 1;
+    }
+
+    function iter(count) {
+        return Array.from({length: count}, (_, i) => i);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal functionality
+        const shareModal = document.getElementById('shareModal');
+        const shareBtn = document.getElementById('shareButton');
+        const closeModalBtn = document.getElementById('closeModal');
+        const shareForm = document.getElementById('shareForm');
+        const shareUrlContainer = document.getElementById('shareUrlContainer');
+        const shareUrl = document.getElementById('shareUrl');
+        const copyBtn = document.getElementById('copyButton');
+
+        // Open modal
+        if (shareBtn && shareModal) {
+            shareBtn.addEventListener('click', function() {
+                shareModal.style.display = 'flex';
+            });
+        }
+
+        // Close modal
+        if (closeModalBtn && shareModal) {
+            closeModalBtn.addEventListener('click', function() {
+                shareModal.style.display = 'none';
+            });
+        }
+
+        // Close modal when clicking outside
+        if (shareModal) {
+            shareModal.addEventListener('click', function(event) {
+                if (event.target === shareModal) {
+                    shareModal.style.display = 'none';
+                }
+            });
+        }
+
+        // Handle form submission
+        if (shareForm) {
+            shareForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new URLSearchParams(formData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && shareUrl && shareUrlContainer) {
+                            shareUrl.textContent = data.shareUrl;
+                            shareUrlContainer.style.display = 'block';
+                        } else {
+                            alert('Произошла ошибка: ' + (data.message || 'Не удалось создать ссылку'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Произошла ошибка при создании ссылки');
+                    });
+            });
+        }
+
+        // Copy functionality
+        if (copyBtn && shareUrl) {
+            copyBtn.addEventListener('click', function() {
+                const textToCopy = shareUrl.textContent;
+                if (textToCopy) {
+                    navigator.clipboard.writeText(textToCopy)
+                        .then(() => {
+                            // Show feedback
+                            const originalText = this.innerHTML;
+                            this.innerHTML = '<span>✓</span> Скопировано!';
+
+                            setTimeout(() => {
+                                this.innerHTML = originalText;
+                            }, 2000);
+                        })
+                        .catch(err => {
+                            console.error('Could not copy text: ', err);
+                        });
+                }
+            });
+        }
+
+        // Highlight cells on hover (column/row highlighting)
+        document.querySelectorAll('.labs-table td, .labs-table th').forEach(cell => {
+            cell.addEventListener('mouseenter', function() {
+                const columnIndex = this.cellIndex;
+                const rowIndex = this.parentNode.rowIndex;
+
+                // Highlight column
+                document.querySelectorAll(`.labs-table tr td:nth-child(${columnIndex + 1}), .labs-table tr th:nth-child(${columnIndex + 1})`).forEach(cell => {
+                    cell.classList.add('highlight-column');
+                });
+
+                // Highlight row
+                if (rowIndex > 0) { // Skip header row
+                    document.querySelectorAll(`.labs-table tr:nth-child(${rowIndex + 1}) td`).forEach(cell => {
+                        cell.classList.add('highlight-row');
+                    });
+                }
+            });
+
+            cell.addEventListener('mouseleave', function() {
+                // Remove all highlights
+                document.querySelectorAll('.highlight-column, .highlight-row').forEach(el => {
+                    el.classList.remove('highlight-column', 'highlight-row');
+                });
+            });
+        });
+    });
+</script>
+
+<style>
+    .course-info-card {
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .course-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+    }
+
+    .section-title {
+        position: relative;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2);
+        color: var(--text-primary);
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-color), transparent);
+    }
+
+    .card-header {
+        padding-bottom: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: var(--space-4);
+    }
+
+    .card-body {
+        padding: var(--space-2);
+    }
+
+    .info-box {
+        padding: var(--space-3);
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .info-label {
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .grade {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 50%;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .grade-1 {
+        background: linear-gradient(135deg, var(--danger) 0%, #b91c1c 100%);
+        color: white;
+    }
+
+    .grade-2 {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+    }
+
+    .grade-3 {
+        background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+        color: white;
+    }
+
+    .grade-4 {
+        background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        color: white;
+    }
+
+    .grade-5 {
+        background: linear-gradient(135deg, var(--info) 0%, #0284c7 100%);
+        color: white;
+    }
+
+    .no-grade {
+        color: var(--text-muted);
+        font-size: 1.2rem;
+    }
+
+    .student-average {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+    }
+
+    .avg-1 {
+        background-color: var(--danger-light);
+        color: var(--danger);
+    }
+
+    .avg-2 {
+        background-color: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+
+    .avg-3 {
+        background-color: var(--warning-light);
+        color: var(--warning);
+    }
+
+    .avg-4 {
+        background-color: var(--success-light);
+        color: var(--success);
+    }
+
+    .avg-5 {
+        background-color: var(--info-light);
+        color: var(--info);
+    }
+
+    /* Stats coloring */
+    .stat-poor {
+        color: var(--danger);
+    }
+
+    .stat-below-average {
+        color: #f97316;
+    }
+
+    .stat-average {
+        color: var(--warning);
+    }
+
+    .stat-good {
+        color: var(--success);
+    }
+
+    .stat-excellent {
+        color: var(--info);
+    }
+
+    /* Table highlighting */
+    .highlight-column {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    .highlight-row {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+    }
+
+    /* Share URL styling */
+    .url-box {
+        background-color: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    .url-box-header {
+        background-color: rgba(99, 102, 241, 0.1);
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .url-box-header h4 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+
+    .url-box-content {
+        padding: var(--space-3);
+    }
+
+    .url-display {
+        display: flex;
+        gap: var(--space-2);
+        background-color: var(--bg-primary);
+        padding: var(--space-2);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+    }
+
+    .share-url {
+        flex: 1;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        padding: var(--space-1) 0;
+        white-space: nowrap;
+    }
+
+    .copy-btn {
+        white-space: nowrap;
+    }
+
+    .url-info {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    @media (max-width: 768px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .course-stats {
+            margin-top: var(--space-4);
+        }
+
+        .info-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-2);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .btn-group {
+            flex-direction: column;
+        }
+
+        .url-display {
+            flex-direction: column;
+        }
+
+        .share-url {
+            margin-bottom: var(--space-2);
+        }
+    }
+</style>
 </body>
 </html>

@@ -3,15 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пары по предмету {{.Subject}} - Teaching Stats</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Подключаем внешние стили -->
+    <title>Пары по предмету {{.Subject}} - Teacher Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include our modern dark CSS -->
+    <link rel="stylesheet" href="/templates/static/css/modern-dark.css">
+    <!-- Include any existing CSS as a fallback -->
     <link rel="stylesheet" href="/templates/static/css/modernized.css">
 </head>
 <body>
 <div class="container">
     <h1>Пары по предмету: {{.Subject}}</h1>
 
+    <div class="d-flex justify-between align-items-center mb-6">
+        <div class="section-info">
+            <p class="text-muted">Всего пар: <span class="text-primary font-bold">{{len .Lessons}}</span></p>
+        </div>
+        <div>
+            <a href="/lesson/add" class="btn btn-primary">
+                <span>📝</span> Добавить пару
+            </a>
+        </div>
+    </div>
+
+    {{if .Lessons}}
     <div class="table-container">
         <table>
             <thead>
@@ -26,17 +41,31 @@
             </thead>
             <tbody>
             {{range .Lessons}}
-            <tr>
-                <td>{{.GroupName}}</td>
+            <tr class="lesson-row fade-in">
+                <td>
+                    <div class="group-name">{{.GroupName}}</div>
+                </td>
                 <td>{{.Topic}}</td>
-                <td>{{.Hours}}</td>
-                <td>{{.Type}}</td>
+                <td class="text-center">
+                    <span class="hours-badge">{{.Hours}} ч.</span>
+                </td>
+                <td>
+                    <span class="lesson-type {{if eq .Type "Лекция"}}type-lecture{{else if eq .Type "Лабораторная работа"}}type-lab{{else}}type-practice{{end}}">
+                    {{if eq .Type "Лекция"}}📚{{else if eq .Type "Лабораторная работа"}}🧪{{else}}✏️{{end}} {{.Type}}
+                    </span>
+                </td>
                 <td>{{.Date}}</td>
                 <td>
-                    <a href="/lesson/edit/{{.ID}}">Редактировать</a>
-                    <form method="POST" style="display:inline;" id="deleteForm{{.ID}}">
+                    <div class="action-buttons">
+                        <a href="/lesson/edit/{{.ID}}" class="btn btn-sm btn-edit">
+                            <span>✏️</span> Редактировать
+                        </a>
+                        <button type="button" class="btn btn-sm btn-danger delete-lesson-btn" data-lesson-id="{{.ID}}">
+                            <span>🗑️</span> Удалить
+                        </button>
+                    </div>
+                    <form method="POST" id="deleteForm{{.ID}}" style="display:none;">
                         <input type="hidden" name="lesson_id" value="{{.ID}}">
-                        <button type="button" class="delete-btn" data-lesson-id="{{.ID}}">Удалить</button>
                     </form>
                 </td>
             </tr>
@@ -44,8 +73,38 @@
             </tbody>
         </table>
     </div>
+    {{else}}
+    <div class="empty-state card text-center p-6">
+        <div class="empty-state-icon mb-4">📝</div>
+        <h3>Нет пар по этому предмету</h3>
+        <p class="text-muted mb-4">Добавьте новые пары с помощью кнопки "Добавить пару"</p>
+        <a href="/lesson/add" class="btn btn-primary">Добавить пару</a>
+    </div>
+    {{end}}
 
-    <a class="back-link" href="/dashboard">Назад</a>
+    <div class="btn-group mt-6">
+        <a href="/dashboard" class="btn btn-secondary">
+            <span>🏠</span> Вернуться на главную
+        </a>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title text-danger">Подтверждение удаления</h3>
+            <button type="button" class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Вы уверены, что хотите удалить эту пару?</p>
+            <p class="text-danger mt-2">Это действие нельзя отменить.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelDelete">Отмена</button>
+            <button type="button" class="btn btn-danger" id="confirmDelete">Удалить</button>
+        </div>
+    </div>
 </div>
 
 <div class="user-info">
@@ -54,23 +113,182 @@
     {{end}}
 </div>
 
-<!-- Подключаем внешние скрипты -->
+<!-- Add JavaScript files at the bottom -->
 <script src="/templates/static/js/main.js"></script>
 <script>
-    // Назначаем обработчики на кнопки удаления
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.delete-btn').forEach(button => {
+        // Delete functionality
+        const deleteButtons = document.querySelectorAll('.delete-lesson-btn');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelDeleteBtn = document.getElementById('cancelDelete');
+        let currentLessonId = null;
+
+        // Open delete modal
+        deleteButtons.forEach(button => {
             button.addEventListener('click', function() {
-                const lessonId = this.getAttribute('data-lesson-id');
-                if (confirm('Вы уверены, что хотите удалить эту пару?')) {
-                    const form = document.getElementById(`deleteForm${lessonId}`);
+                currentLessonId = this.getAttribute('data-lesson-id');
+                if (deleteModal) {
+                    deleteModal.style.display = 'flex';
+                }
+            });
+        });
+
+        // Confirm delete
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (currentLessonId) {
+                    const form = document.getElementById(`deleteForm${currentLessonId}`);
                     if (form) {
                         form.submit();
                     }
                 }
+                if (deleteModal) {
+                    deleteModal.style.display = 'none';
+                }
             });
+        }
+
+        // Close modal functions
+        const closeModal = function() {
+            if (deleteModal) {
+                deleteModal.style.display = 'none';
+            }
+        };
+
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+        if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeModal);
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === deleteModal) {
+                closeModal();
+            }
+        });
+
+        // Animate rows
+        const lessonRows = document.querySelectorAll('.lesson-row');
+        lessonRows.forEach((row, index) => {
+            setTimeout(() => {
+                row.style.opacity = '1';
+                row.style.transform = 'translateY(0)';
+            }, index * 50);
         });
     });
 </script>
+
+<style>
+    .section-info {
+        font-size: 0.95rem;
+    }
+
+    .lesson-row {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .group-name {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .hours-badge {
+        display: inline-block;
+        background-color: var(--bg-tertiary);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-full);
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .lesson-type {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-full);
+        font-size: 0.85rem;
+    }
+
+    .type-lecture {
+        background-color: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .type-lab {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .type-practice {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--space-2);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+    }
+
+    /* Modal animation */
+    .modal {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-4);
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+    }
+</style>
 </body>
 </html>
