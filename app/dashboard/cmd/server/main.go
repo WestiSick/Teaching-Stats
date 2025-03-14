@@ -147,7 +147,8 @@ func main() {
 	router.HandleFunc("/admin/labs/view/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminViewLabGradesHandler)).Methods("GET")
 	router.HandleFunc("/admin/labs/edit/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminEditLabGradesHandler)).Methods("GET", "POST")
 	router.HandleFunc("/admin/labs/export/{teacherID}/{subject}/{group}", handlers2.AdminMiddleware(database, adminHandler.AdminExportLabGradesHandler)).Methods("GET")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+
+	router.PathPrefix("/templates/static/").Handler(http.StripPrefix("/templates/static/", http.FileServer(http.Dir("app/dashboard/templates/static"))))
 
 	// Initialize ticket system middleware
 	router.Use(ticketMiddleware.TicketSystemMiddleware)
