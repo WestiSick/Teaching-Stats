@@ -233,7 +233,7 @@ func (h *LabHandler) ExportLabGradesHandler(w http.ResponseWriter, r *http.Reque
 
 	// Create Excel file
 	file := xlsx.NewFile()
-	sheet, err := file.AddSheet(fmt.Sprintf("%s - %s", subject, groupName))
+	sheet, err := file.AddSheet(fmt.Sprintf("%s", groupName))
 	if err != nil {
 		HandleError(w, err, "Error creating Excel sheet", http.StatusInternalServerError)
 		return
